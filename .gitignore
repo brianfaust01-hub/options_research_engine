@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.vscode/
+data/raw/
+data/processed/
+data/weekly_runs/
+reports/
+.DS_Store
