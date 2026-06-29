@@ -12,12 +12,6 @@ stock = yf.Ticker(ticker)
 stock_price = stock.history(period="1d")["Close"].iloc[-1]
 
 expirations = get_target_expirations(ticker=ticker, min_dte=30, max_dte=75)
-
-print(f"\nTicker: {ticker}")
-print(f"Stock price: {stock_price:.2f}")
-print(f"Target expirations found: {len(expirations)}")
-print(expirations[:5])
-
 target_expiration = expirations[0]
 
 calls = get_option_chain(ticker=ticker, expiration=target_expiration, option_type="call")
@@ -26,22 +20,30 @@ scored_calls = score_contracts(
     chain=calls,
     stock_price=stock_price,
     option_type="call",
+    expiration=target_expiration,
 )
 
-print(f"\nTarget expiration: {target_expiration}")
+print(f"\nTicker: {ticker}")
+print(f"Stock price: {stock_price:.2f}")
+print(f"Target expiration: {target_expiration}")
+
 print("\nTop scored calls:")
 print(
     scored_calls[
         [
             "contractSymbol",
             "strike",
-            "lastPrice",
             "bid",
             "ask",
             "mid",
+            "DTE",
+            "delta",
+            "gamma",
+            "theta",
+            "vega",
             "spread_pct",
-            "volume",
             "openInterest",
+            "volume",
             "impliedVolatility",
             "moneyness",
             "ContractScore",

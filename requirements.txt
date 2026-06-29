@@ -4,3 +4,4 @@ numpy
 ta
 openpyxl
 lxml
+scipy
