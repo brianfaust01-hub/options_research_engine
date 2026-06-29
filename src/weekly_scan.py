@@ -3,6 +3,7 @@ Project Stonks
 Weekly Scan Runner
 """
 
+from dataclasses import asdict
 from datetime import datetime
 
 import pandas as pd
@@ -80,23 +81,24 @@ def main():
     )
 
     print("\nRunning opportunity engine...")
-    opportunity_results = indicators_df.apply(
+    trade_recommendations = indicators_df.apply(
         evaluate_opportunities,
         axis=1,
-        result_type="expand",
     )
 
-    indicators_df = pd.concat(
-        [indicators_df, opportunity_results],
-        axis=1,
-    )
+    trade_rows = [
+        asdict(trade)
+        for trade in trade_recommendations
+    ]
+
+    trades_df = pd.DataFrame(trade_rows)
 
     processed_file = (
         PROCESSED_DATA_DIR
-        / f"sp500_opportunity_results_{timestamp}.csv"
+        / f"sp500_trade_recommendations_{timestamp}.csv"
     )
 
-    indicators_df.to_csv(
+    trades_df.to_csv(
         processed_file,
         index=False,
     )
@@ -105,36 +107,56 @@ def main():
     print(f"Raw rows: {data.shape[0]}")
     print(f"Raw columns: {data.shape[1]}")
     print(f"Stocks analyzed: {len(indicators_df)}")
+    print(f"Trade recommendations generated: {len(trades_df)}")
     print(f"Raw data saved to: {raw_file}")
-    print(f"Opportunity results saved to: {processed_file}")
+    print(f"Trade recommendations saved to: {processed_file}")
 
-    print("\nTop Opportunities\n")
-
-    top_opportunities = (
-        indicators_df[
-            [
-                "Ticker",
-                "StrategyScore",
-                "TrendScore",
-                "MomentumScore",
-                "RiskScore",
-                "LiquidityScore",
-                "OpportunityType",
-                "Action",
-                "OpportunityScore",
-                "StrategyReasons",
-            ]
-        ]
-        .sort_values(
-            "OpportunityScore",
-            ascending=False,
-        )
-        .head(20)
+    actionable_trades = trades_df[
+        trades_df["action"] == "Evaluate Options"
+    ].sort_values(
+        "confidence",
+        ascending=False,
     )
 
-    print(top_opportunities)
+    watchlist = trades_df[
+        trades_df["action"] == "Watch"
+    ].sort_values(
+        "confidence",
+        ascending=False,
+    )
 
-    print("\nSprint 8 complete.")
+    print("\n==================================================")
+    print("Project Stonks Recommendations")
+    print("==================================================")
+
+    print("\nTop Actionable Opportunities\n")
+
+    if actionable_trades.empty:
+        print("No actionable opportunities found.")
+    else:
+        for index, trade in actionable_trades.head(10).iterrows():
+            print("----------------------------------------")
+            print(f"Ticker: {trade['ticker']}")
+            print(f"Opportunity: {trade['opportunity_type']}")
+            print(f"Action: {trade['action']}")
+            print(f"Confidence: {trade['confidence']}")
+            print("Next Step: Evaluate option chain")
+            print(f"Notes: {trade['notes']}")
+
+    print("\nTop Watchlist Opportunities\n")
+
+    if watchlist.empty:
+        print("No watchlist opportunities found.")
+    else:
+        for index, trade in watchlist.head(10).iterrows():
+            print("----------------------------------------")
+            print(f"Ticker: {trade['ticker']}")
+            print(f"Opportunity: {trade['opportunity_type']}")
+            print(f"Action: {trade['action']}")
+            print(f"Confidence: {trade['confidence']}")
+            print(f"Notes: {trade['notes']}")
+
+    print("\nSprint 9 complete.")
 
 
 if __name__ == "__main__":

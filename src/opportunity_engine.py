@@ -1,12 +1,13 @@
 """
 Project Stonks
 Opportunity Engine
-
-Converts research evidence into possible options opportunities.
 """
 
+from trade_constructor import construct_trade
 
-def evaluate_opportunities(row) -> dict:
+
+def evaluate_opportunities(row):
+
     trend = row["TrendScore"]
     momentum = row["MomentumScore"]
     liquidity = row["LiquidityScore"]
@@ -35,28 +36,29 @@ def evaluate_opportunities(row) -> dict:
         long_put_score += 15
 
     if long_call_score >= 75:
-        return {
-            "OpportunityType": "Long Call Candidate",
-            "Action": "Evaluate Options",
-            "OpportunityScore": long_call_score,
-        }
+        row["OpportunityType"] = "Long Call Candidate"
+        row["Action"] = "Evaluate Options"
+        row["OpportunityScore"] = long_call_score
+        return construct_trade(row)
 
     if long_put_score >= 75:
-        return {
-            "OpportunityType": "Long Put Candidate",
-            "Action": "Evaluate Options",
-            "OpportunityScore": long_put_score,
-        }
+        row["OpportunityType"] = "Long Put Candidate"
+        row["Action"] = "Evaluate Options"
+        row["OpportunityScore"] = long_put_score
+        return construct_trade(row)
 
     if watch_score >= 55:
-        return {
-            "OpportunityType": "Watchlist",
-            "Action": "Watch",
-            "OpportunityScore": watch_score,
-        }
+        row["OpportunityType"] = "Watchlist"
+        row["Action"] = "Watch"
+        row["OpportunityScore"] = watch_score
+        return construct_trade(row)
 
-    return {
-        "OpportunityType": "No Clear Edge",
-        "Action": "Pass",
-        "OpportunityScore": max(long_call_score, long_put_score, watch_score),
-    }
+    row["OpportunityType"] = "No Clear Edge"
+    row["Action"] = "Pass"
+    row["OpportunityScore"] = max(
+        long_call_score,
+        long_put_score,
+        watch_score,
+    )
+
+    return construct_trade(row)
