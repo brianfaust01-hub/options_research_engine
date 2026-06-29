@@ -16,14 +16,10 @@ from config import (
     PROCESSED_DATA_DIR,
 )
 
-from data_loader import (
-    get_sp500_tickers,
-    download_price_data,
-)
-
+from data_loader import get_sp500_tickers, download_price_data
 from indicators import calculate_indicators_for_ticker
-
 from research_engine import evaluate_strategies
+from opportunity_engine import evaluate_opportunities
 
 
 def main():
@@ -35,13 +31,10 @@ def main():
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     print("\nDownloading S&P 500 ticker list...")
-
     tickers = get_sp500_tickers()
-
     print(f"Tickers found: {len(tickers)}")
 
     print("\nDownloading historical price data...")
-
     data = download_price_data(
         tickers=tickers,
         period=LOOKBACK_PERIOD,
@@ -49,19 +42,14 @@ def main():
     )
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
     raw_file = RAW_DATA_DIR / f"sp500_price_data_{timestamp}.csv"
-
     data.to_csv(raw_file)
 
     print("\nCalculating indicators...")
-
     indicator_rows = []
 
     for ticker in tickers:
-
         try:
-
             ticker_data = data[ticker].dropna()
 
             if len(ticker_data) < 200:
@@ -75,30 +63,37 @@ def main():
             )
 
         except Exception as error:
-
             print(f"Skipping {ticker}: {error}")
 
     indicators_df = pd.DataFrame(indicator_rows)
 
     print("\nRunning research engine...")
-
-    strategy_results = indicators_df.apply(
+    research_results = indicators_df.apply(
         evaluate_strategies,
         axis=1,
         result_type="expand",
     )
 
     indicators_df = pd.concat(
-        [
-            indicators_df,
-            strategy_results,
-        ],
+        [indicators_df, research_results],
+        axis=1,
+    )
+
+    print("\nRunning opportunity engine...")
+    opportunity_results = indicators_df.apply(
+        evaluate_opportunities,
+        axis=1,
+        result_type="expand",
+    )
+
+    indicators_df = pd.concat(
+        [indicators_df, opportunity_results],
         axis=1,
     )
 
     processed_file = (
         PROCESSED_DATA_DIR
-        / f"sp500_research_results_{timestamp}.csv"
+        / f"sp500_opportunity_results_{timestamp}.csv"
     )
 
     indicators_df.to_csv(
@@ -106,63 +101,40 @@ def main():
         index=False,
     )
 
-    print("\nDownload complete.")
-
+    print("\nRun complete.")
     print(f"Raw rows: {data.shape[0]}")
     print(f"Raw columns: {data.shape[1]}")
     print(f"Stocks analyzed: {len(indicators_df)}")
-
     print(f"Raw data saved to: {raw_file}")
+    print(f"Opportunity results saved to: {processed_file}")
 
-    print(f"Research results saved to: {processed_file}")
+    print("\nTop Opportunities\n")
 
-    print("\nTop Bullish Strategy Candidates\n")
-
-    bullish_candidates = (
+    top_opportunities = (
         indicators_df[
-            indicators_df["Direction"] == "Bullish"
-        ][
             [
                 "Ticker",
-                "Strategy",
-                "Direction",
                 "StrategyScore",
+                "TrendScore",
+                "MomentumScore",
+                "RiskScore",
+                "LiquidityScore",
+                "OpportunityType",
+                "Action",
+                "OpportunityScore",
                 "StrategyReasons",
             ]
         ]
         .sort_values(
-            "StrategyScore",
+            "OpportunityScore",
             ascending=False,
         )
-        .head(10)
+        .head(20)
     )
 
-    print(bullish_candidates)
+    print(top_opportunities)
 
-    print("\nTop Bearish Strategy Candidates\n")
-
-    bearish_candidates = (
-        indicators_df[
-            indicators_df["Direction"] == "Bearish"
-        ][
-            [
-                "Ticker",
-                "Strategy",
-                "Direction",
-                "StrategyScore",
-                "StrategyReasons",
-            ]
-        ]
-        .sort_values(
-            "StrategyScore",
-            ascending=False,
-        )
-        .head(10)
-    )
-
-    print(bearish_candidates)
-
-    print("\nSprint 4 complete.")
+    print("\nSprint 8 complete.")
 
 
 if __name__ == "__main__":
