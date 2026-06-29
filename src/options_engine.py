@@ -5,6 +5,7 @@ Options Engine
 
 from datetime import datetime
 
+import pandas as pd
 import yfinance as yf
 
 from greeks import calculate_greeks
@@ -78,19 +79,31 @@ def score_contracts(chain, stock_price: float, option_type: str, expiration: str
         & (contracts["impliedVolatility"] > 0)
     ].copy()
 
-    greeks = contracts.apply(
-        lambda row: calculate_greeks(
-            stock_price=stock_price,
-            strike=row["strike"],
-            days_to_expiration=dte,
-            implied_volatility=row["impliedVolatility"],
-            option_type=option_type,
-        ),
-        axis=1,
-        result_type="expand",
+    if contracts.empty:
+        return contracts
+
+    greek_rows = []
+
+    for _, contract in contracts.iterrows():
+        greek_rows.append(
+            calculate_greeks(
+                stock_price=stock_price,
+                strike=contract["strike"],
+                days_to_expiration=dte,
+                implied_volatility=contract["impliedVolatility"],
+                option_type=option_type,
+            )
+        )
+
+    greeks_df = pd.DataFrame(
+        greek_rows,
+        index=contracts.index,
     )
 
-    contracts = contracts.join(greeks)
+    contracts = pd.concat(
+        [contracts, greeks_df],
+        axis=1,
+    )
 
     contracts["ContractScore"] = 0
 
