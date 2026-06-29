@@ -23,7 +23,7 @@ from data_loader import (
 
 from indicators import calculate_indicators_for_ticker
 
-from scoring import bullish_score, bearish_score
+from research_engine import evaluate_strategies
 
 
 def main():
@@ -80,23 +80,25 @@ def main():
 
     indicators_df = pd.DataFrame(indicator_rows)
 
-    # ----------------------------------------
-    # Calculate Scores
-    # ----------------------------------------
+    print("\nRunning research engine...")
 
-    indicators_df["BullishScore"] = indicators_df.apply(
-        bullish_score,
+    strategy_results = indicators_df.apply(
+        evaluate_strategies,
         axis=1,
+        result_type="expand",
     )
 
-    indicators_df["BearishScore"] = indicators_df.apply(
-        bearish_score,
+    indicators_df = pd.concat(
+        [
+            indicators_df,
+            strategy_results,
+        ],
         axis=1,
     )
 
     processed_file = (
         PROCESSED_DATA_DIR
-        / f"sp500_indicators_{timestamp}.csv"
+        / f"sp500_research_results_{timestamp}.csv"
     )
 
     indicators_df.to_csv(
@@ -108,45 +110,59 @@ def main():
 
     print(f"Raw rows: {data.shape[0]}")
     print(f"Raw columns: {data.shape[1]}")
-    print(f"Indicators calculated: {len(indicators_df)}")
+    print(f"Stocks analyzed: {len(indicators_df)}")
 
     print(f"Raw data saved to: {raw_file}")
 
-    print(f"Indicators saved to: {processed_file}")
+    print(f"Research results saved to: {processed_file}")
 
-    print("\nTop Bullish Candidates\n")
+    print("\nTop Bullish Strategy Candidates\n")
 
-    print(
+    bullish_candidates = (
         indicators_df[
+            indicators_df["Direction"] == "Bullish"
+        ][
             [
                 "Ticker",
-                "BullishScore",
+                "Strategy",
+                "Direction",
+                "StrategyScore",
+                "StrategyReasons",
             ]
         ]
         .sort_values(
-            "BullishScore",
+            "StrategyScore",
             ascending=False,
         )
         .head(10)
     )
 
-    print("\nTop Bearish Candidates\n")
+    print(bullish_candidates)
 
-    print(
+    print("\nTop Bearish Strategy Candidates\n")
+
+    bearish_candidates = (
         indicators_df[
+            indicators_df["Direction"] == "Bearish"
+        ][
             [
                 "Ticker",
-                "BearishScore",
+                "Strategy",
+                "Direction",
+                "StrategyScore",
+                "StrategyReasons",
             ]
         ]
         .sort_values(
-            "BearishScore",
+            "StrategyScore",
             ascending=False,
         )
         .head(10)
     )
 
-    print("\nSprint 3 complete.")
+    print(bearish_candidates)
+
+    print("\nSprint 4 complete.")
 
 
 if __name__ == "__main__":
