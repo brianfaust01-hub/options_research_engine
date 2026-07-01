@@ -4,6 +4,7 @@ Opportunity Engine
 """
 
 from trade_constructor import construct_trade
+from trade_journal import log_trade_recommendation
 
 
 def evaluate_opportunities(row):
@@ -39,26 +40,29 @@ def evaluate_opportunities(row):
         row["OpportunityType"] = "Long Call Candidate"
         row["Action"] = "Evaluate Options"
         row["OpportunityScore"] = long_call_score
-        return construct_trade(row)
 
-    if long_put_score >= 75:
+    elif long_put_score >= 75:
         row["OpportunityType"] = "Long Put Candidate"
         row["Action"] = "Evaluate Options"
         row["OpportunityScore"] = long_put_score
-        return construct_trade(row)
 
-    if watch_score >= 55:
+    elif watch_score >= 55:
         row["OpportunityType"] = "Watchlist"
         row["Action"] = "Watch"
         row["OpportunityScore"] = watch_score
-        return construct_trade(row)
 
-    row["OpportunityType"] = "No Clear Edge"
-    row["Action"] = "Pass"
-    row["OpportunityScore"] = max(
-        long_call_score,
-        long_put_score,
-        watch_score,
-    )
+    else:
+        row["OpportunityType"] = "No Clear Edge"
+        row["Action"] = "Pass"
+        row["OpportunityScore"] = max(
+            long_call_score,
+            long_put_score,
+            watch_score,
+        )
 
-    return construct_trade(row)
+    trade = construct_trade(row)
+
+    if row["Action"] in ["Evaluate Options", "Watch"]:
+        log_trade_recommendation(trade)
+
+    return trade
