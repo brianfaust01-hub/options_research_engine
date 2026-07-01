@@ -1,33 +1,38 @@
 """
 Project Stonks
-Configuration Settings
-
-All configurable values live here.
+Configuration
 """
 
 from pathlib import Path
 
-# ======================================================
-# Project Information
-# ======================================================
-
 PROJECT_NAME = "Project Stonks"
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
-# ======================================================
-# Market Data
-# ======================================================
+CONFIG_VERSION = "Momentum_v1"
 
-UNIVERSE = "SP500"
+PAPER_TRADING = True
+
+TEST_MODE = True
+
+TEST_TICKERS = [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "GOOGL",
+    "META",
+    "TSLA",
+    "AMD",
+    "AVGO",
+    "MU",
+    "DDOG",
+    "FFIV",
+]
 
 LOOKBACK_PERIOD = "1y"
 
 INTERVAL = "1d"
-
-# ======================================================
-# Project Directories
-# ======================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -40,11 +45,3 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 REPORTS_DIR = BASE_DIR / "reports"
 
 JOURNAL_DIR = BASE_DIR / "journal"
-
-# Scoring Weights
-
-TREND_WEIGHT = 30
-MOMENTUM_WEIGHT = 25
-OPPORTUNITY_WEIGHT = 20
-LIQUIDITY_WEIGHT = 15
-RISK_WEIGHT = 10

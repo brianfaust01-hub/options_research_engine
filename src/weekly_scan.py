@@ -15,6 +15,8 @@ from config import (
     INTERVAL,
     RAW_DATA_DIR,
     PROCESSED_DATA_DIR,
+    TEST_MODE,
+    TEST_TICKERS,
 )
 
 from data_loader import get_sp500_tickers, download_price_data
@@ -31,9 +33,14 @@ def main():
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("\nDownloading S&P 500 ticker list...")
-    tickers = get_sp500_tickers()
-    print(f"Tickers found: {len(tickers)}")
+    if TEST_MODE:
+        print("\nTEST MODE ENABLED")
+        tickers = TEST_TICKERS
+    else:
+        print("\nDownloading S&P 500 ticker list...")
+        tickers = get_sp500_tickers()
+
+    print(f"Tickers selected: {len(tickers)}")
 
     print("\nDownloading historical price data...")
     data = download_price_data(
@@ -43,7 +50,7 @@ def main():
     )
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    raw_file = RAW_DATA_DIR / f"sp500_price_data_{timestamp}.csv"
+    raw_file = RAW_DATA_DIR / f"price_data_{timestamp}.csv"
     data.to_csv(raw_file)
 
     print("\nCalculating indicators...")
@@ -86,7 +93,7 @@ def main():
 
     processed_file = (
         PROCESSED_DATA_DIR
-        / f"sp500_trade_recommendations_{timestamp}.csv"
+        / f"trade_recommendations_{timestamp}.csv"
     )
 
     trades_df.to_csv(processed_file, index=False)
@@ -148,7 +155,7 @@ def main():
             print(f"Confidence: {trade['confidence']}")
             print(f"Notes: {trade['notes']}")
 
-    print("\nSprint 12 complete.")
+    print("\nSprint 14 complete.")
 
 
 if __name__ == "__main__":
