@@ -3,8 +3,37 @@ Project Stonks
 Trade Construction Engine
 """
 
+from datetime import datetime
+
 from models.trade_recommendation import TradeRecommendation
 from option_selector import select_best_contract
+
+
+def _extract_expiration_from_contract_symbol(contract_symbol: str):
+    """
+    yfinance contract symbols usually look like:
+    TSLA260731C00435000
+    AMD260731C00600000
+
+    The expiration is always the 6 digits immediately before C or P.
+    """
+
+    if not contract_symbol:
+        return None
+
+    for option_marker in ["C", "P"]:
+        marker_index = contract_symbol.find(option_marker)
+
+        if marker_index >= 6:
+            raw_date = contract_symbol[marker_index - 6:marker_index]
+
+            try:
+                parsed = datetime.strptime(raw_date, "%y%m%d").date()
+                return parsed.isoformat()
+            except ValueError:
+                return None
+
+    return None
 
 
 def construct_trade(row) -> TradeRecommendation:
@@ -36,7 +65,17 @@ def construct_trade(row) -> TradeRecommendation:
                 else "Long Put"
             )
 
-            expiration = best_contract["contractSymbol"][4:10]
+            if "Expiration" in best_contract:
+                expiration = best_contract["Expiration"]
+
+            if expiration is None and "contractSymbol" in best_contract:
+                expiration = _extract_expiration_from_contract_symbol(
+                    best_contract["contractSymbol"]
+                )
+
+            if expiration is None and "DTE" in best_contract:
+                expiration = f"{int(best_contract['DTE'])} DTE"
+
             strike = float(best_contract["strike"])
             premium = float(best_contract["mid"])
 

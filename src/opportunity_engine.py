@@ -1,6 +1,9 @@
 """
 Project Stonks
 Opportunity Engine
+
+Sprint 15:
+Directional opportunity scoring using competing bullish and bearish theses.
 """
 
 from trade_constructor import construct_trade
@@ -8,57 +11,73 @@ from trade_journal import log_trade_recommendation
 
 
 def evaluate_opportunities(row):
-
     trend = row["TrendScore"]
     momentum = row["MomentumScore"]
     liquidity = row["LiquidityScore"]
-    confidence = row["StrategyScore"]
+    strategy_score = row["StrategyScore"]
 
-    long_call_score = 0
-    long_put_score = 0
-    watch_score = confidence
+    bullish_score = 0
+    bearish_score = 0
 
-    if trend >= 50:
-        long_call_score += 35
-    else:
-        long_put_score += 35
+    # Trend thesis
+    if trend >= 70:
+        bullish_score += 40
+    elif trend >= 55:
+        bullish_score += 25
+    elif trend <= 30:
+        bearish_score += 40
+    elif trend <= 45:
+        bearish_score += 25
 
-    if momentum >= 50:
-        long_call_score += 35
-    else:
-        long_put_score += 35
+    # Momentum thesis
+    if momentum >= 70:
+        bullish_score += 35
+    elif momentum >= 55:
+        bullish_score += 20
+    elif momentum <= 30:
+        bearish_score += 35
+    elif momentum <= 45:
+        bearish_score += 20
 
+    # Liquidity supports tradability, not direction
     if liquidity >= 20:
-        long_call_score += 15
-        long_put_score += 15
+        bullish_score += 10
+        bearish_score += 10
 
-    if confidence >= 70:
-        long_call_score += 15
-        long_put_score += 15
+    # Strategy score supports both only if the directional thesis is already forming
+    if strategy_score >= 70:
+        if bullish_score > bearish_score:
+            bullish_score += 15
+        elif bearish_score > bullish_score:
+            bearish_score += 15
 
-    if long_call_score >= 75:
+    winning_score = max(bullish_score, bearish_score)
+    losing_score = min(bullish_score, bearish_score)
+    conviction_gap = winning_score - losing_score
+
+    row["BullishScore"] = bullish_score
+    row["BearishScore"] = bearish_score
+    row["DirectionalConviction"] = conviction_gap
+
+    if bullish_score >= 75 and conviction_gap >= 25:
         row["OpportunityType"] = "Long Call Candidate"
         row["Action"] = "Evaluate Options"
-        row["OpportunityScore"] = long_call_score
+        row["OpportunityScore"] = bullish_score
 
-    elif long_put_score >= 75:
+    elif bearish_score >= 75 and conviction_gap >= 25:
         row["OpportunityType"] = "Long Put Candidate"
         row["Action"] = "Evaluate Options"
-        row["OpportunityScore"] = long_put_score
+        row["OpportunityScore"] = bearish_score
 
-    elif watch_score >= 55:
+    elif winning_score >= 55:
         row["OpportunityType"] = "Watchlist"
         row["Action"] = "Watch"
-        row["OpportunityScore"] = watch_score
+        row["OpportunityScore"] = winning_score
 
     else:
         row["OpportunityType"] = "No Clear Edge"
         row["Action"] = "Pass"
-        row["OpportunityScore"] = max(
-            long_call_score,
-            long_put_score,
-            watch_score,
-        )
+        row["OpportunityScore"] = winning_score
 
     trade = construct_trade(row)
 

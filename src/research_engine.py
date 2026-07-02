@@ -1,9 +1,11 @@
 """
 Project Stonks
 Research Engine
-"""
 
-from dataclasses import asdict
+Sprint 15 fix:
+Build consensus from directional module signals instead of averaging
+unrelated trend/momentum fields across all modules.
+"""
 
 from strategies.momentum import evaluate_momentum
 from strategies.trend import evaluate_trend
@@ -18,23 +20,51 @@ def evaluate_strategies(row):
         evaluate_market_regime(row),
     ]
 
-    confidence = round(
-        sum(module.confidence for module in modules)
-        / len(modules)
-    )
+    bullish_modules = [
+        module for module in modules
+        if module.signal == "Bullish"
+    ]
 
-    bullish_votes = sum(
-        module.signal == "Bullish"
-        for module in modules
-    )
+    bearish_modules = [
+        module for module in modules
+        if module.signal == "Bearish"
+    ]
 
-    bearish_votes = len(modules) - bullish_votes
+    bullish_score = sum(module.confidence for module in bullish_modules)
+    bearish_score = sum(module.confidence for module in bearish_modules)
 
-    direction = (
-        "Bullish"
-        if bullish_votes >= bearish_votes
-        else "Bearish"
-    )
+    if bullish_score > bearish_score:
+        direction = "Bullish"
+        confidence = round(bullish_score / max(1, len(bullish_modules)))
+    elif bearish_score > bullish_score:
+        direction = "Bearish"
+        confidence = round(bearish_score / max(1, len(bearish_modules)))
+    else:
+        direction = "Neutral"
+        confidence = round(
+            sum(module.confidence for module in modules)
+            / len(modules)
+        )
+
+    trend_modules = [
+        module.trend for module in modules
+        if module.trend > 0
+    ]
+
+    momentum_modules = [
+        module.momentum for module in modules
+        if module.momentum > 0
+    ]
+
+    liquidity_modules = [
+        module.liquidity for module in modules
+        if module.liquidity > 0
+    ]
+
+    risk_modules = [
+        module.risk for module in modules
+        if module.risk > 0
+    ]
 
     reasons = []
 
@@ -46,20 +76,16 @@ def evaluate_strategies(row):
         "Direction": direction,
         "StrategyScore": confidence,
         "TrendScore": round(
-            sum(module.trend for module in modules)
-            / len(modules)
+            sum(trend_modules) / max(1, len(trend_modules))
         ),
         "MomentumScore": round(
-            sum(module.momentum for module in modules)
-            / len(modules)
+            sum(momentum_modules) / max(1, len(momentum_modules))
         ),
         "RiskScore": round(
-            sum(module.risk for module in modules)
-            / len(modules)
+            sum(risk_modules) / max(1, len(risk_modules))
         ),
         "LiquidityScore": round(
-            sum(module.liquidity for module in modules)
-            / len(modules)
+            sum(liquidity_modules) / max(1, len(liquidity_modules))
         ),
         "StrategyReasons": "; ".join(reasons),
     }
