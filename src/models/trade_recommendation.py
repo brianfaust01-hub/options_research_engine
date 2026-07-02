@@ -27,6 +27,8 @@ class TradeRecommendation:
 
     strike: float | None
 
+    premium: float | None
+
     position_size_pct: float | None
 
     notes: list[str]

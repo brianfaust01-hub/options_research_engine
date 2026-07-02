@@ -10,14 +10,6 @@ from option_selector import select_best_contract
 
 
 def _extract_expiration_from_contract_symbol(contract_symbol: str):
-    """
-    yfinance contract symbols usually look like:
-    TSLA260731C00435000
-    AMD260731C00600000
-
-    The expiration is always the 6 digits immediately before C or P.
-    """
-
     if not contract_symbol:
         return None
 
@@ -34,6 +26,18 @@ def _extract_expiration_from_contract_symbol(contract_symbol: str):
                 return None
 
     return None
+
+
+def _safe_note(label: str, contract, field: str, decimals: int = 2):
+    if field not in contract:
+        return None
+
+    value = contract[field]
+
+    try:
+        return f"{label}: {float(value):.{decimals}f}"
+    except (TypeError, ValueError):
+        return f"{label}: {value}"
 
 
 def construct_trade(row) -> TradeRecommendation:
@@ -81,6 +85,20 @@ def construct_trade(row) -> TradeRecommendation:
 
             notes.append(f"Recommended premium: ${premium:.2f}")
 
+            contract_notes = [
+                _safe_note("Contract Score", best_contract, "ContractScore", 0),
+                _safe_note("Delta", best_contract, "delta", 2),
+                _safe_note("Theta", best_contract, "theta", 2),
+                _safe_note("Spread %", best_contract, "spread_pct", 2),
+                _safe_note("Open Interest", best_contract, "openInterest", 0),
+                _safe_note("Volume", best_contract, "volume", 0),
+                _safe_note("DTE", best_contract, "DTE", 0),
+            ]
+
+            for note in contract_notes:
+                if note is not None:
+                    notes.append(note)
+
         else:
             notes.append("No suitable option contract found")
 
@@ -94,6 +112,7 @@ def construct_trade(row) -> TradeRecommendation:
         option_type=option_strategy,
         expiration=expiration,
         strike=strike,
+        premium=premium,
         position_size_pct=None,
         notes=notes,
     )

@@ -136,7 +136,7 @@ def main():
                 print(f"Option Strategy: {trade['option_strategy']}")
                 print(f"Expiration: {trade['expiration']}")
                 print(f"Strike: {trade['strike']}")
-                print(f"Premium: {trade['notes'][-1]}")
+                print(f"Premium: ${trade['premium']:.2f}")
             else:
                 print("Option Strategy: No suitable contract found")
 
@@ -155,7 +155,7 @@ def main():
             print(f"Confidence: {trade['confidence']}")
             print(f"Notes: {trade['notes']}")
 
-    print("\nSprint 14 complete.")
+    print("\nSprint 16 complete.")
 
 
 if __name__ == "__main__":
