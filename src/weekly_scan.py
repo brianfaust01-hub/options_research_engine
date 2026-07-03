@@ -25,6 +25,15 @@ from research_engine import evaluate_strategies
 from opportunity_engine import evaluate_opportunities
 
 
+def _has_valid_option_trade(trade) -> bool:
+    return (
+        pd.notna(trade["option_strategy"])
+        and pd.notna(trade["expiration"])
+        and pd.notna(trade["strike"])
+        and pd.notna(trade["premium"])
+    )
+
+
 def main():
 
     print(f"\n{PROJECT_NAME} v{VERSION}")
@@ -132,13 +141,28 @@ def main():
             print(f"Action: {trade['action']}")
             print(f"Confidence: {trade['confidence']}")
 
-            if trade["option_strategy"] is not None:
+            if _has_valid_option_trade(trade):
                 print(f"Option Strategy: {trade['option_strategy']}")
                 print(f"Expiration: {trade['expiration']}")
                 print(f"Strike: {trade['strike']}")
                 print(f"Premium: ${trade['premium']:.2f}")
+
+                if pd.notna(trade.get("contracts")):
+                    print(f"Contracts: {int(trade['contracts'])}")
+
+                if pd.notna(trade.get("position_value")):
+                    print(f"Position Value: ${trade['position_value']:.2f}")
+
+                if pd.notna(trade.get("max_risk_dollars")):
+                    print(f"Max Risk: ${trade['max_risk_dollars']:.2f}")
+
+                if pd.notna(trade.get("position_size_pct")):
+                    print(
+                        "Position Size: "
+                        f"{trade['position_size_pct'] * 100:.2f}%"
+                    )
             else:
-                print("Option Strategy: No suitable contract found")
+                print("Option Strategy: No suitable executable contract found")
 
             print(f"Notes: {trade['notes']}")
 
@@ -155,7 +179,7 @@ def main():
             print(f"Confidence: {trade['confidence']}")
             print(f"Notes: {trade['notes']}")
 
-    print("\nSprint 16 complete.")
+    print("\nSprint 18 complete.")
 
 
 if __name__ == "__main__":

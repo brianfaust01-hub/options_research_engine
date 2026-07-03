@@ -34,6 +34,13 @@ LOOKBACK_PERIOD = "1y"
 
 INTERVAL = "1d"
 
+# Paper portfolio assumptions
+PAPER_PORTFOLIO_VALUE = 15_000
+
+MAX_POSITION_SIZE_PCT = 0.05
+MAX_TRADE_RISK_PCT = 0.015
+MAX_SINGLE_CONTRACT_COST_PCT = 0.08
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 DATA_DIR = BASE_DIR / "data"

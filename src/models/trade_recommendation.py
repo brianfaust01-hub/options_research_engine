@@ -31,4 +31,16 @@ class TradeRecommendation:
 
     position_size_pct: float | None
 
+    position_value: float | None
+
+    max_risk_dollars: float | None
+
+    contracts: int | None
+
+    profit_target_pct: float | None
+
+    stop_loss_pct: float | None
+
+    time_stop_dte: int | None
+
     notes: list[str]

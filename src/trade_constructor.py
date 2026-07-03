@@ -5,8 +5,10 @@ Trade Construction Engine
 
 from datetime import datetime
 
+from exit_rules import build_exit_plan
 from models.trade_recommendation import TradeRecommendation
 from option_selector import select_best_contract
+from position_sizing import calculate_position_size
 
 
 def _extract_expiration_from_contract_symbol(contract_symbol: str):
@@ -47,6 +49,15 @@ def construct_trade(row) -> TradeRecommendation:
     strike = None
     premium = None
 
+    position_size_pct = None
+    position_value = None
+    max_risk_dollars = None
+    contracts = None
+
+    profit_target_pct = None
+    stop_loss_pct = None
+    time_stop_dte = None
+
     notes = [
         f"Research Score: {row['StrategyScore']}",
         f"Trend: {row['TrendScore']}",
@@ -83,6 +94,37 @@ def construct_trade(row) -> TradeRecommendation:
             strike = float(best_contract["strike"])
             premium = float(best_contract["mid"])
 
+            sizing = calculate_position_size(
+                confidence=row["OpportunityScore"],
+                premium=premium,
+                option_strategy=option_strategy,
+            )
+
+            position_size_pct = sizing["position_size_pct"]
+            position_value = sizing["position_value"]
+            max_risk_dollars = sizing["max_risk_dollars"]
+            contracts = sizing["contracts"]
+
+            dte = None
+            theta = None
+
+            if "DTE" in best_contract:
+                dte = int(best_contract["DTE"])
+
+            if "theta" in best_contract:
+                theta = float(best_contract["theta"])
+
+            exit_plan = build_exit_plan(
+                confidence=row["OpportunityScore"],
+                premium=premium,
+                dte=dte,
+                theta=theta,
+            )
+
+            profit_target_pct = exit_plan["profit_target_pct"]
+            stop_loss_pct = exit_plan["stop_loss_pct"]
+            time_stop_dte = exit_plan["time_stop_dte"]
+
             notes.append(f"Recommended premium: ${premium:.2f}")
 
             contract_notes = [
@@ -99,6 +141,18 @@ def construct_trade(row) -> TradeRecommendation:
                 if note is not None:
                     notes.append(note)
 
+            notes.append(f"Recommended contracts: {contracts}")
+            notes.append(f"Position value: ${position_value:.2f}")
+            notes.append(f"Max risk: ${max_risk_dollars:.2f}")
+
+            for exit_note in exit_plan["exit_notes"]:
+                notes.append(exit_note)
+
+            if contracts == 0:
+                notes.append(
+                    "Position size reduced to 0 because contract cost exceeds risk limits"
+                )
+
         else:
             notes.append("No suitable option contract found")
 
@@ -113,6 +167,12 @@ def construct_trade(row) -> TradeRecommendation:
         expiration=expiration,
         strike=strike,
         premium=premium,
-        position_size_pct=None,
+        position_size_pct=position_size_pct,
+        position_value=position_value,
+        max_risk_dollars=max_risk_dollars,
+        contracts=contracts,
+        profit_target_pct=profit_target_pct,
+        stop_loss_pct=stop_loss_pct,
+        time_stop_dte=time_stop_dte,
         notes=notes,
     )
