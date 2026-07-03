@@ -2,8 +2,8 @@
 Project Stonks
 Opportunity Engine
 
-Sprint 15:
-Directional opportunity scoring using competing bullish and bearish theses.
+Sprint 19:
+Directional scoring with structured journaling support.
 """
 
 from trade_constructor import construct_trade
@@ -19,7 +19,6 @@ def evaluate_opportunities(row):
     bullish_score = 0
     bearish_score = 0
 
-    # Trend thesis
     if trend >= 70:
         bullish_score += 40
     elif trend >= 55:
@@ -29,7 +28,6 @@ def evaluate_opportunities(row):
     elif trend <= 45:
         bearish_score += 25
 
-    # Momentum thesis
     if momentum >= 70:
         bullish_score += 35
     elif momentum >= 55:
@@ -39,12 +37,10 @@ def evaluate_opportunities(row):
     elif momentum <= 45:
         bearish_score += 20
 
-    # Liquidity supports tradability, not direction
     if liquidity >= 20:
         bullish_score += 10
         bearish_score += 10
 
-    # Strategy score supports both only if the directional thesis is already forming
     if strategy_score >= 70:
         if bullish_score > bearish_score:
             bullish_score += 15
