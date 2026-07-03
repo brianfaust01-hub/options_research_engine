@@ -2,8 +2,8 @@
 Project Stonks
 Trade Journal
 
-Sprint 19:
-Structured recommendation journal for future outcome tracking.
+Sprint 20:
+Structured recommendation journal with fields needed for outcome review.
 """
 
 from dataclasses import asdict
@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+import yfinance as yf
 
 from config import VERSION, CONFIG_VERSION
 
@@ -44,6 +45,20 @@ def _classify_trade_status(trade_dict: dict) -> str:
     return "PAPER_TRADE_CANDIDATE"
 
 
+def _get_latest_underlying_price(ticker: str):
+    try:
+        stock = yf.Ticker(ticker)
+        history = stock.history(period="5d")
+
+        if history.empty:
+            return None
+
+        return float(history["Close"].iloc[-1])
+
+    except Exception:
+        return None
+
+
 def log_trade_recommendation(trade):
 
     JOURNAL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -61,7 +76,13 @@ def log_trade_recommendation(trade):
     trade_dict["ConfigVersion"] = CONFIG_VERSION
     trade_dict["TradeStatus"] = _classify_trade_status(trade_dict)
 
-    trade_dict["EntryPrice"] = None
+    trade_dict["EntryUnderlyingPrice"] = _get_latest_underlying_price(
+        trade_dict["ticker"]
+    )
+    trade_dict["CurrentUnderlyingPrice"] = None
+    trade_dict["CurrentDTE"] = None
+
+    trade_dict["EntryPrice"] = trade_dict.get("premium")
     trade_dict["ExitPrice"] = None
     trade_dict["ExitDate"] = None
     trade_dict["ExitReason"] = None
@@ -69,6 +90,7 @@ def log_trade_recommendation(trade):
     trade_dict["PnLPct"] = None
     trade_dict["SPYReturnPct"] = None
     trade_dict["AlphaVsSPY"] = None
+    trade_dict["LastReviewedDate"] = None
     trade_dict["OutcomeReviewed"] = False
 
     df = pd.DataFrame([trade_dict])
