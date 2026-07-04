@@ -25,6 +25,10 @@ from market_breadth import evaluate_market_breadth
 from market_context import evaluate_market_context
 from outcome_review import review_open_trades
 from portfolio_allocator import allocate_portfolio
+from portfolio_exposure import (
+    add_exposure_fields,
+    summarize_allocated_exposure,
+)
 from research_engine import evaluate_strategies
 from opportunity_engine import evaluate_opportunities
 
@@ -127,6 +131,10 @@ def main():
         market_context=market_context,
     )
 
+    print("\nEvaluating portfolio exposure...")
+    trades_df = add_exposure_fields(trades_df)
+    exposure_summary = summarize_allocated_exposure(trades_df)
+
     trades_df["breadth_score"] = market_breadth["breadth_score"]
     trades_df["breadth_regime"] = market_breadth["breadth_regime"]
     trades_df["breadth_reasons"] = "; ".join(
@@ -184,6 +192,28 @@ def main():
     for reason in market_breadth["breadth_reasons"]:
         print(f"- {reason}")
 
+    print("\nPORTFOLIO EXPOSURE\n")
+
+    if len(exposure_summary["sector_exposure"]) == 0:
+        print("No allocated exposure.")
+    else:
+        print("Sector Exposure:")
+        for sector, count in exposure_summary["sector_exposure"].items():
+            print(f"- {sector}: {count}")
+
+        print("\nIndustry Exposure:")
+        for industry, count in exposure_summary["industry_exposure"].items():
+            print(f"- {industry}: {count}")
+
+        print("\nTheme Exposure:")
+        for theme, count in exposure_summary["theme_exposure"].items():
+            print(f"- {theme}: {count}")
+
+        if len(exposure_summary["warnings"]) > 0:
+            print("\nExposure Warnings:")
+            for warning in exposure_summary["warnings"]:
+                print(f"- {warning}")
+
     print("\nPORTFOLIO ALLOCATION\n")
 
     valid_allocated_trades = [
@@ -203,6 +233,9 @@ def main():
             print(f"Decision: {trade['allocation_decision']}")
             print(f"Trade Quality: {trade['trade_quality_score']}")
             print(f"Grade: {trade['trade_quality_grade']}")
+            print(f"Sector: {trade['sector']}")
+            print(f"Industry: {trade['industry']}")
+            print(f"Theme: {trade['theme']}")
             print(f"Opportunity: {trade['opportunity_type']}")
             print(f"Confidence: {trade['confidence']}")
             print(f"Option Strategy: {trade['option_strategy']}")
@@ -230,6 +263,9 @@ def main():
             print(f"Confidence: {trade['confidence']}")
             print(f"Allocation Score: {trade['allocation_score']}")
             print(f"Allocation Decision: {trade['allocation_decision']}")
+            print(f"Sector: {trade['sector']}")
+            print(f"Industry: {trade['industry']}")
+            print(f"Theme: {trade['theme']}")
 
             if pd.notna(trade.get("trade_quality_score")):
                 print(f"Trade Quality: {trade['trade_quality_score']}")
@@ -265,9 +301,12 @@ def main():
             print(f"Opportunity: {trade['opportunity_type']}")
             print(f"Action: {trade['action']}")
             print(f"Confidence: {trade['confidence']}")
+            print(f"Sector: {trade['sector']}")
+            print(f"Industry: {trade['industry']}")
+            print(f"Theme: {trade['theme']}")
             print(f"Notes: {trade['notes']}")
 
-    print("\nSprint 24 complete.")
+    print("\nSprint 25 complete.")
 
 
 if __name__ == "__main__":
