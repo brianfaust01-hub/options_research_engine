@@ -43,4 +43,8 @@ class TradeRecommendation:
 
     time_stop_dte: int | None
 
+    trade_quality_score: int | None
+
+    trade_quality_grade: str | None
+
     notes: list[str]

@@ -201,6 +201,8 @@ def main():
             print(f"Ticker: {trade['ticker']}")
             print(f"Allocation Score: {trade['allocation_score']}")
             print(f"Decision: {trade['allocation_decision']}")
+            print(f"Trade Quality: {trade['trade_quality_score']}")
+            print(f"Grade: {trade['trade_quality_grade']}")
             print(f"Opportunity: {trade['opportunity_type']}")
             print(f"Confidence: {trade['confidence']}")
             print(f"Option Strategy: {trade['option_strategy']}")
@@ -228,6 +230,12 @@ def main():
             print(f"Confidence: {trade['confidence']}")
             print(f"Allocation Score: {trade['allocation_score']}")
             print(f"Allocation Decision: {trade['allocation_decision']}")
+
+            if pd.notna(trade.get("trade_quality_score")):
+                print(f"Trade Quality: {trade['trade_quality_score']}")
+
+            if pd.notna(trade.get("trade_quality_grade")):
+                print(f"Grade: {trade['trade_quality_grade']}")
 
             if _has_valid_option_trade(trade):
                 print(f"Option Strategy: {trade['option_strategy']}")
@@ -259,7 +267,7 @@ def main():
             print(f"Confidence: {trade['confidence']}")
             print(f"Notes: {trade['notes']}")
 
-    print("\nSprint 23 complete.")
+    print("\nSprint 24 complete.")
 
 
 if __name__ == "__main__":

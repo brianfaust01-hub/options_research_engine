@@ -9,6 +9,7 @@ from exit_rules import build_exit_plan
 from models.trade_recommendation import TradeRecommendation
 from option_selector import select_best_contract
 from position_sizing import calculate_position_size
+from trade_quality import evaluate_trade_quality
 
 
 def _extract_expiration_from_contract_symbol(contract_symbol: str):
@@ -57,6 +58,9 @@ def construct_trade(row) -> TradeRecommendation:
     profit_target_pct = None
     stop_loss_pct = None
     time_stop_dte = None
+
+    trade_quality_score = None
+    trade_quality_grade = None
 
     notes = [
         f"Research Score: {row['StrategyScore']}",
@@ -156,7 +160,7 @@ def construct_trade(row) -> TradeRecommendation:
         else:
             notes.append("No suitable option contract found")
 
-    return TradeRecommendation(
+    trade = TradeRecommendation(
         ticker=row["Ticker"],
         opportunity_type=row["OpportunityType"],
         action=row["Action"],
@@ -174,5 +178,21 @@ def construct_trade(row) -> TradeRecommendation:
         profit_target_pct=profit_target_pct,
         stop_loss_pct=stop_loss_pct,
         time_stop_dte=time_stop_dte,
+        trade_quality_score=trade_quality_score,
+        trade_quality_grade=trade_quality_grade,
         notes=notes,
     )
+
+    if option_strategy is not None and contracts is not None and contracts > 0:
+        quality = evaluate_trade_quality(trade)
+
+        trade.trade_quality_score = quality["score"]
+        trade.trade_quality_grade = quality["grade"]
+
+        trade.notes.append(f"Trade Quality Score: {quality['score']}")
+        trade.notes.append(f"Trade Quality Grade: {quality['grade']}")
+
+        for reason in quality["reasons"]:
+            trade.notes.append(f"Trade Quality Reason: {reason}")
+
+    return trade
