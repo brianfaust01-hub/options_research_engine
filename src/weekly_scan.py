@@ -21,6 +21,8 @@ from config import (
 
 from data_loader import get_sp500_tickers, download_price_data
 from indicators import calculate_indicators_for_ticker
+from market_breadth import evaluate_market_breadth
+from market_context import evaluate_market_context
 from outcome_review import review_open_trades
 from portfolio_allocator import allocate_portfolio
 from research_engine import evaluate_strategies
@@ -49,6 +51,14 @@ def main():
     print("\nReviewing open paper trades...")
     review_result = review_open_trades()
     print(review_result["message"])
+
+    print("\nEvaluating market context...")
+    market_context = evaluate_market_context()
+    print(f"Market Regime: {market_context['market_regime']}")
+    print(f"Risk Mode: {market_context['risk_mode']}")
+    print(f"Allocation Bias: {market_context['allocation_bias']}")
+    print(f"Market Score: {market_context['market_score']}")
+    print(f"Market Reasons: {market_context['market_reasons']}")
 
     if TEST_MODE:
         print("\nTEST MODE ENABLED")
@@ -98,6 +108,9 @@ def main():
 
     indicators_df = pd.concat([indicators_df, research_results], axis=1)
 
+    print("\nEvaluating market breadth...")
+    market_breadth = evaluate_market_breadth(indicators_df)
+
     print("\nRunning opportunity engine...")
     trade_recommendations = indicators_df.apply(
         evaluate_opportunities,
@@ -109,7 +122,16 @@ def main():
     )
 
     print("\nRunning portfolio allocator...")
-    trades_df = allocate_portfolio(trades_df)
+    trades_df = allocate_portfolio(
+        trades_df=trades_df,
+        market_context=market_context,
+    )
+
+    trades_df["breadth_score"] = market_breadth["breadth_score"]
+    trades_df["breadth_regime"] = market_breadth["breadth_regime"]
+    trades_df["breadth_reasons"] = "; ".join(
+        market_breadth["breadth_reasons"]
+    )
 
     processed_file = (
         PROCESSED_DATA_DIR
@@ -147,6 +169,20 @@ def main():
     print("\n==================================================")
     print("Project Stonks Recommendations")
     print("==================================================")
+
+    print("\nMARKET CONTEXT\n")
+    print(f"Market Regime: {market_context['market_regime']}")
+    print(f"Risk Mode: {market_context['risk_mode']}")
+    print(f"Allocation Bias: {market_context['allocation_bias']}")
+    print(f"Market Score: {market_context['market_score']}")
+    print(f"Reasons: {market_context['market_reasons']}")
+
+    print("\nMARKET BREADTH\n")
+    print(f"Breadth Regime: {market_breadth['breadth_regime']}")
+    print(f"Breadth Score: {market_breadth['breadth_score']}")
+
+    for reason in market_breadth["breadth_reasons"]:
+        print(f"- {reason}")
 
     print("\nPORTFOLIO ALLOCATION\n")
 
@@ -223,7 +259,7 @@ def main():
             print(f"Confidence: {trade['confidence']}")
             print(f"Notes: {trade['notes']}")
 
-    print("\nSprint 21 complete.")
+    print("\nSprint 23 complete.")
 
 
 if __name__ == "__main__":

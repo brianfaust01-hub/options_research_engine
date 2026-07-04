@@ -2,9 +2,8 @@
 Project Stonks
 Research Engine
 
-Sprint 15 fix:
-Build consensus from directional module signals instead of averaging
-unrelated trend/momentum fields across all modules.
+Sprint 22:
+Consensus research with ticker-level market regime contribution.
 """
 
 from strategies.momentum import evaluate_momentum
