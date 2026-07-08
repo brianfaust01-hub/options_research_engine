@@ -1,6 +1,9 @@
 """
 Project Stonks
 Trade Construction Engine
+
+Sprint 28A:
+Adds holding-period awareness to option selection.
 """
 
 from datetime import datetime
@@ -62,10 +65,13 @@ def construct_trade(row) -> TradeRecommendation:
     trade_quality_score = None
     trade_quality_grade = None
 
+    holding_period_days = row.get("HoldingPeriodDays", None)
+
     notes = [
         f"Research Score: {row['StrategyScore']}",
         f"Trend: {row['TrendScore']}",
         f"Momentum: {row['MomentumScore']}",
+        f"Expected Holding Period: {holding_period_days} days",
         row["StrategyReasons"],
     ]
 
@@ -74,6 +80,7 @@ def construct_trade(row) -> TradeRecommendation:
         best_contract = select_best_contract(
             ticker=row["Ticker"],
             opportunity_type=row["OpportunityType"],
+            expected_holding_days=holding_period_days,
         )
 
         if best_contract is not None:
@@ -133,6 +140,20 @@ def construct_trade(row) -> TradeRecommendation:
 
             contract_notes = [
                 _safe_note("Contract Score", best_contract, "ContractScore", 0),
+                _safe_note(
+                    "Horizon Fit Score",
+                    best_contract,
+                    "HorizonFitScore",
+                    0,
+                ),
+                _safe_note(
+                    "Final Contract Score",
+                    best_contract,
+                    "FinalContractScore",
+                    0,
+                ),
+                _safe_note("Preferred Min DTE", best_contract, "PreferredMinDTE", 0),
+                _safe_note("Preferred Max DTE", best_contract, "PreferredMaxDTE", 0),
                 _safe_note("Delta", best_contract, "delta", 2),
                 _safe_note("Theta", best_contract, "theta", 2),
                 _safe_note("Spread %", best_contract, "spread_pct", 2),

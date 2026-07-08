@@ -29,6 +29,7 @@ from portfolio_exposure import (
     add_exposure_fields,
     summarize_allocated_exposure,
 )
+from position_review import review_positions
 from research_engine import evaluate_strategies
 from opportunity_engine import evaluate_opportunities
 
@@ -135,6 +136,9 @@ def main():
     trades_df = add_exposure_fields(trades_df)
     exposure_summary = summarize_allocated_exposure(trades_df)
 
+    print("\nReviewing existing portfolio...")
+    positions_df = review_positions(trades_df)
+
     trades_df["breadth_score"] = market_breadth["breadth_score"]
     trades_df["breadth_regime"] = market_breadth["breadth_regime"]
     trades_df["breadth_reasons"] = "; ".join(
@@ -191,6 +195,51 @@ def main():
 
     for reason in market_breadth["breadth_reasons"]:
         print(f"- {reason}")
+
+    print("\nCURRENT POSITIONS\n")
+
+    if positions_df.empty:
+        print("No open positions.")
+    else:
+        for _, position in positions_df.iterrows():
+            print("----------------------------------------")
+            print(f"Ticker: {position['ticker']}")
+            print(
+                "Recommendation: "
+                f"{position['position_recommendation']}"
+            )
+            print(f"Reason: {position['position_reason']}")
+            print(f"Option Strategy: {position['option_strategy']}")
+            print(f"Expiration: {position['expiration']}")
+            print(f"Strike: {position['strike']}")
+            print(f"Contracts: {position['contracts']}")
+            print(f"Entry Price: ${position['entry_price']:.2f}")
+
+            if pd.notna(position["current_price"]):
+                print(f"Current Price: ${position['current_price']:.2f}")
+                print(f"P/L: ${position['pnl_dollars']:.2f}")
+                print(f"P/L %: {position['pnl_pct'] * 100:.2f}%")
+            else:
+                print("Current Price: unavailable")
+
+            print(f"Profit Target: ${position['profit_target']:.2f}")
+            print(f"Stop Loss: ${position['stop_loss']:.2f}")
+            print(f"DTE: {position['dte']}")
+            print(f"Time Stop DTE: {position['time_stop_dte']}")
+            print(f"Latest Action: {position['latest_action']}")
+            print(
+                "Latest Allocation Decision: "
+                f"{position['latest_allocation_decision']}"
+            )
+            print(
+                "Latest Allocation Score: "
+                f"{position['latest_allocation_score']}"
+            )
+            print(
+                "Latest Trade Quality: "
+                f"{position['latest_trade_quality']}"
+            )
+            print(f"Latest Grade: {position['latest_grade']}")
 
     print("\nPORTFOLIO EXPOSURE\n")
 
@@ -306,7 +355,7 @@ def main():
             print(f"Theme: {trade['theme']}")
             print(f"Notes: {trade['notes']}")
 
-    print("\nSprint 25 complete.")
+    print("\nSprint 27 complete.")
 
 
 if __name__ == "__main__":
