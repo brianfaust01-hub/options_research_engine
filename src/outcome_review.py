@@ -1,189 +1,456 @@
 """
 Project Stonks
 Outcome Review Engine
+
+Sprint 30B:
+Reviews actual paper portfolio positions rather than recommendation-journal
+rows.
+
+The research journal remains untouched. Mutable position state is written only
+to data/paper_portfolio.csv.
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
 
-from trade_journal import JOURNAL_PATH
+from paper_portfolio import get_open_positions, load_portfolio, save_portfolio
 
 
-OPEN_STATUS = "PAPER_TRADE_CANDIDATE"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 
 
-def _get_latest_stock_price(ticker: str):
+def _prepare_portfolio_columns(portfolio: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ensure review fields exist and support text/date assignments.
+    """
+
+    default_columns = {
+        "CurrentUnderlying": None,
+        "CurrentPremium": None,
+        "CurrentDTE": None,
+        "UnderlyingReturnPct": None,
+        "SPYReturnPct": None,
+        "PnLPct": None,
+        "AlphaVsSPY": None,
+        "LastReviewed": None,
+        "ExitDate": None,
+        "ExitReason": None,
+        "ExitPremium": None,
+    }
+
+    for column, default_value in default_columns.items():
+        if column not in portfolio.columns:
+            portfolio[column] = default_value
+
+    string_columns = [
+        "Status",
+        "LastReviewed",
+        "ExitDate",
+        "ExitReason",
+    ]
+
+    for column in string_columns:
+        if column in portfolio.columns:
+            portfolio[column] = portfolio[column].astype("object")
+
+    return portfolio
+
+
+def _download_market_data(
+    tickers: list[str],
+    start_date,
+    end_date,
+) -> pd.DataFrame:
+    """
+    Download all underlying tickers and SPY in one Yahoo request.
+    """
+
+    symbols = sorted(set(tickers + ["SPY"]))
+
     try:
-        stock = yf.Ticker(ticker)
-        history = stock.history(period="5d")
+        data = yf.download(
+            tickers=symbols,
+            start=start_date,
+            end=end_date,
+            auto_adjust=False,
+            progress=False,
+            threads=False,
+            group_by="column",
+            timeout=20,
+        )
 
-        if history.empty:
-            return None
+        if data.empty:
+            return pd.DataFrame()
 
-        return float(history["Close"].iloc[-1])
+        return data
 
-    except Exception:
-        return None
-
-
-def _calculate_underlying_return(row, latest_price: float):
-    entry_price = row.get("EntryUnderlyingPrice")
-
-    if pd.isna(entry_price) or entry_price is None:
-        return None
-
-    entry_price = float(entry_price)
-
-    if entry_price <= 0:
-        return None
-
-    if row.get("option_strategy") == "Long Put":
-        return (entry_price - latest_price) / entry_price
-
-    return (latest_price - entry_price) / entry_price
+    except Exception as error:
+        print(f"Outcome market-data download failed: {error}")
+        return pd.DataFrame()
 
 
-def _get_spy_return(recommendation_date, current_date):
+def _get_close_series(
+    market_data: pd.DataFrame,
+    ticker: str,
+) -> pd.Series:
+    """
+    Extract a ticker's closing-price series from either single-level or
+    MultiIndex yfinance output.
+    """
+
+    if market_data.empty:
+        return pd.Series(dtype="float64")
+
     try:
-        spy = yf.Ticker("SPY")
+        if isinstance(market_data.columns, pd.MultiIndex):
+            if ("Close", ticker) in market_data.columns:
+                return market_data[("Close", ticker)].dropna()
 
-        start_date = recommendation_date.date()
-        end_date = current_date.date() + timedelta(days=1)
+            if (ticker, "Close") in market_data.columns:
+                return market_data[(ticker, "Close")].dropna()
 
-        if start_date >= current_date.date():
-            history = spy.history(period="5d")
-        else:
-            history = spy.history(
-                start=start_date,
-                end=end_date,
-            )
+        if "Close" in market_data.columns:
+            close_data = market_data["Close"]
 
-        if history.empty or len(history) < 2:
-            return None
+            if isinstance(close_data, pd.DataFrame):
+                if ticker in close_data.columns:
+                    return close_data[ticker].dropna()
+            else:
+                return close_data.dropna()
 
-        start_price = float(history["Close"].iloc[0])
-        end_price = float(history["Close"].iloc[-1])
+    except (KeyError, TypeError):
+        return pd.Series(dtype="float64")
 
-        if start_price <= 0:
-            return None
+    return pd.Series(dtype="float64")
 
-        return (end_price - start_price) / start_price
 
-    except Exception:
+def _parse_entry_date(value):
+    if value is None or pd.isna(value):
         return None
 
+    parsed = pd.to_datetime(value, errors="coerce")
 
-def _determine_exit_reason(row, pnl_pct, current_dte):
-    if pnl_pct is None:
+    if pd.isna(parsed):
         return None
 
-    profit_target = row.get("profit_target_pct")
-    stop_loss = row.get("stop_loss_pct")
-    time_stop_dte = row.get("time_stop_dte")
-
-    if pd.notna(profit_target) and pnl_pct >= float(profit_target):
-        return "PROFIT_TARGET"
-
-    if pd.notna(stop_loss) and pnl_pct <= -float(stop_loss):
-        return "STOP_LOSS"
-
-    if (
-        pd.notna(time_stop_dte)
-        and current_dte is not None
-        and current_dte <= int(time_stop_dte)
-    ):
-        return "TIME_STOP"
-
-    return None
+    return parsed
 
 
 def _calculate_current_dte(expiration):
-    if pd.isna(expiration) or expiration is None:
+    if expiration is None or pd.isna(expiration):
         return None
 
-    try:
-        expiration_date = datetime.strptime(str(expiration), "%Y-%m-%d").date()
-    except ValueError:
+    expiration_date = pd.to_datetime(
+        expiration,
+        errors="coerce",
+    )
+
+    if pd.isna(expiration_date):
         return None
 
-    return (expiration_date - datetime.now().date()).days
+    return (expiration_date.date() - datetime.now().date()).days
+
+
+def _calculate_directional_return(
+    option_strategy,
+    entry_underlying,
+    current_underlying,
+):
+    if entry_underlying is None or pd.isna(entry_underlying):
+        return None
+
+    entry_underlying = float(entry_underlying)
+
+    if entry_underlying <= 0:
+        return None
+
+    raw_return = (
+        float(current_underlying) - entry_underlying
+    ) / entry_underlying
+
+    if option_strategy == "Long Put":
+        return -raw_return
+
+    return raw_return
+
+
+def _calculate_period_return(
+    prices: pd.Series,
+    entry_date,
+):
+    if prices.empty or entry_date is None:
+        return None
+
+    eligible_prices = prices[
+        prices.index.date >= entry_date.date()
+    ]
+
+    if len(eligible_prices) < 2:
+        return None
+
+    start_price = float(eligible_prices.iloc[0])
+    end_price = float(eligible_prices.iloc[-1])
+
+    if start_price <= 0:
+        return None
+
+    return (end_price - start_price) / start_price
+
+
+def _build_position_review(
+    portfolio: pd.DataFrame,
+) -> pd.DataFrame:
+    review_columns = [
+        "PositionID",
+        "RecommendationID",
+        "Ticker",
+        "OptionStrategy",
+        "Expiration",
+        "Strike",
+        "Contracts",
+        "EntryPremium",
+        "CurrentPremium",
+        "CurrentUnderlying",
+        "CurrentDTE",
+        "UnderlyingReturnPct",
+        "SPYReturnPct",
+        "PnLPct",
+        "AlphaVsSPY",
+        "Status",
+        "LastReviewed",
+    ]
+
+    existing_columns = [
+        column
+        for column in review_columns
+        if column in portfolio.columns
+    ]
+
+    return portfolio[existing_columns].copy()
+
+
+def _write_position_review(
+    portfolio: pd.DataFrame,
+) -> Path:
+    PROCESSED_DATA_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    output_path = (
+        PROCESSED_DATA_DIR
+        / f"position_review_{timestamp}.csv"
+    )
+
+    review = _build_position_review(portfolio)
+    review.to_csv(output_path, index=False)
+
+    return output_path
 
 
 def review_open_trades():
-    if not JOURNAL_PATH.exists():
+    """
+    Review every open row in paper_portfolio.csv.
+
+    Current underlying prices and directional benchmark results are updated.
+    Option P/L remains blank unless CurrentPremium has been populated through
+    broker reconciliation or another trusted option-pricing source.
+    """
+
+    portfolio = load_portfolio()
+    portfolio = _prepare_portfolio_columns(portfolio)
+
+    open_positions = get_open_positions()
+
+    if open_positions.empty:
+        review_path = _write_position_review(portfolio)
+
         return {
             "reviewed": 0,
             "closed": 0,
-            "message": "No trade journal found.",
+            "review_path": str(review_path),
+            "message": "No open paper positions to review.",
         }
 
-    journal = pd.read_csv(JOURNAL_PATH)
+    tickers = (
+        open_positions["Ticker"]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
 
-    if journal.empty or "TradeStatus" not in journal.columns:
+    parsed_entry_dates = open_positions["EntryDate"].apply(
+        _parse_entry_date
+    )
+
+    valid_entry_dates = [
+        value
+        for value in parsed_entry_dates
+        if value is not None
+    ]
+
+    if valid_entry_dates:
+        start_date = min(valid_entry_dates).date()
+    else:
+        start_date = datetime.now().date() - timedelta(days=10)
+
+    end_date = datetime.now().date() + timedelta(days=1)
+
+    market_data = _download_market_data(
+        tickers=tickers,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    if market_data.empty:
+        review_path = _write_position_review(portfolio)
+
         return {
             "reviewed": 0,
             "closed": 0,
-            "message": "No structured journal entries found.",
+            "review_path": str(review_path),
+            "message": (
+                "Open paper positions found, but market data "
+                "could not be downloaded."
+            ),
         }
 
-    open_mask = journal["TradeStatus"] == OPEN_STATUS
-    open_trades = journal[open_mask].copy()
-
-    if open_trades.empty:
-        return {
-            "reviewed": 0,
-            "closed": 0,
-            "message": "No open paper trades to review.",
-        }
+    spy_prices = _get_close_series(
+        market_data,
+        "SPY",
+    )
 
     reviewed = 0
-    closed = 0
-    current_date = datetime.now()
-    current_date_string = current_date.isoformat(timespec="seconds")
+    current_timestamp = datetime.now().isoformat(
+        timespec="seconds"
+    )
 
-    for index, row in open_trades.iterrows():
-        ticker = row["ticker"]
-        latest_price = _get_latest_stock_price(ticker)
+    open_mask = portfolio["Status"] == "OPEN"
 
-        if latest_price is None:
+    for index, position in portfolio[open_mask].iterrows():
+        ticker = str(position["Ticker"])
+
+        ticker_prices = _get_close_series(
+            market_data,
+            ticker,
+        )
+
+        if ticker_prices.empty:
             continue
 
-        recommendation_date = pd.to_datetime(row["RecommendationDate"])
+        current_underlying = float(
+            ticker_prices.iloc[-1]
+        )
 
-        pnl_pct = _calculate_underlying_return(row, latest_price)
-        spy_return_pct = _get_spy_return(recommendation_date, current_date)
+        entry_date = _parse_entry_date(
+            position.get("EntryDate")
+        )
+
+        entry_underlying = position.get(
+            "EntryUnderlying"
+        )
+
+        directional_return = _calculate_directional_return(
+            option_strategy=position.get("OptionStrategy"),
+            entry_underlying=entry_underlying,
+            current_underlying=current_underlying,
+        )
+
+        spy_return = _calculate_period_return(
+            prices=spy_prices,
+            entry_date=entry_date,
+        )
 
         alpha_vs_spy = None
 
-        if pnl_pct is not None and spy_return_pct is not None:
-            alpha_vs_spy = pnl_pct - spy_return_pct
+        if (
+            directional_return is not None
+            and spy_return is not None
+        ):
+            alpha_vs_spy = directional_return - spy_return
 
-        current_dte = _calculate_current_dte(row.get("expiration"))
-        exit_reason = _determine_exit_reason(row, pnl_pct, current_dte)
+        current_premium = position.get(
+            "CurrentPremium"
+        )
 
-        journal.loc[index, "CurrentUnderlyingPrice"] = latest_price
-        journal.loc[index, "CurrentDTE"] = current_dte
-        journal.loc[index, "PnLPct"] = pnl_pct
-        journal.loc[index, "SPYReturnPct"] = spy_return_pct
-        journal.loc[index, "AlphaVsSPY"] = alpha_vs_spy
-        journal.loc[index, "LastReviewedDate"] = current_date_string
-        journal.loc[index, "OutcomeReviewed"] = True
+        entry_premium = position.get(
+            "EntryPremium"
+        )
+
+        option_pnl_pct = None
+
+        if (
+            current_premium is not None
+            and not pd.isna(current_premium)
+            and entry_premium is not None
+            and not pd.isna(entry_premium)
+            and float(entry_premium) > 0
+        ):
+            option_pnl_pct = (
+                float(current_premium)
+                - float(entry_premium)
+            ) / float(entry_premium)
+
+        portfolio.loc[
+            index,
+            "CurrentUnderlying",
+        ] = current_underlying
+
+        portfolio.loc[
+            index,
+            "CurrentDTE",
+        ] = _calculate_current_dte(
+            position.get("Expiration")
+        )
+
+        portfolio.loc[
+            index,
+            "UnderlyingReturnPct",
+        ] = directional_return
+
+        portfolio.loc[
+            index,
+            "SPYReturnPct",
+        ] = spy_return
+
+        portfolio.loc[
+            index,
+            "PnLPct",
+        ] = option_pnl_pct
+
+        portfolio.loc[
+            index,
+            "AlphaVsSPY",
+        ] = alpha_vs_spy
+
+        portfolio.loc[
+            index,
+            "LastReviewed",
+        ] = current_timestamp
 
         reviewed += 1
 
-        if exit_reason is not None:
-            journal.loc[index, "TradeStatus"] = "CLOSED"
-            journal.loc[index, "ExitDate"] = current_date_string
-            journal.loc[index, "ExitReason"] = exit_reason
-            journal.loc[index, "ExitPrice"] = latest_price
-            closed += 1
+    save_portfolio(portfolio)
 
-    journal.to_csv(JOURNAL_PATH, index=False)
+    review_path = _write_position_review(
+        portfolio,
+    )
 
     return {
         "reviewed": reviewed,
-        "closed": closed,
-        "message": f"Reviewed {reviewed} open paper trades; closed {closed}.",
+        "closed": 0,
+        "review_path": str(review_path),
+        "message": (
+            f"Reviewed {reviewed} open paper positions; "
+            f"position review saved to {review_path}."
+        ),
     }

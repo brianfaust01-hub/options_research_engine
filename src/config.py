@@ -69,18 +69,6 @@ DEBUG_OPTION_SELECTOR = False
 # Schwab / Thinkorswim integration will replace this later.
 OPEN_PAPER_POSITIONS = [
     {
-        "ticker": "C",
-        "option_strategy": "Long Call",
-        "expiration": "2026-08-21",
-        "strike": 145.0,
-        "contracts": 1,
-        "entry_price": 5.95,
-        "current_price": None,
-        "profit_target": 10.02,
-        "stop_loss": 3.72,
-        "time_stop_dte": 14,
-    },
-    {
         "ticker": "IBKR",
         "option_strategy": "Long Call",
         "expiration": "2026-09-18",

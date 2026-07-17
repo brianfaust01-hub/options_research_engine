@@ -1,103 +1,200 @@
-# Project Stonks
+# PROJECT STATUS — Project Stonks
 
-## Vision
-
-Project Stonks is an adaptive investment operating system designed to generate long-term, risk-adjusted alpha versus the S&P 500 through disciplined portfolio management, evidence-based decision making, and continuous learning.
-
-The objective is not to predict markets.
-
-The objective is to build a system that continually improves its capital allocation decisions through measurement, experimentation, and feedback.
+Version: v0.3.0-alpha
+Current Milestone: Paper Trading MVP
+Current Sprint: Sprint 30A - Learning & Feedback Loop Foundation
+Status: ACTIVE DEVELOPMENT
 
 ---
 
-# Current Status
+# Vision
 
-Version:
-v0.2.0
+Project Stonks exists to maximize long-term risk-adjusted returns by continuously learning which research signals, option structures, execution techniques, and portfolio decisions outperform through evidence—not intuition.
 
-Development Stage:
-Paper Trading MVP
+Project Stonks is NOT an options screener.
 
-Current Sprint:
-Sprint 25 Complete
+Project Stonks is an institutional-quality research platform that:
 
-Overall Progress:
-~65% of Version 1 MVP
+- Generates investment ideas
+- Constructs trades
+- Assists execution
+- Tracks outcomes
+- Learns from historical performance
+- Continuously improves itself
 
----
-
-# North Star
-
-Maximize long-term alpha versus SPY while controlling downside risk.
-
-Every feature must improve one of:
-
-- Expected return
-- Risk management
-- Decision quality
-- Capital allocation
-- Learning capability
+Every generated recommendation must produce a permanent research artifact, regardless of whether capital is allocated. Unexecuted recommendations provide counterfactual evidence that is essential for evaluating research quality, strategy selection, and portfolio decisions. The system learns from all hypotheses, not only executed trades.
 
 ---
 
-# Core Principles
+# Governance
 
-1. Evidence beats intuition.
-2. Markets have regimes.
-3. Breadth matters.
-4. Capital is limited.
-5. Cash is a position.
-6. Portfolio quality matters more than trade quantity.
-7. Every recommendation should be measurable.
-8. The system should improve itself over time.
+This document is the governing document for Project Stonks.
 
----
+Every development session must begin by reading this document.
 
-# Current Architecture
+Implementations may change.
 
-Historical Data
+Architecture may evolve.
+
+Engineering Principles, Vision, and ADRs should only change after explicit discussion and documented rationale.
+
+Every sprint proposal must:
+
+- Align with the Vision
+- Reference the Engineering Principles
+- Include regression validation
+- Explain how it improves learning, confidence, returns, or risk management
+
+# Long-Term Architecture
+
+Research Engine
 ↓
 
-Indicator Engine
+Market Thesis
+
+↓
+
+Strategy Optimizer
+
+↓
+
+Contract Optimizer
+
+↓
+
+Execution Assistant
+
+↓
+
+Outcome Tracker
+
+↓
+
+Learning Engine
+
 ↓
 
 Research Engine
 
-- Trend
-- Momentum
-- Market Regime
+The learning engine is the center of the product.
+
+Every release should strengthen this feedback loop.
+
+---
+
+# Current Capabilities
+
+## Research
+
+- Full S&P 500 scan
+- Market regime analysis
+- Breadth analysis
+- Trend engine
+- Momentum engine
+- Opportunity scoring
+- Confidence scoring
+
+## Options
+
+- Horizon-aware contract selection
+- Liquidity-aware scoring
+- DTE optimization
+- Paper portfolio allocation
+
+## Automation
+
+- Daily batch execution
+- Windows Task Scheduler
+- Daily logging
+- Paper trade journal
+- Open trade review
+
+---
+
+# Current Open Paper Trades
+
+(Currently maintained automatically)
+
+Example:
+
+- IBKR
+- UPS
+
+(C should now be manually marked closed until broker reconciliation exists.)
+
+---
+
+# Product Roadmap
+
+## Phase 1 ✅
+
+Build the Engine
+
+Completed
+
+- Research engine
+- Options engine
+- Portfolio allocation
+- Automation
+- Paper trading
+
+---
+
+## Phase 2 (Current)
+
+Build the Scientist
+
+Current priorities:
+
+1. Learning feedback loop
+2. Execution quality
+3. Data integrity
+4. Weekly research review
+
+---
+
+## Phase 3
+
+Build the Portfolio Manager
+
+Future:
+
+- Correlation management
+- Portfolio optimization
+- Sector balancing
+- Risk budgeting
+
+---
+
+# Sprint 30A
+
+Objective:
+
+Validate that Project Stonks is actually learning correctly.
+
+Before adding new trading features we must confirm:
+
+- recommendations are stored correctly
+- outcomes are updated correctly
+- historical data is preserved
+- weekly insights are accurate
+- experiments are evidence based
+
+---
+
+# Immediate Priorities
+
+## 1
+
+Audit learning pipeline.
+
+Verify:
+
+Recommendation
 
 ↓
 
-Opportunity Engine
-
-↓
-
-Option Selection
-
-↓
-
-Position Sizing
-
-↓
-
-Trade Construction
-
-↓
-
-Trade Quality Scoring
-
-↓
-
-Portfolio Allocation
-
-↓
-
-Portfolio Exposure Analysis
-
-↓
-
-Trade Journal
+Journal
 
 ↓
 
@@ -105,241 +202,246 @@ Outcome Review
 
 ↓
 
-Learning Engine (future)
+Weekly Learning
+
+↓
+
+Insight Generation
 
 ---
 
-# Major Features Complete
+## 2
 
-### Market Analysis
+Improve execution quality.
 
-✓ Historical price ingestion
+Future work:
 
-✓ Technical indicators
-
-✓ Trend scoring
-
-✓ Momentum scoring
-
-✓ Market regime analysis
-
-✓ Market breadth analysis
+- better limit pricing
+- slippage measurement
+- broker reconciliation
+- execution guidance
 
 ---
 
-### Trade Selection
+## 3
 
-✓ Opportunity engine
+Dynamic stop recommendations.
 
-✓ Long calls
+NOT fixed percentages.
 
-✓ Long puts framework
+Future stop logic should consider:
 
-✓ Options chain retrieval
-
-✓ Contract scoring
-
-✓ Greeks evaluation
-
-✓ Position sizing
-
-✓ Trade construction
-
-✓ Profit target generation
-
-✓ Stop loss generation
-
-✓ Time stop generation
+- Delta
+- Gamma
+- Theta
+- Vega
+- IV
+- Expected move
+- ATR
+- Standard deviation
+- Time remaining
 
 ---
 
-### Portfolio Management
+## 4
 
-✓ Portfolio allocation ranking
+Strategy Research
 
-✓ Allocation score
+Long-term Project Stonks should determine not only:
 
-✓ Trade quality grading
+"What contract?"
 
-✓ Sector classification
+but
 
-✓ Industry classification
+"What strategy?"
 
-✓ Theme classification
+Examples:
 
-✓ Portfolio exposure diagnostics
+- Long Call
+- Long Put
+- Bull Call Spread
+- Bear Put Spread
+- Cash Secured Put
+- Covered Call
+- Iron Condor
+- Calendar
+- etc.
+
+The learning engine should determine which structure best expressed the thesis.
 
 ---
 
-### Learning Infrastructure
+# Engineering Principles
+
+## Vision Alignment
+
+Every sprint must explicitly state:
+
+- why it exists
+- which long-term objective it advances
+- what future capability it unlocks
+
+---
+
+## Regression Validation
+
+Every release must validate:
+
+✓ Research engine
+
+✓ Market regime
+
+✓ Opportunity scoring
+
+✓ Option selection
+
+✓ Capital allocation
 
 ✓ Trade journal
 
-✓ Version tracking
+✓ Outcome review
 
-✓ Recommendation IDs
+✓ Learning dataset
 
-✓ Outcome review framework
+✓ Automation
 
-✓ Paper trade tracking
-
----
-
-# Current Folder Structure
-
-src/
-
-- weekly_scan.py
-- config.py
-- data_loader.py
-- indicators.py
-- research_engine.py
-- opportunity_engine.py
-- option_selector.py
-- options_engine.py
-- option_pricing.py
-- greeks.py
-- trade_constructor.py
-- position_sizing.py
-- trade_quality.py
-- portfolio_allocator.py
-- portfolio_exposure.py
-- market_context.py
-- market_breadth.py
-- outcome_review.py
-- trade_journal.py
-
-strategies/
-
-models/
-
-data/
+No release is complete without regression validation.
 
 ---
 
-# Development Workflow
+## Learning First
 
-Development Mode
+When forced to choose between:
 
-- TEST_MODE=True
-- 12 representative stocks
-- Fast iteration
+adding features
 
-Validation Mode
+or
 
-- Full S&P 500
+improving learning
 
-Git
-
-- Complete file replacement
-- Commit after every successful sprint
+prefer improving learning.
 
 ---
 
-# Remaining Major Milestones
+## Evidence Before Optimization
 
-## Phase 1 (Current)
+Do not modify:
 
-Paper Trading MVP
+- thresholds
+- scoring
+- indicators
+- strategies
 
-Remaining work:
+without sufficient historical evidence.
 
-- Dynamic exits
-- Portfolio exposure limits
-- Better bearish regime support
-
----
-
-## Phase 2
-
-Adaptive Learning
-
-- Measure recommendation performance
-- Compare against SPY
-- Measure alpha
-- Learn from historical trades
-- Recommend configuration changes
+Ideas enter the Experiment Queue first.
 
 ---
 
-## Phase 3
+## Preserve Historical Truth
 
-Portfolio Intelligence
+Historical recommendations are immutable.
 
-- Correlation analysis
-- Exposure limits
-- Cash optimization
-- Multi-position management
-- Capital rotation
+Never overwrite historical recommendations.
+
+Future versions should explain differences, not rewrite history.
 
 ---
 
-## Phase 4
+## Backwards Compatibility
 
-Configuration Evolution
+Prefer wrappers and compatibility layers over breaking interfaces.
 
-The system begins improving itself.
-
-Instead of hard-coded settings like:
-
-RSI > 60
-
-the engine will eventually learn:
-
-"RSI 56-62 has historically produced 14% higher alpha."
-
-Configuration becomes evidence-driven.
+Avoid downstream regressions.
 
 ---
 
-## Phase 5
+## Validation Before Completion
 
-Production
+A sprint is complete only when:
 
-- Dashboard
-- Daily reports
-- Notifications
-- Multiple portfolios
-- Broker integration
-
----
-
-# Current Technical Debt
-
-High
-
-- Dynamic exit engine
-- Full bearish strategy implementation
-- Outcome review automation
-- Learning engine
-
-Medium
-
-- Portfolio correlation
-- Exposure limits
-- Adaptive configs
-- Portfolio analytics
-
-Low
-
-- UI
-- Broker APIs
-- Mobile dashboard
+- code executes
+- outputs exist
+- automation succeeds
+- learning data is preserved
+- regression checklist passes
 
 ---
 
-# Long-Term Vision
+## Every Release Must Increase Confidence
 
-Every morning Project Stonks should answer:
+Every sprint should increase confidence in at least one of:
 
-1. What should I buy?
-2. What should I sell?
-3. What should I continue holding?
-4. Where should new capital be allocated?
-5. How diversified is my portfolio?
-6. How did yesterday's decisions perform?
-7. Am I outperforming SPY?
-8. What has the system learned?
-9. Should my strategy change?
+- research
+- execution
+- automation
+- learning
+- data integrity
 
-Project Stonks is evolving into an adaptive investment operating system that continuously improves through evidence rather than assumptions.
+Not every sprint must improve returns.
+
+Every sprint must improve confidence.
+
+---
+
+# Experiment Queue
+
+Current High Priority
+
+☐ Validate learning pipeline
+
+☐ Broker reconciliation (CSV)
+
+☐ Execution quality improvements
+
+☐ Dynamic stop framework
+
+☐ Weekly learning report
+
+Medium Priority
+
+☐ Strategy optimizer
+
+☐ DTE optimization
+
+☐ Position sizing optimization
+
+☐ Portfolio optimization
+
+Low Priority
+
+☐ Additional strategy library
+
+☐ Advanced volatility strategies
+
+---
+
+# Weekly Learning Objectives
+
+Every weekly report should answer:
+
+1. What happened?
+
+2. Why did it happen?
+
+3. What did we learn?
+
+4. Did we collect enough data?
+
+5. What should we test next?
+
+6. Which experiment should be prioritized?
+
+7. Did any system regress?
+
+The weekly report should propose experiments—not automatically change the model.
+
+---
+
+# Success Criteria
+
+Project Stonks succeeds when it continuously improves because of evidence generated from its own historical decisions.
+
+The objective is not to predict stocks.
+
+The objective is to build an institutional-quality research platform that becomes better every week.

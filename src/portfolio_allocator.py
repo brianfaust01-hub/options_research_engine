@@ -2,7 +2,7 @@
 Project Stonks
 Portfolio Allocation Engine
 
-Sprint 22:
+Sprint 30A:
 Ranks executable recommendations and adjusts allocation aggressiveness
 based on broad market context.
 """
@@ -150,6 +150,9 @@ def allocate_portfolio(
     trades_df["allocation_rank"] = pd.NA
     trades_df["allocation_decision"] = "No Allocation"
 
+    # NEW
+    trades_df["PortfolioStatus"] = "NOT_ALLOCATED"
+
     eligible = trades_df[
         (trades_df["allocation_score"] > 0)
         &
@@ -164,6 +167,7 @@ def allocate_portfolio(
 
         if rank <= max_recommendations:
             trades_df.loc[idx, "allocation_decision"] = "Allocate"
+            trades_df.loc[idx, "PortfolioStatus"] = "OPEN"
         else:
             trades_df.loc[idx, "allocation_decision"] = "Watch"
 
