@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 MODEL_VERSION = "0.3.0-alpha"
 
 SNAPSHOT_DIRECTORY = (
@@ -118,6 +118,23 @@ def write_snapshot(trade, research_row):
         "model_version": MODEL_VERSION,
         "recommendation_id": recommendation_id,
         "created_utc": created_utc.isoformat(),
+                "execution_engine": {
+            "test_mode": getattr(
+                trade,
+                "execution_engine_test_mode",
+                False,
+            ),
+            "execution_grade": getattr(
+                trade,
+                "execution_grade",
+                None,
+            ),
+            "execution_score": getattr(
+                trade,
+                "execution_score",
+                None,
+            ),
+        },
         "trade": _serialize(trade),
         "research": _serialize(research_row),
     }

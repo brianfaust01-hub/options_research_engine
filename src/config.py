@@ -5,15 +5,31 @@ Configuration
 
 from pathlib import Path
 
+# ---------------------------------------------------------------------
+# Project
+# ---------------------------------------------------------------------
+
 PROJECT_NAME = "Project Stonks"
 
 VERSION = "0.3.0-alpha"
 
 CONFIG_VERSION = "ResearchMode_v1"
 
+# ---------------------------------------------------------------------
+# Operating Modes
+# ---------------------------------------------------------------------
+
 PAPER_TRADING = True
 
-TEST_MODE = False
+TEST_MODE = True
+
+# Allow disabling journal writes while developing.
+# Set back to True before normal daily runs.
+ENABLE_JOURNAL_WRITES = False
+
+# ---------------------------------------------------------------------
+# Test Universe
+# ---------------------------------------------------------------------
 
 TEST_TICKERS = [
     "AAPL",
@@ -34,39 +50,106 @@ LOOKBACK_PERIOD = "1y"
 
 INTERVAL = "1d"
 
-# Paper portfolio assumptions
+# ---------------------------------------------------------------------
+# Paper Portfolio
+# ---------------------------------------------------------------------
+
 PAPER_PORTFOLIO_VALUE = 15_000
 
 MAX_POSITION_SIZE_PCT = 0.08
 MAX_TRADE_RISK_PCT = 0.025
 MAX_SINGLE_CONTRACT_COST_PCT = 0.12
 
-# Research mode thresholds
+# ---------------------------------------------------------------------
+# Research Engine
+# ---------------------------------------------------------------------
+
 MIN_EXECUTABLE_CONTRACT_SCORE = 25
+
 MAX_ALLOCATED_TRADES = 5
+
 MIN_OPPORTUNITY_SCORE = 70
 
-# Contract search controls
+# ---------------------------------------------------------------------
+# Contract Search
+# ---------------------------------------------------------------------
+
 MIN_OPTION_DTE = 14
+
 MAX_OPTION_DTE = 150
+
 MIN_OPTION_PREMIUM = 0.05
+
 MAX_PREMIUM_PCT_OF_STOCK = 0.25
+
 MIN_MONEYNESS = 0.90
+
 MAX_MONEYNESS = 1.40
 
-# Market regime controls
+# ---------------------------------------------------------------------
+# Execution Engine (Sprint 32B)
+# ---------------------------------------------------------------------
+
+# Test mode only.
+# These values are currently informational and DO NOT influence
+# contract ranking or allocation.
+
+EXECUTION_ENGINE_ENABLED = True
+
+EXECUTION_ENGINE_TEST_MODE = True
+
+RESEARCH_PRICE_METHOD = "MID"
+
+EXECUTION_ENTRY_METHOD = "ASK"
+
+EXECUTION_EXIT_METHOD = "BID"
+
+# Spread grades
+
+EXECUTION_SPREAD_GRADE_A = 0.03
+EXECUTION_SPREAD_GRADE_B = 0.06
+EXECUTION_SPREAD_GRADE_C = 0.10
+EXECUTION_SPREAD_GRADE_D = 0.15
+
+# Future configurable execution weights
+
+EXECUTION_SPREAD_WEIGHT = 0.60
+EXECUTION_OPEN_INTEREST_WEIGHT = 0.25
+EXECUTION_VOLUME_WEIGHT = 0.15
+
+# These will not be enforced until production mode.
+
+MAX_ACCEPTABLE_SPREAD_PCT = 0.15
+
+TARGET_SPREAD_PCT = 0.05
+
+# ---------------------------------------------------------------------
+# Market Regime
+# ---------------------------------------------------------------------
+
 ALLOW_CALLS_IN_BEARISH_REGIME = False
+
 ALLOW_PUTS_IN_BULLISH_REGIME = True
+
 DEFENSIVE_ALLOCATION_MULTIPLIER = 0.50
+
 SELECTIVE_ALLOCATION_MULTIPLIER = 0.75
+
 RISK_ON_ALLOCATION_MULTIPLIER = 1.00
 
-# Debug controls
+# ---------------------------------------------------------------------
+# Debug
+# ---------------------------------------------------------------------
+
 DEBUG_OPTION_SELECTOR = False
 
-# Paper positions
-# These are manually maintained for now.
-# Schwab / Thinkorswim integration will replace this later.
+# ---------------------------------------------------------------------
+# Legacy Manual Paper Positions
+#
+# Kept only for backwards compatibility.
+# paper_portfolio.csv is now the source of truth.
+# ---------------------------------------------------------------------
+
 OPEN_PAPER_POSITIONS = [
     {
         "ticker": "IBKR",
@@ -93,6 +176,10 @@ OPEN_PAPER_POSITIONS = [
         "time_stop_dte": 14,
     },
 ]
+
+# ---------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
