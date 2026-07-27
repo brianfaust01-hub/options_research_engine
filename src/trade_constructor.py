@@ -22,7 +22,7 @@ from models.trade_recommendation import TradeRecommendation
 from option_selector import select_best_contract
 from position_sizing import calculate_position_size
 from trade_quality import evaluate_trade_quality
-
+from trade_scoring import calculate_institutional_trade_score
 
 def _extract_expiration_from_contract_symbol(
     contract_symbol: str,
@@ -777,7 +777,72 @@ def construct_trade(
         trade.trade_quality_grade = quality[
             "grade"
         ]
+        # ------------------------------------------------------
+        # Sprint 33A
+        # Institutional Trade Score
+        # ------------------------------------------------------
 
+        contract_score = None
+
+        for note in trade.notes:
+
+            if (
+                isinstance(note, str)
+                and note.startswith("Contract Score:")
+            ):
+                try:
+                    contract_score = float(
+                        note.split(":")[1].strip()
+                    )
+                except Exception:
+                    contract_score = None
+
+                break
+
+        institutional = calculate_institutional_trade_score(
+
+            research_score=trade.confidence,
+
+            contract_score=contract_score,
+
+            execution_score=trade.execution_score,
+
+            trade_quality_score=trade.trade_quality_score,
+        )
+
+        trade.institutional_trade_score = (
+            institutional["institutional_trade_score"]
+        )
+
+        trade.institutional_trade_grade = (
+            institutional["institutional_trade_grade"]
+        )
+
+        trade.institutional_research_score = (
+            institutional["components"]["research_score"]
+        )
+
+        trade.institutional_contract_score = (
+            institutional["components"]["contract_score"]
+        )
+
+        trade.institutional_execution_score = (
+            institutional["components"]["execution_score"]
+        )
+
+        trade.institutional_trade_quality_score = (
+            institutional["components"]["trade_quality_score"]
+        )
+
+        trade.notes.append(
+            "Institutional Trade Score: "
+            f"{trade.institutional_trade_score:.1f}"
+        )
+
+        trade.notes.append(
+            "Institutional Trade Grade: "
+            f"{trade.institutional_trade_grade}"
+        )
         trade.notes.append(
             "Trade Quality Score: "
             f"{quality['score']}"

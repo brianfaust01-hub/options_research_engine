@@ -2,8 +2,8 @@
 Project Stonks
 Trade Recommendation Model
 
-Sprint 32B
-Institutional Execution Engine
+Sprint 33A
+Institutional Trade Score
 """
 
 from dataclasses import dataclass
@@ -107,6 +107,22 @@ class TradeRecommendation:
     option_open_interest: int | None = None
 
     execution_engine_test_mode: bool = False
+
+    # ------------------------------------------------------------------
+    # Institutional Trade Score (Sprint 33A)
+    # ------------------------------------------------------------------
+
+    institutional_trade_score: float | None = None
+
+    institutional_trade_grade: str | None = None
+
+    institutional_research_score: float | None = None
+
+    institutional_contract_score: float | None = None
+
+    institutional_execution_score: float | None = None
+
+    institutional_trade_quality_score: float | None = None
 
     # ------------------------------------------------------------------
     # Notes

@@ -2,13 +2,22 @@
 Project Stonks
 Position Sizing Engine
 
-Sprint 17:
-Risk-aware paper trading position sizing.
+Sprint 33C
+
+Determines how much capital should be allocated to each recommendation.
+
+The engine uses a single source of truth:
+
+    MAX_POSITION_SIZE_PCT
+
+Everything else is derived from that value.
 """
 
+from math import floor
+
 from config import (
+    MAX_POSITION_SIZE_PCT,
     PAPER_PORTFOLIO_VALUE,
-    MAX_SINGLE_CONTRACT_COST_PCT,
 )
 
 
@@ -17,6 +26,14 @@ def calculate_position_size(
     premium: float | None,
     option_strategy: str | None,
 ):
+    """
+    Calculate the recommended paper position size.
+
+    Returns
+    -------
+    dict
+    """
+
     if premium is None or option_strategy is None:
         return {
             "position_size_pct": None,
@@ -27,22 +44,56 @@ def calculate_position_size(
 
     contract_cost = premium * 100
 
-    max_single_contract_cost = (
-        PAPER_PORTFOLIO_VALUE * MAX_SINGLE_CONTRACT_COST_PCT
+    max_position_value = (
+        PAPER_PORTFOLIO_VALUE
+        * MAX_POSITION_SIZE_PCT
     )
 
-    if contract_cost > max_single_contract_cost:
+    if contract_cost <= 0:
         contracts = 0
     else:
-        contracts = 1
+        contracts = floor(
+            max_position_value
+            / contract_cost
+        )
 
-    position_value = contracts * contract_cost
-    position_size_pct = position_value / PAPER_PORTFOLIO_VALUE
+    #
+    # Research mode currently supports at most one contract.
+    # Future portfolio versions may allow scaling into
+    # multiple contracts.
+    #
+
+    contracts = min(
+        contracts,
+        1,
+    )
+
+    position_value = (
+        contracts
+        * contract_cost
+    )
+
+    position_size_pct = (
+        position_value
+        / PAPER_PORTFOLIO_VALUE
+        if PAPER_PORTFOLIO_VALUE > 0
+        else 0
+    )
+
     max_risk_dollars = position_value
 
     return {
-        "position_size_pct": position_size_pct,
-        "position_value": position_value,
-        "max_risk_dollars": max_risk_dollars,
+        "position_size_pct": round(
+            position_size_pct,
+            4,
+        ),
+        "position_value": round(
+            position_value,
+            2,
+        ),
+        "max_risk_dollars": round(
+            max_risk_dollars,
+            2,
+        ),
         "contracts": contracts,
     }

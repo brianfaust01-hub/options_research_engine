@@ -21,11 +21,11 @@ CONFIG_VERSION = "ResearchMode_v1"
 
 PAPER_TRADING = True
 
-TEST_MODE = True
+TEST_MODE = False
 
 # Allow disabling journal writes while developing.
 # Set back to True before normal daily runs.
-ENABLE_JOURNAL_WRITES = False
+ENABLE_JOURNAL_WRITES = True
 
 # ---------------------------------------------------------------------
 # Test Universe
@@ -57,8 +57,10 @@ INTERVAL = "1d"
 PAPER_PORTFOLIO_VALUE = 15_000
 
 MAX_POSITION_SIZE_PCT = 0.08
+
 MAX_TRADE_RISK_PCT = 0.025
-MAX_SINGLE_CONTRACT_COST_PCT = 0.12
+
+MAX_POSITION_SIZE_PCT = 0.08
 
 # ---------------------------------------------------------------------
 # Research Engine
@@ -90,10 +92,6 @@ MAX_MONEYNESS = 1.40
 # Execution Engine (Sprint 32B)
 # ---------------------------------------------------------------------
 
-# Test mode only.
-# These values are currently informational and DO NOT influence
-# contract ranking or allocation.
-
 EXECUTION_ENGINE_ENABLED = True
 
 EXECUTION_ENGINE_TEST_MODE = True
@@ -104,24 +102,67 @@ EXECUTION_ENTRY_METHOD = "ASK"
 
 EXECUTION_EXIT_METHOD = "BID"
 
-# Spread grades
+# Execution grading thresholds
 
 EXECUTION_SPREAD_GRADE_A = 0.03
+
 EXECUTION_SPREAD_GRADE_B = 0.06
+
 EXECUTION_SPREAD_GRADE_C = 0.10
+
 EXECUTION_SPREAD_GRADE_D = 0.15
 
-# Future configurable execution weights
+# Execution score weights
 
 EXECUTION_SPREAD_WEIGHT = 0.60
+
 EXECUTION_OPEN_INTEREST_WEIGHT = 0.25
+
 EXECUTION_VOLUME_WEIGHT = 0.15
 
-# These will not be enforced until production mode.
+# Execution thresholds
+# Currently informational.
+# Sprint 33B will begin enforcing these.
+
+TARGET_SPREAD_PCT = 0.05
 
 MAX_ACCEPTABLE_SPREAD_PCT = 0.15
 
-TARGET_SPREAD_PCT = 0.05
+MIN_EXECUTION_SCORE = 70
+
+MIN_EXECUTION_GRADE = "C"
+
+# ---------------------------------------------------------------------
+# Institutional Trade Score (Sprint 33)
+# ---------------------------------------------------------------------
+
+# The master score used to rank trades for portfolio allocation.
+
+INSTITUTIONAL_RESEARCH_WEIGHT = 0.40
+
+INSTITUTIONAL_CONTRACT_WEIGHT = 0.25
+
+INSTITUTIONAL_EXECUTION_WEIGHT = 0.20
+
+INSTITUTIONAL_TRADE_QUALITY_WEIGHT = 0.15
+
+# Reserved for future learning engine enhancements.
+
+INSTITUTIONAL_MARKET_WEIGHT = 0.00
+
+INSTITUTIONAL_DIVERSIFICATION_WEIGHT = 0.00
+
+# ---------------------------------------------------------------------
+# Portfolio Allocation (Sprint 33)
+# ---------------------------------------------------------------------
+
+# Feature flags for future experimentation.
+
+PORTFOLIO_SCORE_USE_EXECUTION = True
+
+PORTFOLIO_SCORE_USE_TRADE_QUALITY = True
+
+PORTFOLIO_SCORE_MARKET_MULTIPLIER = True
 
 # ---------------------------------------------------------------------
 # Market Regime

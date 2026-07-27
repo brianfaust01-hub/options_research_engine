@@ -1,447 +1,457 @@
-# PROJECT STATUS — Project Stonks
+PROJECT STATUS — Project Stonks
 
-Version: v0.3.0-alpha
-Current Milestone: Paper Trading MVP
-Current Sprint: Sprint 30A - Learning & Feedback Loop Foundation
-Status: ACTIVE DEVELOPMENT
+Version: v0.3.0-alphaCurrent Milestone: Institutional Research PlatformCurrent Sprint: Sprint 33C – Institutional Trade Scoring & Portfolio Decision EngineStatus: ACTIVE DEVELOPMENT
 
----
+Vision
 
-# Vision
+Project Stonks exists to maximize long-term risk-adjusted returns by continuously learning which research signals, option structures, execution techniques, portfolio decisions, and risk management practices outperform through evidence—not intuition.
 
-Project Stonks exists to maximize long-term risk-adjusted returns by continuously learning which research signals, option structures, execution techniques, and portfolio decisions outperform through evidence—not intuition.
+Project Stonks is not an options screener.
 
-Project Stonks is NOT an options screener.
+Project Stonks is an institutional-quality decision engine that:
 
-Project Stonks is an institutional-quality research platform that:
+Generates investment ideas
 
-- Generates investment ideas
-- Constructs trades
-- Assists execution
-- Tracks outcomes
-- Learns from historical performance
-- Continuously improves itself
+Constructs trades
 
-Every generated recommendation must produce a permanent research artifact, regardless of whether capital is allocated. Unexecuted recommendations provide counterfactual evidence that is essential for evaluating research quality, strategy selection, and portfolio decisions. The system learns from all hypotheses, not only executed trades.
+Evaluates execution quality
 
----
+Allocates capital
 
-# Governance
+Tracks outcomes
+
+Learns from historical performance
+
+Continuously improves itself
+
+Every recommendation must produce a permanent research artifact regardless of whether capital is allocated.
+
+Recommendations that are never executed are still valuable because they provide counterfactual evidence that improves future research, execution, and portfolio decisions.
+
+The system learns from every hypothesis, not just executed trades.
+
+Governance
 
 This document is the governing document for Project Stonks.
 
-Every development session must begin by reading this document.
+Every development session begins by reading this document.
 
-Implementations may change.
+Architecture will evolve.
 
-Architecture may evolve.
+Implementation details may change.
 
-Engineering Principles, Vision, and ADRs should only change after explicit discussion and documented rationale.
+Engineering Principles, Vision, and Architectural Decision Records (ADRs) only change after explicit discussion.
 
 Every sprint proposal must:
 
-- Align with the Vision
-- Reference the Engineering Principles
-- Include regression validation
-- Explain how it improves learning, confidence, returns, or risk management
+Align with the Vision
 
-# Long-Term Architecture
+Reference the Engineering Principles
+
+Include regression validation
+
+Explain how it improves learning, confidence, execution, returns, or risk management
+
+Long-Term Architecture
 
 Research Engine
-↓
-
+        │
+        ▼
 Market Thesis
-
-↓
-
+        │
+        ▼
 Strategy Optimizer
-
-↓
-
+        │
+        ▼
 Contract Optimizer
-
-↓
-
-Execution Assistant
-
-↓
-
-Outcome Tracker
-
-↓
-
+        │
+        ▼
+Execution Engine
+        │
+        ▼
+Trade Scoring Engine
+        │
+        ▼
+Portfolio Allocation Engine
+        │
+        ▼
+Paper Portfolio
+        │
+        ▼
+Outcome Review
+        │
+        ▼
 Learning Engine
-
-↓
-
+        │
+        ▼
 Research Engine
 
-The learning engine is the center of the product.
+The Learning Engine remains the center of the product.
 
 Every release should strengthen this feedback loop.
 
----
+Current Capabilities
 
-# Current Capabilities
+Research
 
-## Research
+Full S&P 500 scan
 
-- Full S&P 500 scan
-- Market regime analysis
-- Breadth analysis
-- Trend engine
-- Momentum engine
-- Opportunity scoring
-- Confidence scoring
+Market regime analysis
 
-## Options
+Market breadth analysis
 
-- Horizon-aware contract selection
-- Liquidity-aware scoring
-- DTE optimization
-- Paper portfolio allocation
+Trend engine
 
-## Automation
+Momentum engine
 
-- Daily batch execution
-- Windows Task Scheduler
-- Daily logging
-- Paper trade journal
-- Open trade review
+Opportunity scoring
 
----
+Research confidence scoring
 
-# Current Open Paper Trades
+Contract Selection
 
-(Currently maintained automatically)
+Horizon-aware contract selection
 
-Example:
+Liquidity-aware contract ranking
 
-- IBKR
-- UPS
+DTE optimization
 
-(C should now be manually marked closed until broker reconciliation exists.)
+Contract scoring
 
----
+Research pricing
 
-# Product Roadmap
+Execution
 
-## Phase 1 ✅
+Conservative execution modeling
+
+Bid/Ask spread analysis
+
+Execution scoring
+
+Execution grading
+
+Immediate liquidation analysis
+
+Research price vs expected fill comparison
+
+Trade Scoring
+
+Trade Quality Engine
+
+Institutional Trade Score
+
+Institutional Trade Grade
+
+Research component scoring
+
+Contract component scoring
+
+Execution component scoring
+
+Trade Quality component scoring
+
+Portfolio
+
+Paper portfolio
+
+Market-aware allocation
+
+Portfolio Score
+
+Position sizing
+
+Automatic portfolio ranking
+
+Learning
+
+Immutable recommendation snapshots
+
+Trade journal
+
+Outcome review
+
+Weekly learning reports
+
+Historical validation
+
+Structured learning dataset
+
+Automation
+
+Daily batch execution
+
+Windows Task Scheduler
+
+Automated journal updates
+
+Automated portfolio updates
+
+Automated weekly learning
+
+Current Milestone
+
+Institutional Decision Engine
+
+Current focus:
+
+Institutional Trade Score
+
+Portfolio Decision Quality
+
+Learning Feedback
+
+Data Integrity
+
+Product Roadmap
+
+Phase 1 ✅
 
 Build the Engine
 
 Completed
 
-- Research engine
-- Options engine
-- Portfolio allocation
-- Automation
-- Paper trading
+Research Engine
 
----
+Options Engine
 
-## Phase 2 (Current)
+Contract Selection
+
+Paper Trading
+
+Automation
+
+Phase 2 ✅
 
 Build the Scientist
 
-Current priorities:
+Completed
 
-1. Learning feedback loop
-2. Execution quality
-3. Data integrity
-4. Weekly research review
-
----
-
-## Phase 3
-
-Build the Portfolio Manager
-
-Future:
-
-- Correlation management
-- Portfolio optimization
-- Sector balancing
-- Risk budgeting
-
----
-
-# Sprint 30A
-
-Objective:
-
-Validate that Project Stonks is actually learning correctly.
-
-Before adding new trading features we must confirm:
-
-- recommendations are stored correctly
-- outcomes are updated correctly
-- historical data is preserved
-- weekly insights are accurate
-- experiments are evidence based
-
----
-
-# Immediate Priorities
-
-## 1
-
-Audit learning pipeline.
-
-Verify:
-
-Recommendation
-
-↓
-
-Journal
-
-↓
-
-Outcome Review
-
-↓
+Learning Pipeline
 
 Weekly Learning
 
-↓
+Immutable Research History
 
-Insight Generation
+Outcome Review
 
----
+Execution Analysis
 
-## 2
+Phase 3 (Current)
 
-Improve execution quality.
+Build the Institutional Portfolio Manager
 
-Future work:
+Current priorities
 
-- better limit pricing
-- slippage measurement
-- broker reconciliation
-- execution guidance
+Institutional Trade Scoring
 
----
+Portfolio Allocation
 
-## 3
+Execution Quality
 
-Dynamic stop recommendations.
+Portfolio Decision Quality
 
-NOT fixed percentages.
+Phase 4
 
-Future stop logic should consider:
+Adaptive Portfolio Management
 
-- Delta
-- Gamma
-- Theta
-- Vega
-- IV
-- Expected move
-- ATR
-- Standard deviation
-- Time remaining
+Future
 
----
+Correlation management
 
-## 4
+Sector balancing
 
-Strategy Research
+Industry balancing
 
-Long-term Project Stonks should determine not only:
+Adaptive position sizing
 
-"What contract?"
+Strategy optimization
 
-but
+Learning-driven score optimization
 
-"What strategy?"
+Completed Sprints
 
-Examples:
+Sprint 30A
 
-- Long Call
-- Long Put
-- Bull Call Spread
-- Bear Put Spread
-- Cash Secured Put
-- Covered Call
-- Iron Condor
-- Calendar
-- etc.
+Recommendation snapshots
 
-The learning engine should determine which structure best expressed the thesis.
+Learning validation
 
----
+Weekly learning
 
-# Engineering Principles
+Outcome review
 
-## Vision Alignment
+Sprint 31A
 
-Every sprint must explicitly state:
+Atomic journal writes
 
-- why it exists
-- which long-term objective it advances
-- what future capability it unlocks
+Snapshot integration
 
----
+Journal repair utilities
 
-## Regression Validation
+Data integrity validation
 
-Every release must validate:
+Sprint 32A
 
-✓ Research engine
+Execution scoring
 
-✓ Market regime
+Bid/Ask analysis
 
-✓ Opportunity scoring
+Execution grades
 
-✓ Option selection
+Conservative pricing
 
-✓ Capital allocation
+Execution reporting
 
-✓ Trade journal
+Sprint 33A
 
-✓ Outcome review
+Institutional Trade Score
 
-✓ Learning dataset
+Institutional Trade Grade
 
-✓ Automation
+Component scoring
 
-No release is complete without regression validation.
+Trade scoring engine
 
----
+Sprint 33B
 
-## Learning First
+Portfolio Score
 
-When forced to choose between:
+Allocation refactor
 
-adding features
+Market-aware portfolio ranking
 
-or
+Institutional Trade Score integration
 
-improving learning
+Sprint 33C
 
-prefer improving learning.
+Single risk budget
 
----
+Simplified position sizing
 
-## Evidence Before Optimization
+Position sizing cleanup
 
-Do not modify:
+Engineering Principles
 
-- thresholds
-- scoring
-- indicators
-- strategies
+Every subsystem owns one responsibility.
 
-without sufficient historical evidence.
-
-Ideas enter the Experiment Queue first.
-
----
-
-## Preserve Historical Truth
+Learning is prioritized over feature growth.
 
 Historical recommendations are immutable.
 
-Never overwrite historical recommendations.
+Evidence precedes optimization.
 
-Future versions should explain differences, not rewrite history.
+Every sprint includes regression validation.
 
----
+Every release should increase confidence.
 
-## Backwards Compatibility
+Subsystem ownership:
 
-Prefer wrappers and compatibility layers over breaking interfaces.
+Research Engine → Finds opportunities.
 
-Avoid downstream regressions.
+Contract Optimizer → Chooses contracts.
 
----
+Execution Engine → Evaluates tradability.
 
-## Validation Before Completion
+Trade Scoring Engine → Produces Institutional Trade Score.
 
-A sprint is complete only when:
+Portfolio Allocation Engine → Chooses what to own.
 
-- code executes
-- outputs exist
-- automation succeeds
-- learning data is preserved
-- regression checklist passes
+Learning Engine → Improves future decisions.
 
----
+Immediate Priorities
 
-## Every Release Must Increase Confidence
+Portfolio diversification
 
-Every sprint should increase confidence in at least one of:
+Sector concentration
 
-- research
-- execution
-- automation
-- learning
-- data integrity
+Industry concentration
 
-Not every sprint must improve returns.
+Correlation penalties
 
-Every sprint must improve confidence.
+Existing holdings
 
----
+Validate Institutional Trade Score as a predictor of future performance.
 
-# Experiment Queue
+Broker reconciliation (ThinkOrSwim / Schwab).
 
-Current High Priority
+Strategy optimization beyond long calls/puts.
 
-☐ Validate learning pipeline
+Experiment Queue
 
-☐ Broker reconciliation (CSV)
+High Priority
 
-☐ Execution quality improvements
+Institutional score validation
 
-☐ Dynamic stop framework
+Sector concentration engine
 
-☐ Weekly learning report
+Portfolio correlation engine
+
+Broker reconciliation
+
+Strategy optimizer
 
 Medium Priority
 
-☐ Strategy optimizer
+Learning-driven score weights
 
-☐ DTE optimization
+Adaptive position sizing
 
-☐ Position sizing optimization
+Portfolio optimization
 
-☐ Portfolio optimization
+Historical execution analysis
+
+Strategy attribution
 
 Low Priority
 
-☐ Additional strategy library
+Advanced volatility strategies
 
-☐ Advanced volatility strategies
+Multi-leg optimization
 
----
+Portfolio hedging
 
-# Weekly Learning Objectives
+Dynamic capital allocation
+
+Weekly Learning Objectives
 
 Every weekly report should answer:
 
-1. What happened?
+What happened?
 
-2. Why did it happen?
+Why did it happen?
 
-3. What did we learn?
+What did we learn?
 
-4. Did we collect enough data?
+Which scores best predicted success?
 
-5. What should we test next?
+Did execution help or hurt?
 
-6. Which experiment should be prioritized?
+Which experiment should be prioritized next?
 
-7. Did any system regress?
+Did any subsystem regress?
 
-The weekly report should propose experiments—not automatically change the model.
+The Learning Engine proposes experiments.
 
----
+It never automatically changes production behavior.
 
-# Success Criteria
+Success Criteria
 
-Project Stonks succeeds when it continuously improves because of evidence generated from its own historical decisions.
+Project Stonks succeeds when it continuously improves because of evidence generated from its own research, execution quality, portfolio decisions, and historical outcomes.
 
-The objective is not to predict stocks.
+The objective is not simply to predict stock prices.
 
-The objective is to build an institutional-quality research platform that becomes better every week.
+The objective is to build an institutional-quality decision engine that becomes more accurate, more disciplined, and more evidence-driven every week.
+
+# Working Style
+
+When contributing to Project Stonks:
+
+- Read PROJECT_STATUS.md before proposing changes.
+- Prefer architectural improvements over isolated feature additions.
+- Preserve backwards compatibility whenever practical.
+- Minimize technical debt.
+- Prefer evidence over intuition.
+- Full-file replacements are preferred over partial patches unless only a few lines change.
+- Every new subsystem should have a single, well-defined responsibility.
+- Every sprint should identify regression risks and define how success will be validated.
+- When appropriate, propose future extensibility even if it is not implemented immediately.

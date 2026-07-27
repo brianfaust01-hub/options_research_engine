@@ -31,6 +31,8 @@ from typing import Any, Optional
 import pandas as pd
 import yfinance as yf
 
+from config import MAX_ACCEPTABLE_SPREAD_PCT
+
 
 # ---------------------------------------------------------------------------
 # Execution-engine configuration
@@ -1331,7 +1333,17 @@ def score_contracts(
         )
     )
 
-    # Quote-level execution validity.
+# Quote-level execution validity.
+#
+# A contract must satisfy our minimum execution standards before it
+# can even be considered by the selector.
+#
+# This intentionally acts as a HARD GATE rather than merely reducing
+# the execution score.
+#
+# The selector should never recommend contracts that cannot be traded
+# efficiently.
+
     scored["Executable"] = (
         scored["mid"].notna()
         & (scored["mid"] > 0)
@@ -1339,7 +1351,12 @@ def score_contracts(
         & scored["ask"].notna()
         & (scored["bid"] > 0)
         & (scored["ask"] >= scored["bid"])
+        & scored["spread_pct"].notna()
+        & (
+        scored["spread_pct"]
+        <= MAX_ACCEPTABLE_SPREAD_PCT
     )
+)
 
     # ------------------------------------------------------------------
     # Sprint 32B - reporting-only execution analytics
@@ -1429,7 +1446,8 @@ def score_contracts(
     # Remove unusable contracts while preserving a broad enough
     # universe for horizon-aware scoring and portfolio affordability.
     #
-    # Sprint 32B does not add any additional execution-score filtering.
+    # Contracts that fail minimum execution standards are removed before
+    # ranking. Remaining contracts are sorted by research quality.
     scored = scored[
         scored["contractSymbol"].notna()
         & scored["strike"].notna()

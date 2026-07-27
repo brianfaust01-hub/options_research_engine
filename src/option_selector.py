@@ -2,23 +2,31 @@
 Project Stonks
 Option Selector
 
-Sprint 28A:
-Production-ready Research Mode selector with horizon-aware contract ranking.
+Sprint 32D
 
-Clean by default.
-Diagnostics can be enabled with DEBUG_OPTION_SELECTOR=True in config.py.
+Production-ready Research Mode selector with:
+- Horizon-aware contract ranking
+- Separate quote-executability and affordability fields
+- Complete candidate-contract audit output
+
+The audit is diagnostic only and does not change contract selection.
 """
+
+from __future__ import annotations
 
 import pandas as pd
 import yfinance as yf
 
 from config import (
     DEBUG_OPTION_SELECTOR,
-    MAX_SINGLE_CONTRACT_COST_PCT,
+    MAX_POSITION_SIZE_PCT,
     MIN_EXECUTABLE_CONTRACT_SCORE,
     PAPER_PORTFOLIO_VALUE,
 )
 
+from contract_selection_audit import (
+    write_contract_audit,
+)
 from options_engine import (
     get_target_expirations,
     get_option_chain,
@@ -26,25 +34,47 @@ from options_engine import (
 )
 
 
-def _debug(message: str):
+ENABLE_CONTRACT_SELECTION_AUDIT = True
+
+CONTRACT_AUDIT_TICKERS = {
+    "IFF",
+    "BALL",
+    "ITW",
+    "WRB",
+}
+
+
+def _debug(
+    message: str,
+) -> None:
     if DEBUG_OPTION_SELECTOR:
         print(message)
 
 
-def get_preferred_dte_range(expected_holding_days):
-    """
-    Converts expected holding period into preferred option DTE.
+def _should_audit(
+    ticker: str,
+) -> bool:
+    return (
+        ENABLE_CONTRACT_SELECTION_AUDIT
+        and str(ticker).upper()
+        in CONTRACT_AUDIT_TICKERS
+    )
 
-    The goal is not to hold to expiration.
-    The goal is to give the thesis enough time to work while avoiding
-    excessive theta acceleration.
+
+def get_preferred_dte_range(
+    expected_holding_days,
+):
+    """
+    Convert expected holding period into preferred option DTE.
     """
 
     if expected_holding_days is None:
         return (45, 75)
 
     try:
-        expected_holding_days = int(expected_holding_days)
+        expected_holding_days = int(
+            expected_holding_days
+        )
     except (TypeError, ValueError):
         return (45, 75)
 
@@ -57,43 +87,154 @@ def get_preferred_dte_range(expected_holding_days):
     return (60, 120)
 
 
-def _score_horizon_fit(dte, preferred_min_dte, preferred_max_dte):
-    """
-    Rewards contracts whose DTE matches the expected trade horizon.
-    Penalizes contracts that are too short or too long for the thesis.
-    """
-
-    if preferred_min_dte <= dte <= preferred_max_dte:
+def _score_horizon_fit(
+    dte,
+    preferred_min_dte,
+    preferred_max_dte,
+):
+    if (
+        preferred_min_dte
+        <= dte
+        <= preferred_max_dte
+    ):
         return 25
 
-    if preferred_min_dte - 15 <= dte <= preferred_max_dte + 15:
+    if (
+        preferred_min_dte - 15
+        <= dte
+        <= preferred_max_dte + 15
+    ):
         return 10
 
     return -20
 
 
-def _is_contract_affordable(contract) -> bool:
-    premium = float(contract["mid"])
+def _is_contract_affordable(
+    contract,
+) -> bool:
+    """
+    Determines whether a single option contract fits within the
+    configured maximum portfolio allocation.
+
+    This is intentionally separate from quote executability.
+
+    QuoteExecutable answers:
+
+        "Can this option reasonably be traded?"
+
+    Affordable answers:
+
+        "Does this option fit within our current portfolio risk budget?"
+    """
+
+    try:
+        premium = float(
+            contract["mid"]
+        )
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
+        return False
+
+    if premium <= 0:
+        return False
+
     contract_cost = premium * 100
 
-    max_single_contract_cost = (
-        PAPER_PORTFOLIO_VALUE * MAX_SINGLE_CONTRACT_COST_PCT
+    max_position_value = (
+        PAPER_PORTFOLIO_VALUE
+        * MAX_POSITION_SIZE_PCT
     )
 
-    return contract_cost <= max_single_contract_cost
+    return (
+        contract_cost
+        <= max_position_value
+    )
 
 
-def _get_stock_price(ticker: str):
-    stock = yf.Ticker(ticker)
-    history = stock.history(period="5d")
+def _get_stock_price(
+    ticker: str,
+):
+    try:
+        stock = yf.Ticker(
+            ticker
+        )
 
-    if history.empty:
+        history = stock.history(
+            period="5d"
+        )
+
+        if history.empty:
+            return None
+
+        return float(
+            history["Close"].iloc[-1]
+        )
+
+    except Exception as error:
+        _debug(
+            f"Failed to retrieve stock price "
+            f"for {ticker}: {error}"
+        )
+
         return None
 
-    return float(history["Close"].iloc[-1])
+
+def _build_rejection_reason(
+    row: pd.Series,
+) -> str:
+    reasons = []
+
+    if not bool(
+        row.get(
+            "QuoteExecutable",
+            False,
+        )
+    ):
+        reasons.append(
+            "INVALID_QUOTE"
+        )
+
+    if not bool(
+        row.get(
+            "Affordable",
+            False,
+        )
+    ):
+        reasons.append(
+            "ABOVE_CONTRACT_BUDGET"
+        )
+
+    final_score = pd.to_numeric(
+        row.get(
+            "FinalContractScore"
+        ),
+        errors="coerce",
+    )
+
+    if (
+        pd.isna(final_score)
+        or final_score
+        < MIN_EXECUTABLE_CONTRACT_SCORE
+    ):
+        reasons.append(
+            "BELOW_MIN_FINAL_SCORE"
+        )
+
+    if not reasons:
+        return "LOWER_RANKED_ELIGIBLE_CONTRACT"
+
+    return ";".join(
+        reasons
+    )
 
 
-def _print_contract_sample(label: str, contracts):
+def _print_contract_sample(
+    label: str,
+    contracts: pd.DataFrame,
+) -> None:
     if not DEBUG_OPTION_SELECTOR:
         return
 
@@ -112,27 +253,39 @@ def _print_contract_sample(label: str, contracts):
         "ask",
         "lastPrice",
         "mid",
+        "SpreadDollars",
         "spread_pct",
         "QuoteQuality",
-        "Executable",
+        "QuoteExecutable",
+        "Affordable",
+        "SelectorEligible",
         "moneyness",
         "delta",
         "theta",
+        "openInterest",
+        "volume",
         "ContractScore",
         "HorizonFitScore",
         "FinalContractScore",
+        "ExecutionScore",
+        "ExecutionGrade",
         "SelectionTier",
     ]
 
     available_columns = [
-        column for column in columns
+        column
+        for column in columns
         if column in contracts.columns
     ]
 
     print(
-        contracts[available_columns]
+        contracts[
+            available_columns
+        ]
         .head(10)
-        .to_string(index=False)
+        .to_string(
+            index=False
+        )
     )
 
 
@@ -141,59 +294,65 @@ def select_best_contract(
     opportunity_type: str,
     expected_holding_days=None,
 ):
+    ticker = str(
+        ticker
+    ).upper().strip()
 
-    _debug(f"\n========== OPTION SELECTOR DEBUG: {ticker} ==========")
+    _debug(
+        f"\n========== OPTION SELECTOR DEBUG: "
+        f"{ticker} =========="
+    )
 
-    stock_price = _get_stock_price(ticker)
+    stock_price = _get_stock_price(
+        ticker
+    )
 
     if stock_price is None:
-        _debug("No stock price found.")
+        _debug(
+            "No stock price found."
+        )
         return None
 
-    _debug(f"Stock price: {stock_price:.2f}")
-
-    option_type = "call"
-
-    if "Put" in opportunity_type:
-        option_type = "put"
-
-    _debug(f"Option type: {option_type}")
-
-    preferred_min_dte, preferred_max_dte = get_preferred_dte_range(
-        expected_holding_days
-    )
-
-    _debug(f"Expected holding days: {expected_holding_days}")
     _debug(
-        "Preferred DTE range: "
-        f"{preferred_min_dte}-{preferred_max_dte}"
+        f"Stock price: "
+        f"{stock_price:.2f}"
     )
 
-    expirations = get_target_expirations(ticker)
+    option_type = (
+        "put"
+        if "Put" in opportunity_type
+        else "call"
+    )
 
-    _debug(f"Expirations found: {len(expirations)}")
-    _debug(f"Expirations: {expirations}")
+    preferred_min_dte, preferred_max_dte = (
+        get_preferred_dte_range(
+            expected_holding_days
+        )
+    )
 
-    if len(expirations) == 0:
-        _debug("No expirations found in configured DTE window.")
+    expirations = get_target_expirations(
+        ticker
+    )
+
+    if not expirations:
+        _debug(
+            "No expirations found in configured "
+            "DTE window."
+        )
         return None
 
-    all_ranked_contracts = []
+    all_candidate_contracts = []
+    all_eligible_contracts = []
 
     for expiration in expirations:
         try:
-            _debug(f"\n----- {ticker} {expiration} -----")
-
             chain = get_option_chain(
                 ticker=ticker,
                 expiration=expiration,
                 option_type=option_type,
             )
 
-            _debug(f"Raw chain count: {len(chain)}")
-
             if chain.empty:
-                _debug("No contracts returned from option chain.")
                 continue
 
             ranked = score_contracts(
@@ -203,27 +362,46 @@ def select_best_contract(
                 expiration=expiration,
             )
 
-            _debug(f"After score_contracts count: {len(ranked)}")
-
             if ranked.empty:
-                _debug("All contracts removed inside score_contracts().")
                 continue
 
             ranked = ranked.copy()
 
-            ranked["Executable"] = ranked.apply(
-                _is_contract_affordable,
-                axis=1,
+            # Preserve the quote-level executable status produced
+            # by options_engine.py.
+            ranked["QuoteExecutable"] = (
+                ranked["Executable"]
+                .fillna(False)
+                .astype(bool)
             )
 
-            ranked["PreferredMinDTE"] = preferred_min_dte
-            ranked["PreferredMaxDTE"] = preferred_max_dte
+            # Account-size affordability is a separate concept.
+            ranked["Affordable"] = (
+                ranked.apply(
+                    _is_contract_affordable,
+                    axis=1,
+                )
+            )
 
-            ranked["HorizonFitScore"] = ranked["DTE"].apply(
-                lambda dte: _score_horizon_fit(
-                    dte=dte,
-                    preferred_min_dte=preferred_min_dte,
-                    preferred_max_dte=preferred_max_dte,
+            ranked["PreferredMinDTE"] = (
+                preferred_min_dte
+            )
+
+            ranked["PreferredMaxDTE"] = (
+                preferred_max_dte
+            )
+
+            ranked["HorizonFitScore"] = (
+                ranked["DTE"].apply(
+                    lambda dte: _score_horizon_fit(
+                        dte=dte,
+                        preferred_min_dte=(
+                            preferred_min_dte
+                        ),
+                        preferred_max_dte=(
+                            preferred_max_dte
+                        ),
+                    )
                 )
             )
 
@@ -232,76 +410,138 @@ def select_best_contract(
                 + ranked["HorizonFitScore"]
             )
 
-            _print_contract_sample(
-                "Top contracts after scoring, before selector filter:",
-                ranked,
-            )
-
-            filtered = ranked[
-                (ranked["Executable"])
-                &
-                (
-                    ranked["FinalContractScore"]
+            ranked["SelectorEligible"] = (
+                ranked["QuoteExecutable"]
+                & ranked["Affordable"]
+                & (
+                    ranked[
+                        "FinalContractScore"
+                    ]
                     >= MIN_EXECUTABLE_CONTRACT_SCORE
                 )
+            )
+
+            ranked["RejectionReason"] = (
+                ranked.apply(
+                    _build_rejection_reason,
+                    axis=1,
+                )
+            )
+
+            all_candidate_contracts.append(
+                ranked
+            )
+
+            eligible = ranked[
+                ranked["SelectorEligible"]
             ].copy()
 
-            _debug(
-                "Affordable + min final contract score count: "
-                f"{len(filtered)}"
-            )
-
-            if filtered.empty:
-                continue
-
-            _print_contract_sample(
-                "Contracts accepted by selector:",
-                filtered,
-            )
-
-            all_ranked_contracts.append(filtered)
+            if not eligible.empty:
+                all_eligible_contracts.append(
+                    eligible
+                )
 
         except Exception as error:
-            _debug(f"{ticker} {expiration}: selector error = {error}")
+            _debug(
+                f"{ticker} {expiration}: "
+                f"selector error = {error}"
+            )
             continue
 
-    if len(all_ranked_contracts) == 0:
-        _debug("No executable contracts found after all selector filters.")
+    if not all_candidate_contracts:
+        _debug(
+            "No scored contracts found."
+        )
+        return None
+
+    candidate_universe = pd.concat(
+        all_candidate_contracts,
+        axis=0,
+        ignore_index=True,
+    )
+
+    if not all_eligible_contracts:
+        if _should_audit(ticker):
+            result = write_contract_audit(
+                ticker=ticker,
+                option_type=option_type,
+                stock_price=stock_price,
+                candidates=(
+                    candidate_universe
+                ),
+                selected_contract=None,
+            )
+
+            print(
+                f"[contract_audit] {ticker}: "
+                f"{result.get('markdown_path')}"
+            )
+
+        _debug(
+            "No executable contracts found after "
+            "all selector filters."
+        )
+
         return None
 
     executable_contracts = pd.concat(
-        all_ranked_contracts,
+        all_eligible_contracts,
         axis=0,
+        ignore_index=True,
     )
 
-    executable_contracts = executable_contracts.sort_values(
-        [
-            "FinalContractScore",
-            "HorizonFitScore",
-            "ContractScore",
-            "DTE",
-            "PremiumPctOfStock",
-        ],
-        ascending=[False, False, False, True, True],
+    executable_contracts = (
+        executable_contracts.sort_values(
+            [
+                "FinalContractScore",
+                "HorizonFitScore",
+                "ContractScore",
+                "DTE",
+                "PremiumPctOfStock",
+            ],
+            ascending=[
+                False,
+                False,
+                False,
+                True,
+                True,
+            ],
+            na_position="last",
+        )
     )
+
+    selected = (
+        executable_contracts.iloc[0]
+    )
+
+    selected_symbol = str(
+        selected["contractSymbol"]
+    )
+
+    candidate_universe.loc[
+        candidate_universe[
+            "contractSymbol"
+        ].astype(str) == selected_symbol,
+        "RejectionReason",
+    ] = "SELECTED"
+
+    if _should_audit(ticker):
+        result = write_contract_audit(
+            ticker=ticker,
+            option_type=option_type,
+            stock_price=stock_price,
+            candidates=candidate_universe,
+            selected_contract=selected,
+        )
+
+        print(
+            f"[contract_audit] {ticker}: "
+            f"{result.get('markdown_path')}"
+        )
 
     _print_contract_sample(
         "Final selected contract universe:",
         executable_contracts,
     )
-
-    selected = executable_contracts.iloc[0]
-
-    _debug("\nSELECTED CONTRACT")
-    _debug(f"Symbol: {selected['contractSymbol']}")
-    _debug(f"Strike: {selected['strike']}")
-    _debug(f"Expiration: {selected['Expiration']}")
-    _debug(f"Premium: {selected['mid']}")
-    _debug(f"Contract Score: {selected['ContractScore']}")
-    _debug(f"Horizon Fit Score: {selected['HorizonFitScore']}")
-    _debug(f"Final Contract Score: {selected['FinalContractScore']}")
-    _debug(f"Quote Quality: {selected.get('QuoteQuality')}")
-    _debug(f"Selection Tier: {selected.get('SelectionTier')}")
-    _debug(f"Executable: {selected.get('Executable')}")
 
     return selected
