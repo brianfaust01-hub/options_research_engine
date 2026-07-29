@@ -291,6 +291,24 @@ def main():
             print(f"Expiration: {trade['expiration']}")
             print(f"Strike: {trade['strike']}")
             print(f"Premium: ${trade['premium']:.2f}")
+
+            if pd.notna(trade.get("execution_entry_price")):
+                print(
+                    f"Suggested Entry Limit: "
+                    f"${trade['execution_entry_price']:.2f}"
+                )
+
+            if pd.notna(trade.get("execution_exit_price")):
+                print(
+                    f"Suggested Exit Limit: "
+                    f"${trade['execution_exit_price']:.2f}"
+                )
+
+            if pd.notna(trade.get("execution_grade")):
+                print(
+                    f"Execution Grade: "
+                    f"{trade['execution_grade']}"
+                )
             print(f"Contracts: {int(trade['contracts'])}")
             print(f"Position Value: ${trade['position_value']:.2f}")
             print(f"Max Risk: ${trade['max_risk_dollars']:.2f}")
@@ -327,6 +345,24 @@ def main():
                 print(f"Expiration: {trade['expiration']}")
                 print(f"Strike: {trade['strike']}")
                 print(f"Premium: ${trade['premium']:.2f}")
+
+                if pd.notna(trade.get("execution_entry_price")):
+                    print(
+                        f"Suggested Entry Limit: "
+                        f"${trade['execution_entry_price']:.2f}"
+                    )
+
+                if pd.notna(trade.get("execution_exit_price")):
+                    print(
+                        f"Suggested Exit Limit: "
+                        f"${trade['execution_exit_price']:.2f}"
+                    )
+
+                if pd.notna(trade.get("execution_grade")):
+                    print(
+                        f"Execution Grade: "
+                        f"{trade['execution_grade']}"
+                    )
                 print(f"Contracts: {int(trade['contracts'])}")
                 print(f"Position Value: ${trade['position_value']:.2f}")
                 print(f"Max Risk: ${trade['max_risk_dollars']:.2f}")

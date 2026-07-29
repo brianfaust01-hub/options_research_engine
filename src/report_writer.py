@@ -106,6 +106,7 @@ def build_daily_report(
     lines.append("")
 
     #
+        #
     # Recommendations
     #
 
@@ -123,24 +124,85 @@ def build_daily_report(
         display_cols = [
             c
             for c in [
-                "Ticker",
-                "Action",
-                "Direction",
-                "Confidence",
-                "RecommendedCapital",
-                "ContractSymbol",
-                "Expiration",
-                "Strike",
-                "Reason",
+                "ticker",
+                "action",
+                "option_strategy",
+                "contracts",
+                "execution_entry_price",
+                "execution_exit_price",
+                "profit_target_pct",
+                "stop_loss_pct",
+                "allocation_score",
+                "execution_grade",
+                "contract_symbol",
             ]
             if c in recommendations.columns
         ]
 
+        display = recommendations.copy()
+
+        #
+        # Friendly column names
+        #
+
+        rename_map = {
+            "ticker": "Ticker",
+            "action": "Action",
+            "option_strategy": "Strategy",
+            "contracts": "Contracts",
+            "execution_entry_price": "Entry Limit",
+            "execution_exit_price": "Exit Limit",
+            "profit_target_pct": "Target %",
+            "stop_loss_pct": "Stop %",
+            "allocation_score": "Portfolio Score",
+            "execution_grade": "Execution",
+            "contract_symbol": "Contract",
+        }
+
+        display = display.rename(columns=rename_map)
+
+        #
+        # Percentage formatting
+        #
+
+        for col in ["Target %", "Stop %"]:
+
+            if col in display.columns:
+
+                display[col] = display[col].apply(
+                    lambda x: (
+                        f"{x:.0%}"
+                        if pd.notna(x)
+                        else ""
+                    )
+                )
+
+        #
+        # Dollar formatting
+        #
+
+        for col in ["Entry Limit", "Exit Limit"]:
+
+            if col in display.columns:
+
+                display[col] = display[col].apply(
+                    lambda x: (
+                        f"${x:.2f}"
+                        if pd.notna(x)
+                        else ""
+                    )
+                )
+
         if display_cols:
 
+            ordered_columns = [
+                rename_map[c]
+                for c in display_cols
+            ]
+
             lines.append(
-                recommendations[
-                    display_cols
+                display[
+                    ordered_columns
                 ].to_markdown(
                     index=False
                 )
@@ -155,9 +217,6 @@ def build_daily_report(
                     index=False
                 )
             )
-
-    lines.append("")
-
     #
     # Position Review
     #
