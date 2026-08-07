@@ -16,7 +16,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-import yfinance as yf
+
+from paper_portfolio import (
+    get_open_positions,
+    load_portfolio,
+    save_portfolio,
+)
+from schwab.market_data_client import (
+    get_normalized_price_history,
+)
 
 from paper_portfolio import get_open_positions, load_portfolio, save_portfolio
 
@@ -68,31 +76,149 @@ def _download_market_data(
     end_date,
 ) -> pd.DataFrame:
     """
-    Download all underlying tickers and SPY in one Yahoo request.
+    Download underlying tickers and SPY from Schwab.
+
+    Returns a ticker-first MultiIndex DataFrame:
+
+        market_data[ticker]["Close"]
+
+    Only the requested date range is retained.
     """
 
-    symbols = sorted(set(tickers + ["SPY"]))
+    symbols = sorted(
+        set(
+            tickers
+            + ["SPY"]
+        )
+    )
 
-    try:
-        data = yf.download(
-            tickers=symbols,
-            start=start_date,
-            end=end_date,
-            auto_adjust=False,
-            progress=False,
-            threads=False,
-            group_by="column",
-            timeout=20,
+    frames = {}
+
+    start_timestamp = pd.Timestamp(
+        start_date
+    )
+
+    end_timestamp = pd.Timestamp(
+        end_date
+    )
+
+    for ticker in symbols:
+
+        schwab_symbol = (
+            str(ticker)
+            .upper()
+            .strip()
+            .replace("-", "/")
         )
 
-        if data.empty:
-            return pd.DataFrame()
+        try:
 
-        return data
+            candles = (
+                get_normalized_price_history(
+                    ticker=schwab_symbol,
+                    period_type="year",
+                    period=1,
+                    frequency_type="daily",
+                    frequency=1,
+                    need_extended_hours_data=False,
+                )
+            )
 
-    except Exception as error:
-        print(f"Outcome market-data download failed: {error}")
+            if not candles:
+                print(
+                    "Outcome market-data warning: "
+                    f"no history returned for {ticker}"
+                )
+                continue
+
+            frame = pd.DataFrame(
+                candles
+            )
+
+            if (
+                frame.empty
+                or "Datetime" not in frame.columns
+                or "Close" not in frame.columns
+            ):
+                print(
+                    "Outcome market-data warning: "
+                    f"invalid history returned for {ticker}"
+                )
+                continue
+
+            frame["Date"] = pd.to_datetime(
+                frame["Datetime"],
+                unit="ms",
+                utc=True,
+            ).dt.tz_convert(
+                "America/New_York"
+            ).dt.tz_localize(
+                None
+            ).dt.normalize()
+
+            frame = frame.set_index(
+                "Date"
+            )
+
+            frame = frame[
+                [
+                    "Open",
+                    "High",
+                    "Low",
+                    "Close",
+                    "Volume",
+                ]
+            ]
+
+            for column in [
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Volume",
+            ]:
+                frame[column] = pd.to_numeric(
+                    frame[column],
+                    errors="coerce",
+                )
+
+            frame = frame[
+                (
+                    frame.index
+                    >= start_timestamp
+                )
+                & (
+                    frame.index
+                    < end_timestamp
+                )
+            ]
+
+            if frame.empty:
+                print(
+                    "Outcome market-data warning: "
+                    "no observations in requested "
+                    f"range for {ticker}"
+                )
+                continue
+
+            frames[ticker] = (
+                frame.sort_index()
+            )
+
+        except Exception as error:
+
+            print(
+                "Outcome market-data download "
+                f"failed for {ticker}: {error}"
+            )
+
+    if not frames:
         return pd.DataFrame()
+
+    return pd.concat(
+        frames,
+        axis=1,
+    )
 
 
 def _get_close_series(

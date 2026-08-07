@@ -27,24 +27,13 @@ from config import (
     PAPER_PORTFOLIO_VALUE,
 )
 
-from contract_selection_audit import (
-    write_contract_audit,
-)
+
 from options_engine import (
     get_target_expirations,
     get_option_chain,
     score_contracts,
 )
 
-
-ENABLE_CONTRACT_SELECTION_AUDIT = True
-
-CONTRACT_AUDIT_TICKERS = {
-    "IFF",
-    "BALL",
-    "ITW",
-    "WRB",
-}
 
 
 def _debug(
@@ -53,15 +42,6 @@ def _debug(
     if DEBUG_OPTION_SELECTOR:
         print(message)
 
-
-def _should_audit(
-    ticker: str,
-) -> bool:
-    return (
-        ENABLE_CONTRACT_SELECTION_AUDIT
-        and str(ticker).upper()
-        in CONTRACT_AUDIT_TICKERS
-    )
 
 
 def get_preferred_dte_range(
@@ -514,28 +494,11 @@ def select_best_contract(
     )
 
     if not all_eligible_contracts:
-        if _should_audit(ticker):
-            result = write_contract_audit(
-                ticker=ticker,
-                option_type=option_type,
-                stock_price=stock_price,
-                candidates=(
-                    candidate_universe
-                ),
-                selected_contract=None,
-            )
-
-            print(
-                f"[contract_audit] {ticker}: "
-                f"{result.get('markdown_path')}"
-            )
-
         _debug(
-            "No executable contracts found after "
-            "all selector filters."
-        )
-
-        return None
+        "No executable contracts found after "
+        "all selector filters."
+    )
+    return None
 
     executable_contracts = pd.concat(
         all_eligible_contracts,
@@ -578,19 +541,7 @@ def select_best_contract(
         "RejectionReason",
     ] = "SELECTED"
 
-    if _should_audit(ticker):
-        result = write_contract_audit(
-            ticker=ticker,
-            option_type=option_type,
-            stock_price=stock_price,
-            candidates=candidate_universe,
-            selected_contract=selected,
-        )
-
-        print(
-            f"[contract_audit] {ticker}: "
-            f"{result.get('markdown_path')}"
-        )
+    
 
     _print_contract_sample(
         "Final selected contract universe:",

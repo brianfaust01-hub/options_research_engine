@@ -36,7 +36,11 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import yfinance as yf
+
+from schwab.market_data_client import (
+    get_normalized_price_history,
+)
+from trade_journal import JOURNAL_PATH
 
 from trade_journal import JOURNAL_PATH
 
@@ -230,35 +234,177 @@ def _download_prices(
     start_date,
     end_date,
 ) -> pd.DataFrame:
-    symbols = sorted(set(tickers + ["SPY"]))
+    """
+    Download underlying tickers and SPY from Schwab.
+
+    Returns a ticker-first MultiIndex DataFrame:
+
+        market_data[ticker]["Close"]
+
+    Only the requested date range is retained.
+    """
+
+    symbols = sorted(
+        set(
+            tickers
+            + ["SPY"]
+        )
+    )
 
     if not symbols:
         return pd.DataFrame()
 
-    try:
-        data = yf.download(
-            tickers=symbols,
-            start=start_date,
-            end=end_date,
-            auto_adjust=False,
-            progress=False,
-            threads=True,
-            group_by="column",
-            timeout=30,
-        )
+    start_timestamp = pd.Timestamp(
+        start_date
+    )
 
-        if data.empty:
-            return pd.DataFrame()
+    end_timestamp = pd.Timestamp(
+        end_date
+    )
 
-        return data
+    requested_days = (
+        end_timestamp
+        - start_timestamp
+    ).days
 
-    except Exception as error:
+    history_period = (
+        2
+        if requested_days > 365
+        else 1
+    )
+
+    frames = {}
+
+    total_symbols = len(symbols)
+
+    for index, ticker in enumerate(
+        symbols,
+        start=1,
+    ):
+
         print(
-            "Research hindsight market-data download "
-            f"failed: {error}"
+            "[research_hindsight] "
+            f"{index}/{total_symbols} {ticker}"
         )
 
+        schwab_symbol = (
+            str(ticker)
+            .upper()
+            .strip()
+            .replace("-", "/")
+        )
+
+        try:
+
+            candles = (
+                get_normalized_price_history(
+                    ticker=schwab_symbol,
+                    period_type="year",
+                    period=history_period,
+                    frequency_type="daily",
+                    frequency=1,
+                    need_extended_hours_data=False,
+                )
+            )
+
+            if not candles:
+                print(
+                    "Research hindsight market-data "
+                    "warning: no history returned "
+                    f"for {ticker}"
+                )
+                continue
+
+            frame = pd.DataFrame(
+                candles
+            )
+
+            if (
+                frame.empty
+                or "Datetime" not in frame.columns
+                or "Close" not in frame.columns
+            ):
+                print(
+                    "Research hindsight market-data "
+                    "warning: invalid history returned "
+                    f"for {ticker}"
+                )
+                continue
+
+            frame["Date"] = pd.to_datetime(
+                frame["Datetime"],
+                unit="ms",
+                utc=True,
+            ).dt.tz_convert(
+                "America/New_York"
+            ).dt.tz_localize(
+                None
+            ).dt.normalize()
+
+            frame = frame.set_index(
+                "Date"
+            )
+
+            frame = frame[
+                [
+                    "Open",
+                    "High",
+                    "Low",
+                    "Close",
+                    "Volume",
+                ]
+            ]
+
+            for column in [
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Volume",
+            ]:
+                frame[column] = pd.to_numeric(
+                    frame[column],
+                    errors="coerce",
+                )
+
+            frame = frame[
+                (
+                    frame.index
+                    >= start_timestamp
+                )
+                & (
+                    frame.index
+                    < end_timestamp
+                )
+            ]
+
+            if frame.empty:
+                print(
+                    "Research hindsight market-data "
+                    "warning: no observations in "
+                    f"requested range for {ticker}"
+                )
+                continue
+
+            frames[ticker] = (
+                frame.sort_index()
+            )
+
+        except Exception as error:
+
+            print(
+                "Research hindsight market-data "
+                f"download failed for {ticker}: "
+                f"{error}"
+            )
+
+    if not frames:
         return pd.DataFrame()
+
+    return pd.concat(
+        frames,
+        axis=1,
+    )
 
 
 def _get_close_series(

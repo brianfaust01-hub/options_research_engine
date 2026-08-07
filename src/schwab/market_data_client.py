@@ -6,9 +6,11 @@ Provides a centralized interface to the Schwab
 Market Data API.
 
 Responsibilities:
+
 - Obtain valid OAuth access tokens automatically
 - Execute authenticated Market Data requests
 - Retrieve equity quotes
+- Retrieve historical price data
 - Retrieve option chains
 - Retrieve specific option contracts
 - Normalize commonly used market-data fields
@@ -30,6 +32,55 @@ BASE_URL = (
 )
 
 REQUEST_TIMEOUT_SECONDS = 30
+
+
+def _normalize_symbol_for_schwab(
+    ticker: str,
+) -> str:
+    """
+    Convert Project Stonks ticker symbols to the
+    format expected by the Schwab Market Data API.
+
+    Project Stonks keeps class-share symbols in
+    hyphenated form, such as BRK-B and BF-B.
+    Schwab expects slash notation, such as BRK/B
+    and BF/B.
+    """
+
+    symbol = (
+        str(ticker)
+        .upper()
+        .strip()
+    )
+
+    return symbol.replace(
+        "-",
+        "/",
+    )
+
+
+def _normalize_symbol_for_stonks(
+    ticker: str,
+) -> str:
+    """
+    Normalize a ticker into Project Stonks'
+    canonical symbol format.
+
+    Examples:
+        BRK/B -> BRK-B
+        BF/B  -> BF-B
+    """
+
+    symbol = (
+        str(ticker)
+        .upper()
+        .strip()
+    )
+
+    return symbol.replace(
+        "/",
+        "-",
+    )
 
 
 def _get(
@@ -95,6 +146,11 @@ def _get(
     return response.json()
 
 
+# ============================================================
+# EQUITY QUOTES
+# ============================================================
+
+
 def get_quote(
     ticker: str,
 ) -> dict:
@@ -103,12 +159,31 @@ def get_quote(
     for one security.
     """
 
-    ticker = (
-        ticker.upper().strip()
+    schwab_symbol = (
+        _normalize_symbol_for_schwab(
+            ticker
+        )
     )
 
     return _get(
-        f"/{ticker}/quotes"
+        "/quotes",
+        params={
+            "symbols": schwab_symbol,
+        },
+    )
+    """
+    Retrieve the raw Schwab quote response
+    for one security.
+    """
+
+    schwab_symbol = (
+        _normalize_symbol_for_schwab(
+            ticker
+        )
+    )
+
+    return _get(
+        f"/{schwab_symbol}/quotes"
     )
 
 
@@ -120,8 +195,16 @@ def get_normalized_quote(
     stable Project Stonks structure.
     """
 
-    ticker = (
-        ticker.upper().strip()
+    stonks_symbol = (
+        _normalize_symbol_for_stonks(
+            ticker
+        )
+    )
+
+    schwab_symbol = (
+        _normalize_symbol_for_schwab(
+            ticker
+        )
     )
 
     response = (
@@ -131,22 +214,35 @@ def get_normalized_quote(
     )
 
     security = response.get(
-        ticker,
-        {}
+        schwab_symbol,
+        {},
     )
+
+    #
+    # Defensive fallback in case Schwab returns
+    # the requested security under a different
+    # symbol representation.
+    #
+
+    if not security and response:
+
+        security = next(
+            iter(response.values()),
+            {},
+        )
 
     quote = security.get(
         "quote",
-        {}
+        {},
     )
 
     reference = security.get(
         "reference",
-        {}
+        {},
     )
 
     return {
-        "Ticker": ticker,
+        "Ticker": stonks_symbol,
         "Description": (
             reference.get(
                 "description"
@@ -210,43 +306,72 @@ def get_normalized_quote(
     }
 
 
-    """
-    Retrieve historical price data from Schwab.
+# ============================================================
+# PRICE HISTORY
+# ============================================================
 
-    Returns the raw Schwab price-history response.
+
+def get_price_history(
+    ticker: str,
+    period_type: str = "year",
+    period: int = 1,
+    frequency_type: str = "daily",
+    frequency: int = 1,
+    need_extended_hours_data: bool = False,
+) -> dict:
+    """
+    Retrieve raw historical price data from Schwab.
     """
 
-    ticker = (
-        ticker.upper().strip()
+    schwab_symbol = (
+        _normalize_symbol_for_schwab(
+            ticker
+        )
     )
 
     params = {
+        "symbol": schwab_symbol,
         "periodType": period_type,
         "period": period,
         "frequencyType": frequency_type,
         "frequency": frequency,
-        "needExtendedHoursData": str(
-            need_extended_hours_data
-        ).lower(),
+        "needExtendedHoursData": (
+            str(
+                need_extended_hours_data
+            ).lower()
+        ),
     }
 
     return _get(
-        f"/pricehistory/{ticker}",
+        "/pricehistory",
         params=params,
     )
 
 
+def get_normalized_price_history(
+    ticker: str,
+    period_type: str = "year",
+    period: int = 1,
+    frequency_type: str = "daily",
+    frequency: int = 1,
+    need_extended_hours_data: bool = False,
+) -> list[dict]:
+    """
+    Retrieve historical price candles from Schwab
+    and normalize them into a stable structure.
+    """
 
-
-    response = get_price_history(
-        ticker=ticker,
-        period_type=period_type,
-        period=period,
-        frequency_type=frequency_type,
-        frequency=frequency,
-        need_extended_hours_data=(
-            need_extended_hours_data
-        ),
+    response = (
+        get_price_history(
+            ticker=ticker,
+            period_type=period_type,
+            period=period,
+            frequency_type=frequency_type,
+            frequency=frequency,
+            need_extended_hours_data=(
+                need_extended_hours_data
+            ),
+        )
     )
 
     candles = response.get(
@@ -260,28 +385,47 @@ def get_normalized_quote(
 
         normalized.append(
             {
-                "Open": candle.get(
-                    "open"
+                "Open": (
+                    candle.get(
+                        "open"
+                    )
                 ),
-                "High": candle.get(
-                    "high"
+                "High": (
+                    candle.get(
+                        "high"
+                    )
                 ),
-                "Low": candle.get(
-                    "low"
+                "Low": (
+                    candle.get(
+                        "low"
+                    )
                 ),
-                "Close": candle.get(
-                    "close"
+                "Close": (
+                    candle.get(
+                        "close"
+                    )
                 ),
-                "Volume": candle.get(
-                    "volume"
+                "Volume": (
+                    candle.get(
+                        "volume"
+                    )
                 ),
-                "Datetime": candle.get(
-                    "datetime"
+                "Datetime": (
+                    candle.get(
+                        "datetime"
+                    )
                 ),
             }
         )
 
     return normalized
+
+
+# ============================================================
+# OPTION CHAINS
+# ============================================================
+
+
 def get_option_chain(
     ticker: str,
     contract_type: str = "ALL",
@@ -296,12 +440,14 @@ def get_option_chain(
     can be added after validation.
     """
 
-    ticker = (
-        ticker.upper().strip()
+    schwab_symbol = (
+        _normalize_symbol_for_schwab(
+            ticker
+        )
     )
 
     params = {
-        "symbol": ticker,
+        "symbol": schwab_symbol,
         "contractType": (
             contract_type.upper()
         ),
@@ -339,10 +485,6 @@ def find_option_contract(
     Returns the raw Schwab contract dictionary,
     or None if the contract is not found.
     """
-
-    ticker = (
-        ticker.upper().strip()
-    )
 
     option_type = (
         option_type.upper().strip()
@@ -430,6 +572,11 @@ def find_option_contract(
     return None
 
 
+# ============================================================
+# NORMALIZED OPTION CONTRACT
+# ============================================================
+
+
 def get_normalized_option(
     ticker: str,
     expiration: str,
@@ -440,6 +587,16 @@ def get_normalized_option(
     Retrieve one option contract and normalize the
     fields most useful to Project Stonks.
     """
+
+    stonks_symbol = (
+        _normalize_symbol_for_stonks(
+            ticker
+        )
+    )
+
+    option_type = (
+        option_type.upper().strip()
+    )
 
     contract = (
         find_option_contract(
@@ -482,9 +639,7 @@ def get_normalized_option(
         ) / 2
 
     return {
-        "Ticker": (
-            ticker.upper().strip()
-        ),
+        "Ticker": stonks_symbol,
         "Symbol": (
             contract.get(
                 "symbol"
@@ -495,9 +650,7 @@ def get_normalized_option(
                 "description"
             )
         ),
-        "OptionType": (
-            option_type.upper().strip()
-        ),
+        "OptionType": option_type,
         "Expiration": expiration,
         "Strike": float(
             strike
@@ -566,23 +719,30 @@ def get_normalized_option(
             )
         ),
     }
+
+
+# ============================================================
+# NORMALIZED OPTION CHAIN
+# ============================================================
+
+
 def get_normalized_option_chain(
     ticker: str,
     option_type: str,
+    expiration: str | None = None,
 ) -> list[dict]:
     """
-    Retrieve an option chain from Schwab and normalize
-    every contract into a stable Project Stonks structure.
-
-    option_type:
-        CALL or PUT
+    Retrieve all contracts for one expiration and
+    option type.
 
     Returns:
         List of normalized contract dictionaries.
     """
 
-    ticker = (
-        ticker.upper().strip()
+    stonks_symbol = (
+        _normalize_symbol_for_stonks(
+            ticker
+        )
     )
 
     option_type = (
@@ -597,17 +757,22 @@ def get_normalized_option_chain(
             "option_type must be CALL or PUT."
         )
 
-    chain = get_option_chain(
-        ticker=ticker,
-        contract_type=option_type,
+    chain = (
+        get_option_chain(
+            ticker=ticker,
+            contract_type=option_type,
+        )
     )
 
     if option_type == "CALL":
+
         option_map = chain.get(
             "callExpDateMap",
             {},
         )
+
     else:
+
         option_map = chain.get(
             "putExpDateMap",
             {},
@@ -620,24 +785,19 @@ def get_normalized_option_chain(
         strikes,
     ) in option_map.items():
 
-        expiration = (
-            expiration_key.split(":")[0]
+        expiration_date = (
+            expiration_key.split(
+                ":"
+            )[0]
         )
 
-        for (
-            strike_key,
-            contracts,
-        ) in strikes.items():
+        if (
+    expiration is not None
+    and expiration_date != expiration
+):
+            continue
 
-            try:
-                strike = float(
-                    strike_key
-                )
-            except (
-                TypeError,
-                ValueError,
-            ):
-                continue
+        for contracts in strikes.values():
 
             for contract in contracts:
 
@@ -658,57 +818,90 @@ def get_normalized_option_chain(
                     and bid is not None
                     and ask is not None
                 ):
+
                     mark = (
                         bid + ask
                     ) / 2
 
                 normalized_contracts.append(
                     {
-                        "Ticker": ticker,
-                        "Symbol": contract.get(
-                            "symbol"
+                        "Ticker": stonks_symbol,
+                        "Symbol": (
+                            contract.get(
+                                "symbol"
+                            )
                         ),
-                        "Description": contract.get(
-                            "description"
+                        "Description": (
+                            contract.get(
+                                "description"
+                            )
                         ),
                         "OptionType": option_type,
-                        "Expiration": expiration,
-                        "Strike": strike,
+                        "Expiration": (
+                            expiration_date
+                        ),
+                        "Strike": (
+                            contract.get(
+                                "strikePrice"
+                            )
+                        ),
                         "Bid": bid,
                         "Ask": ask,
-                        "Last": contract.get(
-                            "last"
+                        "Last": (
+                            contract.get(
+                                "last"
+                            )
                         ),
                         "Mark": mark,
-                        "Close": contract.get(
-                            "closePrice"
+                        "Close": (
+                            contract.get(
+                                "closePrice"
+                            )
                         ),
-                        "Volume": contract.get(
-                            "totalVolume"
+                        "Volume": (
+                            contract.get(
+                                "totalVolume"
+                            )
                         ),
-                        "OpenInterest": contract.get(
-                            "openInterest"
+                        "OpenInterest": (
+                            contract.get(
+                                "openInterest"
+                            )
                         ),
-                        "Delta": contract.get(
-                            "delta"
+                        "Delta": (
+                            contract.get(
+                                "delta"
+                            )
                         ),
-                        "Gamma": contract.get(
-                            "gamma"
+                        "Gamma": (
+                            contract.get(
+                                "gamma"
+                            )
                         ),
-                        "Theta": contract.get(
-                            "theta"
+                        "Theta": (
+                            contract.get(
+                                "theta"
+                            )
                         ),
-                        "Vega": contract.get(
-                            "vega"
+                        "Vega": (
+                            contract.get(
+                                "vega"
+                            )
                         ),
-                        "Rho": contract.get(
-                            "rho"
+                        "Rho": (
+                            contract.get(
+                                "rho"
+                            )
                         ),
-                        "IV": contract.get(
-                            "volatility"
+                        "IV": (
+                            contract.get(
+                                "volatility"
+                            )
                         ),
-                        "InTheMoney": contract.get(
-                            "inTheMoney"
+                        "InTheMoney": (
+                            contract.get(
+                                "inTheMoney"
+                            )
                         ),
                         "DaysToExpiration": (
                             contract.get(
@@ -719,6 +912,12 @@ def get_normalized_option_chain(
                 )
 
     return normalized_contracts
+
+
+# ============================================================
+# MANUAL TEST
+# ============================================================
+
 
 if __name__ == "__main__":
 
