@@ -1,9 +1,12 @@
 """
 Project Stonks
-Schwab Token Manager
+Schwab Accounts & Trading Token Manager
 
-Persists Schwab OAuth tokens locally and provides
-automatic access-token refresh.
+Persists Schwab Accounts & Trading OAuth tokens locally
+and provides automatic access-token refresh.
+
+Accounts & Trading credentials and tokens are intentionally
+isolated from Schwab Market Data authentication.
 
 Token files must never be committed to source control.
 """
@@ -35,6 +38,10 @@ ACCESS_TOKEN_REFRESH_BUFFER_SECONDS = 60
 
 
 def _utc_now() -> datetime:
+    """
+    Return the current UTC time.
+    """
+
     return datetime.now(
         timezone.utc
     )
@@ -43,6 +50,10 @@ def _utc_now() -> datetime:
 def _parse_timestamp(
     value: str,
 ) -> datetime:
+    """
+    Parse an ISO timestamp stored in the token file.
+    """
+
     return datetime.fromisoformat(
         value
     )
@@ -50,23 +61,34 @@ def _parse_timestamp(
 
 def _get_credentials():
     """
-    Load Schwab credentials from environment variables.
+    Load Schwab Accounts & Trading application
+    credentials from dedicated environment variables.
     """
 
-    client_id = os.getenv("SCHWAB_CLIENT_ID")
-    client_secret = os.getenv("SCHWAB_CLIENT_SECRET")
+    client_id = os.getenv(
+        "SCHWAB_TRADER_CLIENT_ID"
+    )
+
+    client_secret = os.getenv(
+        "SCHWAB_TRADER_CLIENT_SECRET"
+    )
 
     if not client_id:
         raise RuntimeError(
-            "SCHWAB_CLIENT_ID environment variable is not set."
+            "SCHWAB_TRADER_CLIENT_ID "
+            "environment variable is not set."
         )
 
     if not client_secret:
         raise RuntimeError(
-            "SCHWAB_CLIENT_SECRET environment variable is not set."
+            "SCHWAB_TRADER_CLIENT_SECRET "
+            "environment variable is not set."
         )
 
-    return client_id, client_secret
+    return (
+        client_id,
+        client_secret,
+    )
 
 
 def _build_basic_auth_header(
@@ -79,23 +101,32 @@ def _build_basic_auth_header(
 
     credentials = (
         f"{client_id}:{client_secret}"
-    ).encode("utf-8")
+    ).encode(
+        "utf-8"
+    )
 
-    encoded_credentials = base64.b64encode(
-        credentials
-    ).decode("utf-8")
+    encoded_credentials = (
+        base64.b64encode(
+            credentials
+        ).decode(
+            "utf-8"
+        )
+    )
 
-    return f"Basic {encoded_credentials}"
+    return (
+        f"Basic {encoded_credentials}"
+    )
 
 
 def _load_tokens() -> dict:
     """
-    Load persisted Schwab tokens.
+    Load persisted Accounts & Trading tokens.
     """
 
     if not TOKEN_PATH.exists():
         raise RuntimeError(
-            "No Schwab token file exists. "
+            "No Schwab Accounts & Trading "
+            "token file exists. "
             "Complete OAuth authorization first."
         )
 
@@ -103,7 +134,10 @@ def _load_tokens() -> dict:
         "r",
         encoding="utf-8",
     ) as file:
-        return json.load(file)
+
+        return json.load(
+            file
+        )
 
 
 def save_tokens(
@@ -111,14 +145,13 @@ def save_tokens(
     existing_refresh_expires_at: str | None = None,
 ) -> None:
     """
-    Persist Schwab tokens locally.
+    Persist Accounts & Trading OAuth tokens.
 
-    Access-token expiration is calculated from the
-    expires_in value returned by Schwab.
+    For a fresh OAuth authorization, a new local
+    refresh-token expiration timestamp is created.
 
-    The refresh-token expiration timestamp is preserved
-    during normal access-token refreshes unless this is
-    a new OAuth authorization.
+    During normal access-token refresh, the existing
+    refresh-token expiration timestamp is preserved.
     """
 
     now = _utc_now()
@@ -134,11 +167,13 @@ def save_tokens(
         tokens
     )
 
-    token_data["saved_at"] = (
-        now.isoformat()
-    )
+    token_data[
+        "saved_at"
+    ] = now.isoformat()
 
-    token_data["access_token_expires_at"] = (
+    token_data[
+        "access_token_expires_at"
+    ] = (
         now
         + timedelta(
             seconds=expires_in
@@ -193,8 +228,8 @@ def _access_token_is_valid(
     token_data: dict,
 ) -> bool:
     """
-    Return True when the current access token has
-    more than the safety buffer remaining.
+    Determine whether the stored access token
+    can still safely be used.
     """
 
     expiration = token_data.get(
@@ -227,8 +262,8 @@ def _refresh_token_is_valid(
     token_data: dict,
 ) -> bool:
     """
-    Return True when the refresh token is still
-    within its locally tracked seven-day lifetime.
+    Determine whether the stored refresh token
+    is still within its tracked lifetime.
     """
 
     expiration = token_data.get(
@@ -252,15 +287,21 @@ def _refresh_access_token(
     refresh_token: str,
 ) -> dict:
     """
-    Request a new access token directly from Schwab.
+    Request a new Accounts & Trading access token
+    from Schwab.
     """
 
-    client_id, client_secret = _get_credentials()
+    (
+        client_id,
+        client_secret,
+    ) = _get_credentials()
 
     headers = {
-        "Authorization": _build_basic_auth_header(
-            client_id,
-            client_secret,
+        "Authorization": (
+            _build_basic_auth_header(
+                client_id,
+                client_secret,
+            )
         ),
         "Content-Type": (
             "application/x-www-form-urlencoded"
@@ -268,8 +309,12 @@ def _refresh_access_token(
     }
 
     data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
+        "grant_type": (
+            "refresh_token"
+        ),
+        "refresh_token": (
+            refresh_token
+        ),
     }
 
     response = requests.post(
@@ -282,21 +327,24 @@ def _refresh_access_token(
     if not response.ok:
 
         print(
-            f"Schwab refresh error: "
+            "Schwab Accounts & Trading "
+            "refresh error: "
             f"HTTP {response.status_code}"
         )
 
         try:
 
-            error_data = response.json()
+            error_data = (
+                response.json()
+            )
 
             print(
-                f"Error: "
+                "Error: "
                 f"{error_data.get('error')}"
             )
 
             print(
-                f"Description: "
+                "Description: "
                 f"{error_data.get('error_description')}"
             )
 
@@ -304,11 +352,12 @@ def _refresh_access_token(
 
             print(
                 "Schwab returned a non-JSON "
-                "error response."
+                "refresh error response."
             )
 
         raise RuntimeError(
-            "Schwab access-token refresh failed."
+            "Schwab Accounts & Trading "
+            "access-token refresh failed."
         )
 
     return response.json()
@@ -316,25 +365,30 @@ def _refresh_access_token(
 
 def get_access_token() -> str:
     """
-    Return a valid Schwab access token.
+    Return a valid Accounts & Trading access token.
 
     Automatically refresh the access token when
-    it is expired or within 60 seconds of expiration.
+    expired or within 60 seconds of expiration.
     """
 
-    token_data = _load_tokens()
+    token_data = (
+        _load_tokens()
+    )
 
     if _access_token_is_valid(
         token_data
     ):
 
-        access_token = token_data.get(
-            "access_token"
+        access_token = (
+            token_data.get(
+                "access_token"
+            )
         )
 
         if not access_token:
             raise RuntimeError(
-                "Schwab token file does not contain "
+                "Schwab Accounts & Trading "
+                "token file does not contain "
                 "an access token."
             )
 
@@ -345,45 +399,42 @@ def get_access_token() -> str:
     ):
 
         raise RuntimeError(
-            "Schwab refresh token has expired. "
+            "Schwab Accounts & Trading "
+            "refresh token has expired. "
             "Complete OAuth authorization again."
         )
 
-    refresh_token = token_data.get(
-        "refresh_token"
+    refresh_token = (
+        token_data.get(
+            "refresh_token"
+        )
     )
 
     if not refresh_token:
         raise RuntimeError(
-            "Schwab token file does not contain "
+            "Schwab Accounts & Trading "
+            "token file does not contain "
             "a refresh token."
         )
 
     print(
-        "Refreshing Schwab access token..."
+        "Refreshing Schwab Accounts & Trading "
+        "access token..."
     )
 
-    new_tokens = _refresh_access_token(
-        refresh_token
+    new_tokens = (
+        _refresh_access_token(
+            refresh_token
+        )
     )
-
-    #
-    # Schwab may return a refresh token in the response.
-    # If it does not, retain the existing one.
-    #
 
     if not new_tokens.get(
         "refresh_token"
     ):
+
         new_tokens[
             "refresh_token"
         ] = refresh_token
-
-    #
-    # An access-token refresh does NOT restart our
-    # locally tracked seven-day OAuth authorization
-    # window.
-    #
 
     save_tokens(
         new_tokens,
@@ -395,7 +446,8 @@ def get_access_token() -> str:
     )
 
     print(
-        "Schwab access token refreshed."
+        "Schwab Accounts & Trading "
+        "access token refreshed."
     )
 
     return new_tokens[
@@ -405,10 +457,13 @@ def get_access_token() -> str:
 
 def get_token_status() -> dict:
     """
-    Return non-sensitive token status information.
+    Return non-sensitive Accounts & Trading
+    token status information.
     """
 
-    token_data = _load_tokens()
+    token_data = (
+        _load_tokens()
+    )
 
     return {
         "AccessTokenValid": (
@@ -432,3 +487,48 @@ def get_token_status() -> dict:
             )
         ),
     }
+
+
+if __name__ == "__main__":
+
+    print(
+        "\nSchwab Accounts & Trading "
+        "Token Manager\n"
+    )
+
+    status = (
+        get_token_status()
+    )
+
+    print(
+        f"Access Token Valid: "
+        f"{status['AccessTokenValid']}"
+    )
+
+    print(
+        f"Refresh Token Valid: "
+        f"{status['RefreshTokenValid']}"
+    )
+
+    print(
+        f"Access Token Expires: "
+        f"{status['AccessTokenExpiresAt']}"
+    )
+
+    print(
+        f"Refresh Token Expires: "
+        f"{status['RefreshTokenExpiresAt']}"
+    )
+
+    print(
+        "\nRequesting valid access token..."
+    )
+
+    token = (
+        get_access_token()
+    )
+
+    print(
+        f"Valid access token available: "
+        f"{bool(token)}"
+    )
