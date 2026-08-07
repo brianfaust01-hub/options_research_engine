@@ -29,7 +29,9 @@ from datetime import date, datetime
 from typing import Any, Optional
 
 import pandas as pd
-import yfinance as yf
+from schwab.market_data_client import (
+    get_normalized_option_chain,
+)
 
 from config import MAX_ACCEPTABLE_SPREAD_PCT
 
@@ -127,10 +129,11 @@ def get_option_expirations(
     retry_sleep_seconds: float = 1.0,
 ) -> list[str]:
     """
-    Fetch all available option expirations.
+    Fetch all available option expirations from Schwab.
 
-    Any network, curl, timeout, JSON, or yfinance error returns an
-    empty list so one ticker cannot crash the full scan.
+    Any network, timeout, JSON, or Schwab API error
+    returns an empty list so one ticker cannot crash
+    the full scan.
     """
 
     ticker = str(
@@ -141,18 +144,35 @@ def get_option_expirations(
         max_retries + 1
     ):
         try:
-            stock = yf.Ticker(ticker)
 
-            expirations = list(
-                stock.options or []
+            contracts = (
+                get_normalized_option_chain(
+                    ticker=ticker,
+                    option_type="CALL",
+                )
+            )
+
+            expirations = sorted(
+                {
+                    str(
+                        contract[
+                            "Expiration"
+                        ]
+                    )
+                    for contract in contracts
+                    if contract.get(
+                        "Expiration"
+                    )
+                }
             )
 
             return expirations
 
         except Exception as error:
+
             print(
                 "[options_engine] WARNING: failed to fetch "
-                f"expirations for {ticker} on attempt "
+                f"Schwab expirations for {ticker} on attempt "
                 f"{attempt + 1}/{max_retries + 1}: "
                 f"{type(error).__name__}: {error}"
             )
@@ -226,7 +246,11 @@ def get_option_chain(
     retry_sleep_seconds: float = 1.0,
 ) -> pd.DataFrame:
     """
-    Fetch one call or put chain.
+    Fetch one call or put chain from Schwab.
+
+    Returns the chain using the existing Project Stonks
+    / yfinance-compatible column schema so downstream
+    scoring behavior remains unchanged.
 
     Returns an empty DataFrame on any error.
     """
@@ -239,47 +263,165 @@ def get_option_chain(
         option_type
     ).lower().strip()
 
+    if option_type in {
+        "call",
+        "calls",
+    }:
+        schwab_option_type = "CALL"
+
+    elif option_type in {
+        "put",
+        "puts",
+    }:
+        schwab_option_type = "PUT"
+
+    else:
+        print(
+            "[options_engine] WARNING: unsupported "
+            f"option type '{option_type}' for {ticker}"
+        )
+
+        return pd.DataFrame()
+
     for attempt in range(
         max_retries + 1
     ):
         try:
-            stock = yf.Ticker(ticker)
 
-            option_chain = stock.option_chain(
-                expiration
+            contracts = (
+                get_normalized_option_chain(
+                    ticker=ticker,
+                    option_type=schwab_option_type,
+                )
             )
 
-            if option_type in {
-                "call",
-                "calls",
-            }:
-                chain = (
-                    option_chain.calls.copy()
+            matching_contracts = [
+                contract
+                for contract in contracts
+                if str(
+                    contract.get(
+                        "Expiration"
+                    )
                 )
+                == str(expiration)
+            ]
 
-            elif option_type in {
-                "put",
-                "puts",
-            }:
-                chain = (
-                    option_chain.puts.copy()
-                )
-
-            else:
-                print(
-                    "[options_engine] WARNING: unsupported "
-                    f"option type '{option_type}' for {ticker}"
-                )
-
+            if not matching_contracts:
                 return pd.DataFrame()
 
-            return chain
+            rows = []
+
+            for contract in matching_contracts:
+
+                schwab_iv = _safe_float(
+                    contract.get(
+                        "IV"
+                    )
+                )
+
+                #
+                # Schwab reports volatility as percentage
+                # points (for example 39.5), while the
+                # existing Stonks scoring model expects
+                # decimal IV (for example 0.395).
+                #
+
+                implied_volatility = (
+                    schwab_iv / 100.0
+                    if schwab_iv is not None
+                    else None
+                )
+
+                rows.append(
+                    {
+                        "contractSymbol": (
+                            contract.get(
+                                "Symbol"
+                            )
+                        ),
+                        "strike": (
+                            contract.get(
+                                "Strike"
+                            )
+                        ),
+                        "bid": (
+                            contract.get(
+                                "Bid"
+                            )
+                        ),
+                        "ask": (
+                            contract.get(
+                                "Ask"
+                            )
+                        ),
+                        "lastPrice": (
+                            contract.get(
+                                "Last"
+                            )
+                        ),
+                        "volume": (
+                            contract.get(
+                                "Volume"
+                            )
+                        ),
+                        "openInterest": (
+                            contract.get(
+                                "OpenInterest"
+                            )
+                        ),
+                        "impliedVolatility": (
+                            implied_volatility
+                        ),
+
+                        #
+                        # Preserve real Schwab Greeks for
+                        # later use. score_contracts() does
+                        # not consume them yet.
+                        #
+
+                        "schwabDelta": (
+                            contract.get(
+                                "Delta"
+                            )
+                        ),
+                        "schwabGamma": (
+                            contract.get(
+                                "Gamma"
+                            )
+                        ),
+                        "schwabTheta": (
+                            contract.get(
+                                "Theta"
+                            )
+                        ),
+                        "schwabVega": (
+                            contract.get(
+                                "Vega"
+                            )
+                        ),
+                        "schwabRho": (
+                            contract.get(
+                                "Rho"
+                            )
+                        ),
+                        "schwabMark": (
+                            contract.get(
+                                "Mark"
+                            )
+                        ),
+                    }
+                )
+
+            return pd.DataFrame(
+                rows
+            )
 
         except Exception as error:
+
             print(
                 "[options_engine] WARNING: failed to fetch "
-                f"option chain for {ticker} {expiration} "
-                f"{option_type} on attempt "
+                f"Schwab option chain for {ticker} "
+                f"{expiration} {option_type} on attempt "
                 f"{attempt + 1}/{max_retries + 1}: "
                 f"{type(error).__name__}: {error}"
             )
@@ -288,9 +430,6 @@ def get_option_chain(
                 time.sleep(
                     retry_sleep_seconds
                 )
-
-    return pd.DataFrame()
-
 
 def get_option_chain_safe(
     ticker: str,

@@ -15,7 +15,10 @@ The audit is diagnostic only and does not change contract selection.
 from __future__ import annotations
 
 import pandas as pd
-import yfinance as yf
+
+from schwab.market_data_client import (
+    get_normalized_quote,
+)
 
 from config import (
     DEBUG_OPTION_SELECTOR,
@@ -157,6 +160,78 @@ def _is_contract_affordable(
 def _get_stock_price(
     ticker: str,
 ):
+    """
+    Retrieve the current underlying price from
+    Schwab Market Data.
+
+    Pricing preference:
+
+    1. Mark
+    2. Last
+    3. Bid/ask midpoint
+
+    Returns None when no usable price is available.
+    """
+
+    try:
+
+        quote = get_normalized_quote(
+            ticker
+        )
+
+        mark = pd.to_numeric(
+            quote.get("Mark"),
+            errors="coerce",
+        )
+
+        if (
+            pd.notna(mark)
+            and float(mark) > 0
+        ):
+            return float(mark)
+
+        last_price = pd.to_numeric(
+            quote.get("Last"),
+            errors="coerce",
+        )
+
+        if (
+            pd.notna(last_price)
+            and float(last_price) > 0
+        ):
+            return float(last_price)
+
+        bid = pd.to_numeric(
+            quote.get("Bid"),
+            errors="coerce",
+        )
+
+        ask = pd.to_numeric(
+            quote.get("Ask"),
+            errors="coerce",
+        )
+
+        if (
+            pd.notna(bid)
+            and pd.notna(ask)
+            and float(bid) > 0
+            and float(ask) > 0
+        ):
+            return (
+                float(bid)
+                + float(ask)
+            ) / 2
+
+        return None
+
+    except Exception as error:
+
+        _debug(
+            f"Failed to retrieve Schwab stock price "
+            f"for {ticker}: {error}"
+        )
+
+        return None
     try:
         stock = yf.Ticker(
             ticker

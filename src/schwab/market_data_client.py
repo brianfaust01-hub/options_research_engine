@@ -494,7 +494,159 @@ def get_normalized_option(
             )
         ),
     }
+def get_normalized_option_chain(
+    ticker: str,
+    option_type: str,
+) -> list[dict]:
+    """
+    Retrieve an option chain from Schwab and normalize
+    every contract into a stable Project Stonks structure.
 
+    option_type:
+        CALL or PUT
+
+    Returns:
+        List of normalized contract dictionaries.
+    """
+
+    ticker = (
+        ticker.upper().strip()
+    )
+
+    option_type = (
+        option_type.upper().strip()
+    )
+
+    if option_type not in (
+        "CALL",
+        "PUT",
+    ):
+        raise ValueError(
+            "option_type must be CALL or PUT."
+        )
+
+    chain = get_option_chain(
+        ticker=ticker,
+        contract_type=option_type,
+    )
+
+    if option_type == "CALL":
+        option_map = chain.get(
+            "callExpDateMap",
+            {},
+        )
+    else:
+        option_map = chain.get(
+            "putExpDateMap",
+            {},
+        )
+
+    normalized_contracts = []
+
+    for (
+        expiration_key,
+        strikes,
+    ) in option_map.items():
+
+        expiration = (
+            expiration_key.split(":")[0]
+        )
+
+        for (
+            strike_key,
+            contracts,
+        ) in strikes.items():
+
+            try:
+                strike = float(
+                    strike_key
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                continue
+
+            for contract in contracts:
+
+                bid = contract.get(
+                    "bid"
+                )
+
+                ask = contract.get(
+                    "ask"
+                )
+
+                mark = contract.get(
+                    "mark"
+                )
+
+                if (
+                    mark is None
+                    and bid is not None
+                    and ask is not None
+                ):
+                    mark = (
+                        bid + ask
+                    ) / 2
+
+                normalized_contracts.append(
+                    {
+                        "Ticker": ticker,
+                        "Symbol": contract.get(
+                            "symbol"
+                        ),
+                        "Description": contract.get(
+                            "description"
+                        ),
+                        "OptionType": option_type,
+                        "Expiration": expiration,
+                        "Strike": strike,
+                        "Bid": bid,
+                        "Ask": ask,
+                        "Last": contract.get(
+                            "last"
+                        ),
+                        "Mark": mark,
+                        "Close": contract.get(
+                            "closePrice"
+                        ),
+                        "Volume": contract.get(
+                            "totalVolume"
+                        ),
+                        "OpenInterest": contract.get(
+                            "openInterest"
+                        ),
+                        "Delta": contract.get(
+                            "delta"
+                        ),
+                        "Gamma": contract.get(
+                            "gamma"
+                        ),
+                        "Theta": contract.get(
+                            "theta"
+                        ),
+                        "Vega": contract.get(
+                            "vega"
+                        ),
+                        "Rho": contract.get(
+                            "rho"
+                        ),
+                        "IV": contract.get(
+                            "volatility"
+                        ),
+                        "InTheMoney": contract.get(
+                            "inTheMoney"
+                        ),
+                        "DaysToExpiration": (
+                            contract.get(
+                                "daysToExpiration"
+                            )
+                        ),
+                    }
+                )
+
+    return normalized_contracts
 
 if __name__ == "__main__":
 
