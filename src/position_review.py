@@ -4,10 +4,15 @@ Position Review Engine
 
 Sprint 30B
 
-Reviews actual paper portfolio positions against the latest recommendation set.
+Reviews actual paper portfolio positions against the latest
+recommendation set.
 
 Source of truth:
+
 - data/paper_portfolio.csv
+
+Current option pricing is provided by the Charles Schwab
+Market Data API.
 
 The research journal remains separate and immutable.
 """
@@ -17,9 +22,9 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
-import yfinance as yf
 
 from paper_portfolio import get_open_positions
+from schwab.market_data_client import get_normalized_option
 
 
 DEFAULT_PROFIT_TARGET_PCT = 0.75
@@ -27,87 +32,170 @@ DEFAULT_STOP_LOSS_PCT = 0.35
 DEFAULT_TIME_STOP_DTE = 14
 
 
-def _safe_float(value, default=None):
+def _safe_float(
+    value,
+    default=None,
+):
     if value is None or pd.isna(value):
         return default
 
     try:
         return float(value)
-    except (TypeError, ValueError):
+
+    except (
+        TypeError,
+        ValueError,
+    ):
         return default
 
 
-def _safe_int(value, default=0):
+def _safe_int(
+    value,
+    default=0,
+):
     if value is None or pd.isna(value):
         return default
 
     try:
-        return int(float(value))
-    except (TypeError, ValueError):
+        return int(
+            float(value)
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ):
         return default
 
 
-def _get_option_mark(position: dict):
+def _get_option_mark(
+    position: dict,
+):
     """
-    Pull current option mark from yfinance when possible.
+    Pull the current option mark from Schwab Market Data.
 
-    Falls back to lastPrice when bid/ask are unavailable.
+    Pricing preference:
+
+    1. Schwab Mark
+    2. Bid/ask midpoint
+    3. Last trade
+
+    Mark or midpoint is preferred because option last-trade
+    values may be stale, especially for illiquid contracts.
     """
 
-    ticker = str(position["Ticker"])
-    expiration = str(position["Expiration"])
-    strike = float(position["Strike"])
-    option_strategy = str(
-        position.get("OptionStrategy", "")
+    ticker = str(
+        position["Ticker"]
+    ).upper().strip()
+
+    expiration = str(
+        position["Expiration"]
     )
 
-    option_type = "put" if "Put" in option_strategy else "call"
+    strike = float(
+        position["Strike"]
+    )
+
+    option_strategy = str(
+        position.get(
+            "OptionStrategy",
+            "",
+        )
+    )
+
+    option_type = (
+        "PUT"
+        if "PUT" in option_strategy.upper()
+        else "CALL"
+    )
 
     try:
-        stock = yf.Ticker(ticker)
-        chain = stock.option_chain(expiration)
 
-        options = (
-            chain.puts
-            if option_type == "put"
-            else chain.calls
+        option = (
+            get_normalized_option(
+                ticker=ticker,
+                expiration=expiration,
+                strike=strike,
+                option_type=option_type,
+            )
         )
 
-        match = options[
-            options["strike"].astype(float) == strike
-        ]
-
-        if match.empty:
+        if option is None:
             return None
 
-        option_row = match.iloc[0]
+        mark = _safe_float(
+            option.get(
+                "Mark"
+            )
+        )
 
-        bid = _safe_float(option_row.get("bid"), 0.0)
-        ask = _safe_float(option_row.get("ask"), 0.0)
-        last_price = _safe_float(
-            option_row.get("lastPrice"),
+        if (
+            mark is not None
+            and mark > 0
+        ):
+            return mark
+
+        bid = _safe_float(
+            option.get(
+                "Bid"
+            ),
             0.0,
         )
 
-        if bid > 0 and ask > 0:
-            return (bid + ask) / 2
+        ask = _safe_float(
+            option.get(
+                "Ask"
+            ),
+            0.0,
+        )
+
+        if (
+            bid > 0
+            and ask > 0
+        ):
+            return (
+                bid + ask
+            ) / 2
+
+        last_price = _safe_float(
+            option.get(
+                "Last"
+            ),
+            0.0,
+        )
 
         if last_price > 0:
             return last_price
 
-    except Exception:
+    except Exception as error:
+
+        print(
+            "Schwab option pricing failed for "
+            f"{ticker} "
+            f"{expiration} "
+            f"{strike}: "
+            f"{error}"
+        )
+
         return None
 
     return None
 
 
-def _calculate_dte(expiration: str):
+def _calculate_dte(
+    expiration: str,
+):
     try:
+
         expiration_date = datetime.strptime(
             expiration,
             "%Y-%m-%d",
         ).date()
-    except (TypeError, ValueError):
+
+    except (
+        TypeError,
+        ValueError,
+    ):
         return None
 
     return (
@@ -120,13 +208,21 @@ def _find_latest_recommendation(
     position: dict,
     trades_df: pd.DataFrame,
 ):
-    ticker = str(position["Ticker"])
+    ticker = str(
+        position["Ticker"]
+    )
 
-    if trades_df.empty or "ticker" not in trades_df.columns:
+    if (
+        trades_df.empty
+        or "ticker" not in trades_df.columns
+    ):
         return None
 
     matches = trades_df[
-        trades_df["ticker"].astype(str) == ticker
+        trades_df[
+            "ticker"
+        ].astype(str)
+        == ticker
     ].copy()
 
     if matches.empty:
@@ -142,43 +238,67 @@ def _find_latest_recommendation(
     ]
 
     if sort_columns:
+
         matches = matches.sort_values(
             sort_columns,
-            ascending=[False] * len(sort_columns),
+            ascending=[
+                False
+            ] * len(
+                sort_columns
+            ),
         )
 
     return matches.iloc[0]
 
 
-def _resolve_exit_rules(position: dict):
+def _resolve_exit_rules(
+    position: dict,
+):
     entry_premium = _safe_float(
-        position.get("EntryPremium")
+        position.get(
+            "EntryPremium"
+        )
     )
 
     profit_target = _safe_float(
-        position.get("ProfitTarget")
+        position.get(
+            "ProfitTarget"
+        )
     )
 
     stop_loss = _safe_float(
-        position.get("StopLoss")
+        position.get(
+            "StopLoss"
+        )
     )
 
     time_stop_dte = _safe_int(
-        position.get("TimeStopDTE"),
+        position.get(
+            "TimeStopDTE"
+        ),
         DEFAULT_TIME_STOP_DTE,
     )
 
     if entry_premium is not None:
+
         if profit_target is None:
+
             profit_target = (
                 entry_premium
-                * (1 + DEFAULT_PROFIT_TARGET_PCT)
+                * (
+                    1
+                    + DEFAULT_PROFIT_TARGET_PCT
+                )
             )
 
         if stop_loss is None:
+
             stop_loss = (
                 entry_premium
-                * (1 - DEFAULT_STOP_LOSS_PCT)
+                * (
+                    1
+                    - DEFAULT_STOP_LOSS_PCT
+                )
             )
 
     return (
@@ -192,14 +312,20 @@ def _review_single_position(
     position: dict,
     trades_df: pd.DataFrame,
 ):
-    ticker = str(position["Ticker"])
+    ticker = str(
+        position["Ticker"]
+    )
 
     entry_price = _safe_float(
-        position.get("EntryPremium")
+        position.get(
+            "EntryPremium"
+        )
     )
 
     contracts = _safe_int(
-        position.get("Contracts"),
+        position.get(
+            "Contracts"
+        ),
         0,
     )
 
@@ -207,12 +333,24 @@ def _review_single_position(
         profit_target,
         stop_loss,
         time_stop_dte,
-    ) = _resolve_exit_rules(position)
+    ) = _resolve_exit_rules(
+        position
+    )
 
-    current_price = _get_option_mark(position)
+    #
+    # Current option pricing now comes from Schwab.
+    #
+
+    current_price = (
+        _get_option_mark(
+            position
+        )
+    )
 
     dte = _calculate_dte(
-        str(position["Expiration"])
+        str(
+            position["Expiration"]
+        )
     )
 
     pnl_pct = None
@@ -223,17 +361,22 @@ def _review_single_position(
         and entry_price is not None
         and entry_price > 0
     ):
+
         pnl_pct = (
-            current_price - entry_price
+            current_price
+            - entry_price
         ) / entry_price
 
         pnl_dollars = (
-            current_price - entry_price
+            current_price
+            - entry_price
         ) * 100 * contracts
 
-    latest_recommendation = _find_latest_recommendation(
-        position=position,
-        trades_df=trades_df,
+    latest_recommendation = (
+        _find_latest_recommendation(
+            position=position,
+            trades_df=trades_df,
+        )
     )
 
     latest_action = None
@@ -243,8 +386,11 @@ def _review_single_position(
     latest_grade = None
 
     if latest_recommendation is not None:
-        latest_action = latest_recommendation.get(
-            "action"
+
+        latest_action = (
+            latest_recommendation.get(
+                "action"
+            )
         )
 
         latest_allocation_decision = (
@@ -265,8 +411,10 @@ def _review_single_position(
             )
         )
 
-        latest_grade = latest_recommendation.get(
-            "trade_quality_grade"
+        latest_grade = (
+            latest_recommendation.get(
+                "trade_quality_grade"
+            )
         )
 
     recommendation = "HOLD"
@@ -275,47 +423,71 @@ def _review_single_position(
     if (
         current_price is not None
         and profit_target is not None
-        and current_price >= profit_target
+        and current_price
+        >= profit_target
     ):
+
         recommendation = "SELL"
-        reason = "Profit target reached"
+        reason = (
+            "Profit target reached"
+        )
 
     elif (
         current_price is not None
         and stop_loss is not None
-        and current_price <= stop_loss
+        and current_price
+        <= stop_loss
     ):
+
         recommendation = "SELL"
-        reason = "Stop loss reached"
+        reason = (
+            "Stop loss reached"
+        )
 
     elif (
         dte is not None
-        and dte <= time_stop_dte
+        and dte
+        <= time_stop_dte
     ):
+
         recommendation = "SELL"
-        reason = "Time stop reached"
+        reason = (
+            "Time stop reached"
+        )
 
     elif latest_recommendation is None:
+
         recommendation = "REVIEW"
+
         reason = (
             "Ticker no longer appears in latest "
             "recommendation set"
         )
 
     elif latest_action == "Pass":
+
         recommendation = "REVIEW"
+
         reason = (
-            "Latest research downgraded ticker to Pass"
+            "Latest research downgraded ticker "
+            "to Pass"
         )
 
-    elif latest_allocation_decision == "Allocate":
+    elif (
+        latest_allocation_decision
+        == "Allocate"
+    ):
+
         recommendation = "HOLD"
+
         reason = (
             "Ticker remains allocated by latest scan"
         )
 
     elif latest_action == "Watch":
+
         recommendation = "HOLD"
+
         reason = (
             "Ticker moved to watchlist but no exit "
             "rule triggered"
@@ -325,7 +497,9 @@ def _review_single_position(
         "Watch",
         "No Allocation",
     ]:
+
         recommendation = "HOLD"
+
         reason = (
             "Ticker still valid but not currently "
             "allocated"
@@ -339,7 +513,9 @@ def _review_single_position(
         "expiration": position.get(
             "Expiration"
         ),
-        "strike": position.get("Strike"),
+        "strike": position.get(
+            "Strike"
+        ),
         "contracts": contracts,
         "entry_price": entry_price,
         "current_price": current_price,
@@ -360,7 +536,9 @@ def _review_single_position(
             latest_trade_quality
         ),
         "latest_grade": latest_grade,
-        "position_recommendation": recommendation,
+        "position_recommendation": (
+            recommendation
+        ),
         "position_reason": reason,
     }
 
@@ -368,19 +546,29 @@ def _review_single_position(
 def review_positions(
     trades_df: pd.DataFrame,
 ):
-    open_positions = get_open_positions()
+    open_positions = (
+        get_open_positions()
+    )
 
     if open_positions.empty:
         return pd.DataFrame()
 
     results = []
 
-    for _, position in open_positions.iterrows():
+    for (
+        _,
+        position,
+    ) in open_positions.iterrows():
+
         results.append(
             _review_single_position(
-                position=position.to_dict(),
+                position=(
+                    position.to_dict()
+                ),
                 trades_df=trades_df,
             )
         )
 
-    return pd.DataFrame(results)
+    return pd.DataFrame(
+        results
+    )
