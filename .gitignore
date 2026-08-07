@@ -9,3 +9,5 @@ reports/
 # Schwab OAuth tokens
 data/schwab_tokens.json
 data/schwab_tokens.writing.json
+data/schwab_market_tokens.json
+data/schwab_market_tokens.writing.json
