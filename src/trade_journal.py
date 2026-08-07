@@ -21,7 +21,10 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-import yfinance as yf
+
+from schwab.market_data_client import (
+    get_normalized_quote,
+)
 
 from config import (
     VERSION,
@@ -57,21 +60,69 @@ def _classify_trade_status(
 def _get_latest_underlying_price(
     ticker: str,
 ):
+    """
+    Retrieve the latest underlying price from
+    Schwab Market Data.
+
+    Pricing preference:
+
+    1. Mark
+    2. Last
+    3. Bid/ask midpoint
+
+    Returns None when no usable price is available.
+    """
 
     try:
 
-        stock = yf.Ticker(ticker)
-
-        history = stock.history(
-            period="5d",
+        quote = get_normalized_quote(
+            ticker
         )
 
-        if history.empty:
-            return None
-
-        return float(
-            history["Close"].iloc[-1]
+        mark = pd.to_numeric(
+            quote.get("Mark"),
+            errors="coerce",
         )
+
+        if (
+            pd.notna(mark)
+            and float(mark) > 0
+        ):
+            return float(mark)
+
+        last_price = pd.to_numeric(
+            quote.get("Last"),
+            errors="coerce",
+        )
+
+        if (
+            pd.notna(last_price)
+            and float(last_price) > 0
+        ):
+            return float(last_price)
+
+        bid = pd.to_numeric(
+            quote.get("Bid"),
+            errors="coerce",
+        )
+
+        ask = pd.to_numeric(
+            quote.get("Ask"),
+            errors="coerce",
+        )
+
+        if (
+            pd.notna(bid)
+            and pd.notna(ask)
+            and float(bid) > 0
+            and float(ask) > 0
+        ):
+            return (
+                float(bid)
+                + float(ask)
+            ) / 2
+
+        return None
 
     except Exception:
         return None

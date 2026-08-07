@@ -210,6 +210,78 @@ def get_normalized_quote(
     }
 
 
+    """
+    Retrieve historical price data from Schwab.
+
+    Returns the raw Schwab price-history response.
+    """
+
+    ticker = (
+        ticker.upper().strip()
+    )
+
+    params = {
+        "periodType": period_type,
+        "period": period,
+        "frequencyType": frequency_type,
+        "frequency": frequency,
+        "needExtendedHoursData": str(
+            need_extended_hours_data
+        ).lower(),
+    }
+
+    return _get(
+        f"/pricehistory/{ticker}",
+        params=params,
+    )
+
+
+
+
+    response = get_price_history(
+        ticker=ticker,
+        period_type=period_type,
+        period=period,
+        frequency_type=frequency_type,
+        frequency=frequency,
+        need_extended_hours_data=(
+            need_extended_hours_data
+        ),
+    )
+
+    candles = response.get(
+        "candles",
+        [],
+    )
+
+    normalized = []
+
+    for candle in candles:
+
+        normalized.append(
+            {
+                "Open": candle.get(
+                    "open"
+                ),
+                "High": candle.get(
+                    "high"
+                ),
+                "Low": candle.get(
+                    "low"
+                ),
+                "Close": candle.get(
+                    "close"
+                ),
+                "Volume": candle.get(
+                    "volume"
+                ),
+                "Datetime": candle.get(
+                    "datetime"
+                ),
+            }
+        )
+
+    return normalized
 def get_option_chain(
     ticker: str,
     contract_type: str = "ALL",

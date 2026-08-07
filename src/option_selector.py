@@ -232,29 +232,7 @@ def _get_stock_price(
         )
 
         return None
-    try:
-        stock = yf.Ticker(
-            ticker
-        )
-
-        history = stock.history(
-            period="5d"
-        )
-
-        if history.empty:
-            return None
-
-        return float(
-            history["Close"].iloc[-1]
-        )
-
-    except Exception as error:
-        _debug(
-            f"Failed to retrieve stock price "
-            f"for {ticker}: {error}"
-        )
-
-        return None
+   
 
 
 def _build_rejection_reason(
