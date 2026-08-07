@@ -6,3 +6,6 @@ data/processed/
 data/weekly_runs/
 reports/
 .DS_Store
+# Schwab OAuth tokens
+data/schwab_tokens.json
+data/schwab_tokens.writing.json
