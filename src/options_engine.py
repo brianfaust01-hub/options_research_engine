@@ -6,7 +6,7 @@ Sprint 32B:
 Institutional Execution Engine - Test Mode
 
 Purpose:
-- Fetch option expirations and chains safely from yfinance
+- Fetch option expirations and chains safely from Schwab Market Data
 - Prevent one ticker timeout from crashing the full scan
 - Score option contracts for liquidity, pricing, moneyness, and execution
 - Capture realistic execution assumptions for later reporting and hindsight
@@ -249,7 +249,7 @@ def get_option_chain(
     Fetch one call or put chain from Schwab.
 
     Returns the chain using the existing Project Stonks
-    / yfinance-compatible column schema so downstream
+    / legacy-compatible column schema so downstream
     scoring behavior remains unchanged.
 
     Returns an empty DataFrame on any error.
@@ -659,9 +659,7 @@ def _estimate_delta(
     """
     Lightweight research-mode delta proxy.
 
-    yfinance chains generally do not provide Greeks. This proxy is
-    used only for relative contract ranking, not precise pricing or
-    risk management.
+    A calculated delta proxy is retained for scoring compatibility.
     """
 
     if stock_price <= 0:

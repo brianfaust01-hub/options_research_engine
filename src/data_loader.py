@@ -230,7 +230,7 @@ def download_price_data(
 
     The returned DataFrame preserves the ticker-first
     MultiIndex interface previously provided by
-    yfinance:
+    Schwab Market Data API:
 
         data["AAPL"]
         data["NVDA"]

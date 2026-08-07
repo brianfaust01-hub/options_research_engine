@@ -227,7 +227,7 @@ def _get_close_series(
 ) -> pd.Series:
     """
     Extract a ticker's closing-price series from either single-level or
-    MultiIndex yfinance output.
+    MultiIndex historical-price output.
     """
 
     if market_data.empty:
