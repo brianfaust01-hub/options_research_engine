@@ -33,17 +33,13 @@ ENABLE_JOURNAL_WRITES = True
 
 TEST_TICKERS = [
     "AAPL",
-    "MSFT",
+    "IFF",
     "NVDA",
-    "AMZN",
-    "GOOGL",
-    "META",
-    "TSLA",
-    "AMD",
-    "AVGO",
-    "MU",
-    "DDOG",
-    "FFIV",
+    "PCG",
+    "TFC",
+    "TSN",
+    "BRK-B",
+    "BF-B",
 ]
 
 LOOKBACK_PERIOD = "1y"

@@ -32,7 +32,11 @@ from portfolio_exposure import (
 from position_review import review_positions
 from research_engine import evaluate_strategies
 from opportunity_engine import evaluate_opportunities
-
+from trade_journal import (
+    begin_journal_batch,
+    flush_journal_batch,
+    cancel_journal_batch,
+)
 
 def _has_valid_option_trade(trade) -> bool:
     return (
@@ -117,10 +121,31 @@ def main():
     market_breadth = evaluate_market_breadth(indicators_df)
 
     print("\nRunning opportunity engine...")
-    trade_recommendations = indicators_df.apply(
-        evaluate_opportunities,
-        axis=1,
-    )
+
+    begin_journal_batch()
+
+    try:
+        trade_recommendations = indicators_df.apply(
+            evaluate_opportunities,
+            axis=1,
+        )
+
+        journal_rows_written = flush_journal_batch()
+
+        print(
+            f"Journal batch written: "
+            f"{journal_rows_written} recommendations"
+        )
+
+    except Exception:
+        discarded_rows = cancel_journal_batch()
+
+        print(
+            f"Journal batch cancelled: "
+            f"{discarded_rows} buffered recommendations"
+        )
+
+        raise
 
     trades_df = pd.DataFrame(
         [asdict(trade) for trade in trade_recommendations]

@@ -11,6 +11,9 @@ Portfolio state is maintained separately in paper_portfolio.csv.
 
 Journal writes are atomic so an interrupted process cannot leave the
 primary CSV partially written.
+
+Batch mode allows a scan to prepare multiple journal entries in memory
+and persist them with one atomic journal transaction.
 """
 
 from __future__ import annotations
@@ -36,6 +39,20 @@ from snapshot_writer import write_snapshot
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 JOURNAL_PATH = PROJECT_ROOT / "data" / "trade_journal.csv"
+
+
+#
+# Journal batch state
+#
+# The Opportunity Engine can continue calling
+# log_trade_recommendation() exactly as before.
+#
+# When batch mode is active, prepared rows are held
+# in memory until flush_journal_batch() is called.
+#
+
+_JOURNAL_BATCH_ACTIVE = False
+_JOURNAL_BATCH_ROWS: list[dict] = []
 
 
 def _classify_trade_status(
@@ -137,9 +154,14 @@ def _load_existing_journal() -> pd.DataFrame:
         return pd.DataFrame()
 
     try:
-        return pd.read_csv(JOURNAL_PATH)
+
+        return pd.read_csv(
+            JOURNAL_PATH,
+            low_memory=False,
+        )
 
     except pd.errors.ParserError as error:
+
         raise RuntimeError(
             "Trade journal is not readable. "
             "Run repair_trade_journal.py before generating "
@@ -168,11 +190,13 @@ def _write_journal_atomically(
         )
 
         #
-        # Validate before replacing
+        # Validate the completed temporary file before
+        # replacing the immutable journal.
         #
 
         pd.read_csv(
-            temporary_path
+            temporary_path,
+            low_memory=False,
         )
 
         os.replace(
@@ -186,16 +210,17 @@ def _write_journal_atomically(
             temporary_path.unlink()
 
 
-def log_trade_recommendation(
+def _prepare_journal_row(
     trade,
-) -> None:
+) -> dict:
+    """
+    Convert one TradeRecommendation into its
+    immutable journal representation.
 
-    #
-    # Development mode
-    #
-
-    if not ENABLE_JOURNAL_WRITES:
-        return
+    Snapshot creation remains here so the snapshot
+    and journal row continue to share the same
+    RecommendationID and research context.
+    """
 
     timestamp = datetime.now()
 
@@ -297,27 +322,39 @@ def log_trade_recommendation(
         + remaining
     )
 
-    trade_dict = {
+    return {
         column: trade_dict.get(column)
         for column in ordered
     }
 
-    new_row = pd.DataFrame(
-        [trade_dict]
+
+def _append_rows_to_journal(
+    rows: list[dict],
+) -> None:
+    """
+    Append prepared journal rows using one atomic
+    read / concatenate / write transaction.
+    """
+
+    if not rows:
+        return
+
+    new_rows = pd.DataFrame(
+        rows
     )
 
     existing = _load_existing_journal()
 
     if existing.empty:
 
-        updated_journal = new_row
+        updated_journal = new_rows
 
     else:
 
         updated_journal = pd.concat(
             [
                 existing,
-                new_row,
+                new_rows,
             ],
             ignore_index=True,
             sort=False,
@@ -325,4 +362,130 @@ def log_trade_recommendation(
 
     _write_journal_atomically(
         updated_journal
+    )
+
+
+def begin_journal_batch() -> None:
+    """
+    Begin buffering journal rows in memory.
+
+    Existing buffered state is cleared intentionally
+    so every scan starts with a clean batch.
+    """
+
+    global _JOURNAL_BATCH_ACTIVE
+    global _JOURNAL_BATCH_ROWS
+
+    _JOURNAL_BATCH_ROWS = []
+    _JOURNAL_BATCH_ACTIVE = True
+
+
+def flush_journal_batch() -> int:
+    """
+    Persist all buffered journal rows with one atomic
+    journal transaction.
+
+    Returns the number of rows written.
+    """
+
+    global _JOURNAL_BATCH_ACTIVE
+    global _JOURNAL_BATCH_ROWS
+
+    rows_to_write = list(
+        _JOURNAL_BATCH_ROWS
+    )
+
+    row_count = len(
+        rows_to_write
+    )
+
+    try:
+
+        if (
+            ENABLE_JOURNAL_WRITES
+            and rows_to_write
+        ):
+
+            _append_rows_to_journal(
+                rows_to_write
+            )
+
+    except Exception:
+
+        #
+        # Preserve the buffered rows if persistence
+        # fails so state is not silently discarded.
+        #
+
+        _JOURNAL_BATCH_ROWS = rows_to_write
+
+        raise
+
+    else:
+
+        _JOURNAL_BATCH_ROWS = []
+        _JOURNAL_BATCH_ACTIVE = False
+
+    return row_count
+
+
+def cancel_journal_batch() -> int:
+    """
+    Discard buffered journal rows without writing them.
+
+    Snapshots already created during preparation remain
+    immutable artifacts and are not deleted.
+
+    Returns the number of buffered rows discarded.
+    """
+
+    global _JOURNAL_BATCH_ACTIVE
+    global _JOURNAL_BATCH_ROWS
+
+    row_count = len(
+        _JOURNAL_BATCH_ROWS
+    )
+
+    _JOURNAL_BATCH_ROWS = []
+    _JOURNAL_BATCH_ACTIVE = False
+
+    return row_count
+
+
+def log_trade_recommendation(
+    trade,
+) -> None:
+    """
+    Record one trade recommendation.
+
+    Normal mode:
+        Persist immediately using an atomic journal
+        transaction.
+
+    Batch mode:
+        Prepare the immutable row and snapshot, then
+        buffer the row until flush_journal_batch().
+    """
+
+    if not ENABLE_JOURNAL_WRITES:
+        return
+
+    journal_row = _prepare_journal_row(
+        trade
+    )
+
+    if _JOURNAL_BATCH_ACTIVE:
+
+        _JOURNAL_BATCH_ROWS.append(
+            journal_row
+        )
+
+        return
+
+    #
+    # Backward-compatible immediate-write behavior.
+    #
+
+    _append_rows_to_journal(
+        [journal_row]
     )
