@@ -32,11 +32,7 @@ from portfolio_exposure import (
 from position_review import review_positions
 from research_engine import evaluate_strategies
 from opportunity_engine import evaluate_opportunities
-from trade_journal import (
-    begin_journal_batch,
-    flush_journal_batch,
-    cancel_journal_batch,
-)
+from trade_journal import log_completed_observations
 
 def _has_valid_option_trade(trade) -> bool:
     return (
@@ -122,30 +118,10 @@ def main():
 
     print("\nRunning opportunity engine...")
 
-    begin_journal_batch()
-
-    try:
-        trade_recommendations = indicators_df.apply(
-            evaluate_opportunities,
-            axis=1,
-        )
-
-        journal_rows_written = flush_journal_batch()
-
-        print(
-            f"Journal batch written: "
-            f"{journal_rows_written} recommendations"
-        )
-
-    except Exception:
-        discarded_rows = cancel_journal_batch()
-
-        print(
-            f"Journal batch cancelled: "
-            f"{discarded_rows} buffered recommendations"
-        )
-
-        raise
+    trade_recommendations = indicators_df.apply(
+        evaluate_opportunities,
+        axis=1,
+    )
 
     trades_df = pd.DataFrame(
         [asdict(trade) for trade in trade_recommendations]
@@ -169,7 +145,19 @@ def main():
     trades_df["breadth_reasons"] = "; ".join(
         market_breadth["breadth_reasons"]
     )
+    print("\nWriting completed research observations...")
 
+    observations_written = log_completed_observations(
+        trades_df=trades_df,
+        research_df=indicators_df,
+        market_context=market_context,
+        market_breadth=market_breadth,
+    )
+
+    print(
+        f"Historical observations written: "
+        f"{observations_written}"
+    )
     processed_file = (
         PROCESSED_DATA_DIR
         / f"trade_recommendations_{timestamp}.csv"

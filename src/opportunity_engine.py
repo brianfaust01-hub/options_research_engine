@@ -2,20 +2,19 @@
 Project Stonks
 Opportunity Engine
 
-Sprint 31A
+Sprint 33A
 
-Directional scoring with structured journaling support.
+Directional opportunity scoring.
 
 The Opportunity Engine determines whether a security merits a
-directional recommendation.
+directional recommendation and constructs the corresponding trade.
 
-It does NOT create snapshots directly. Snapshot creation is handled by
-trade_journal.py so that all immutable research artifacts originate from
-one location.
+Historical persistence is intentionally handled downstream after the
+full research, option-selection, and portfolio-allocation pipeline has
+completed.
 """
 
 from trade_constructor import construct_trade
-from trade_journal import log_trade_recommendation
 
 
 def evaluate_opportunities(row):
@@ -139,24 +138,13 @@ def evaluate_opportunities(row):
         row["OpportunityScore"] = winning_score
 
     #
-    # Construct recommendation
+    # Construct recommendation.
+    #
+    # No journaling occurs here.
+    #
+    # Historical persistence happens only after the
+    # completed recommendation has passed through the
+    # portfolio allocator and final enrichment stages.
     #
 
-    trade = construct_trade(row)
-
-    #
-    # Journal only actionable ideas.
-    #
-    # The journal now owns immutable snapshot creation.
-    #
-
-    if row["Action"] in (
-        "Evaluate Options",
-        "Watch",
-    ):
-
-        log_trade_recommendation(
-            trade=trade,
-        )
-
-    return trade
+    return construct_trade(row)

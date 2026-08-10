@@ -384,7 +384,7 @@ def select_best_contract(
                 expiration=expiration,
                 option_type=option_type,
             )
-
+            
             if chain.empty:
                 continue
 
@@ -495,10 +495,10 @@ def select_best_contract(
 
     if not all_eligible_contracts:
         _debug(
-        "No executable contracts found after "
-        "all selector filters."
-    )
-    return None
+            "No executable contracts found after "
+            "all selector filters."
+        )
+        return None
 
     executable_contracts = pd.concat(
         all_eligible_contracts,
