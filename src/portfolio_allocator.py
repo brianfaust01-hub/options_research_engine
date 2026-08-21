@@ -84,16 +84,20 @@ def _safe_text(
     return text if text else None
 
 
-def _is_executable_trade(
+def explain_allocation_ineligibility(
     row: pd.Series,
-) -> bool:
+) -> list[str]:
     """
-    Confirm that a row represents a complete option recommendation that
-    can be considered for allocation.
+    Explain why a recommendation cannot enter allocation ranking.
+
+    An empty list means the trade is executable. The function is
+    diagnostic only and preserves the allocator's existing gates.
     """
 
+    reasons = []
+
     if _safe_text(row.get("action")) != "Evaluate Options":
-        return False
+        reasons.append("ACTION_NOT_EVALUATE_OPTIONS")
 
     required_text_fields = [
         "option_strategy",
@@ -102,7 +106,9 @@ def _is_executable_trade(
 
     for field in required_text_fields:
         if _safe_text(row.get(field)) is None:
-            return False
+            reasons.append(
+                f"MISSING_{field.upper()}"
+            )
 
     strike = _safe_float(
         row.get("strike")
@@ -121,21 +127,31 @@ def _is_executable_trade(
     )
 
     if strike is None:
-        return False
+        reasons.append("MISSING_OR_INVALID_STRIKE")
 
     if premium is None or premium <= 0:
-        return False
+        reasons.append("MISSING_OR_INVALID_PREMIUM")
 
     if contracts is None or contracts <= 0:
-        return False
+        reasons.append("MISSING_OR_INVALID_CONTRACTS")
 
     if (
         institutional_score is None
         or institutional_score <= 0
     ):
-        return False
+        reasons.append(
+            "MISSING_OR_INVALID_INSTITUTIONAL_TRADE_SCORE"
+        )
 
-    return True
+    return reasons
+
+
+def _is_executable_trade(
+    row: pd.Series,
+) -> bool:
+    """Confirm that a row can be considered for allocation."""
+
+    return not explain_allocation_ineligibility(row)
 
 
 def _market_multiplier(

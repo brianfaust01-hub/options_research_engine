@@ -64,6 +64,9 @@ MAX_POSITION_SIZE_PCT = 0.08
 
 MIN_EXECUTABLE_CONTRACT_SCORE = 25
 
+# Counterfactual capacity target. The production allocator intentionally
+# retains its existing limit of three while Sprint 35A findings await
+# holdings, concentration, and correlation context.
 MAX_ALLOCATED_TRADES = 5
 
 MIN_OPPORTUNITY_SCORE = 70

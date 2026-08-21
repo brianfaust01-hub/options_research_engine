@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 34A complete — next sprint selection pending  
+**Current Sprint:** Sprint 35A complete — next sprint selection pending  
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -215,7 +215,50 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 ---
 
-# Latest Completed Sprint
+# Recent Sprint Records
+
+## Sprint 35A — Daily Allocation Capacity Review
+
+### Finding
+
+The three-trade result is an explicit allocator limit, not an emergent portfolio decision.
+
+- `portfolio_allocator.py` defaults to three recommendations
+- `config.py` declares a five-trade counterfactual capacity but the allocator does not consume it
+- Production allocation behavior was not changed
+
+### Historical Evidence
+
+The read-only audit examined the 20 most recent processed recommendation files:
+
+- 11 runs contained ranked executable candidates
+- Every such run allocated exactly three trades
+- 22 valid rank-four and rank-five counterfactual candidates were identified
+- Counterfactual candidates averaged a Portfolio Score of 80.57
+- Maximum counterfactual spread was 14.49%, near the existing 15% ceiling
+- Minimum counterfactual open interest was 167
+- All 851 ranked candidates were Long Calls
+- All 22 rank-four and rank-five candidates were Long Calls
+- The Opportunity Engine produced 2,399 Long Call candidates and zero Long Put candidates in the reviewed files
+
+### Decision
+
+Retain the production limit of three.
+
+Increasing the limit now would add directional long-call concentration without evidence of portfolio diversification. Sector and industry data are frequently unknown, existing holdings are not incorporated into allocation, correlation is not measured, and broker execution is not reconciled.
+
+The five-trade value remains a counterfactual research capacity, not a production instruction.
+
+### Validation
+
+- Read-only allocation audit added
+- Allocation ineligibility reasons are explicitly attributable
+- Fixtures confirm the production allocator still selects exactly three
+- Fixtures identify ranks four and five without changing their decisions
+- Eleven regression tests passed
+- Production journal, paper portfolio, and weekly log hashes were unchanged
+
+## Sprint 34A — Hindsight Data Integrity & Provenance
 
 ## Sprint 34A — Hindsight Data Integrity & Provenance
 
@@ -367,6 +410,15 @@ Future:
 - Read-only historical integrity audit
 - Controlled non-production observation validation
 - Production-data immutability verification
+
+## Sprint 35A
+
+- Confirmed explicit three-trade production limit
+- Added allocation-gate attribution
+- Added read-only rank-four/five counterfactual audit
+- Preserved liquidity and execution standards
+- Retained production limit pending holdings and diversification context
+- Confirmed long-call concentration originates upstream of allocation
 
 ---
 
@@ -625,7 +677,7 @@ Determine whether Institutional Trade Score predicts subsequent trade quality an
 ## Daily Allocation Capacity Review
 
 **Type:** Portfolio Decision Quality / Research  
-**Status:** Backlog
+**Status:** Completed — Sprint 35A
 
 ### Objective
 

@@ -19,6 +19,12 @@ Run the read-only hindsight integrity audit with:
 .\.venv\Scripts\python.exe -B src\hindsight_data_audit.py
 ```
 
+Run the read-only allocation-capacity audit with:
+
+```powershell
+.\.venv\Scripts\python.exe -B src\allocation_capacity_audit.py --recent-files 20
+```
+
 ## Development
 
 - Preserve immutable recommendation history.
