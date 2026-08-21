@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+from dataclasses import asdict
 from pathlib import Path
 from unittest.mock import patch
 
@@ -156,6 +157,79 @@ class HindsightIntegrityTests(unittest.TestCase):
         )
 
         self.assertEqual(collisions, [["Ticker", "ticker"]])
+
+    def test_controlled_v4_observation_end_to_end(self):
+        row = pd.Series(
+            {
+                "Ticker": "CONTROLLED",
+                "Close": 90.0,
+                "SMA_20": 95.0,
+                "SMA_50": 100.0,
+                "SMA_200": 110.0,
+                "Above_SMA_20": False,
+                "Above_SMA_50": False,
+                "Above_SMA_200": False,
+                "RSI_14": 55.0,
+                "MACD_Bullish": False,
+                "Avg_Volume_20": 6_000_000,
+            }
+        )
+
+        for key, value in evaluate_strategies(row).items():
+            row[key] = value
+
+        trade = evaluate_opportunities(row)
+        self.assertEqual(trade.action, "Pass")
+
+        observation = _build_completed_observation(
+            trade_row=asdict(trade),
+            research_row=row.to_dict(),
+            market_context={
+                "market_regime": "Controlled Test",
+                "risk_mode": "Test",
+            },
+            market_breadth={
+                "breadth_score": 0,
+                "breadth_regime": "Controlled Test",
+                "breadth_reasons": ["temporary fixture"],
+            },
+            recommendation_date="2026-08-21T00:00:00",
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch(
+                "snapshot_writer.SNAPSHOT_DIRECTORY",
+                Path(directory),
+            ):
+                result = write_observation_snapshot(observation)
+
+            snapshot = json.loads(
+                Path(result["file_path"]).read_text(encoding="utf-8")
+            )
+
+        stored = snapshot["observation"]
+
+        for field in (
+            "ResearchScore",
+            "OpportunityScore",
+            "BullishScore",
+            "BearishScore",
+            "DirectionalConviction",
+        ):
+            self.assertIsNotNone(stored[field])
+
+        self.assertEqual(snapshot["schema_version"], "4.0")
+        self.assertEqual(snapshot["data_quality_status"], "COMPLETE")
+        self.assertEqual(stored["DataQualityStatus"], "COMPLETE")
+        self.assertEqual(stored["DataQualityIssues"], [])
+        self.assertEqual(
+            stored["RecommendationTruthSource"],
+            "PROJECT_STONKS_SYSTEM",
+        )
+        self.assertEqual(
+            stored["BrokerReconciliationStatus"],
+            "NOT_RECONCILED",
+        )
 
 
 if __name__ == "__main__":

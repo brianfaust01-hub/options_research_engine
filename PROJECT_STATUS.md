@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 34A – Hindsight Data Integrity & Provenance  
+**Current Sprint:** Sprint 34A complete — next sprint selection pending  
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -215,7 +215,7 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 ---
 
-# Active Sprint
+# Latest Completed Sprint
 
 ## Sprint 34A — Hindsight Data Integrity & Provenance
 
@@ -253,6 +253,16 @@ They are required to remain truthful to what the system produced or knew at the 
 - Snapshot schema v4 records provenance and quality state
 - Tests use temporary fixtures and do not write production data
 - Historical audit remains read-only
+
+### Validation Result
+
+- Controlled Research → Opportunity → Trade → Journal Assembly → v4 Snapshot test passed
+- ResearchScore, OpportunityScore, BullishScore, BearishScore, and DirectionalConviction were present
+- Snapshot and observation quality status were COMPLETE
+- Recommendation provenance and broker reconciliation state were explicit
+- Eight fixture-based regression tests passed
+- Source and test compilation passed
+- Production journal, paper portfolio, and weekly log hashes were unchanged
 
 ---
 
@@ -349,6 +359,15 @@ Future:
 - Simplified position sizing
 - Position sizing cleanup
 
+## Sprint 34A
+
+- Complete hindsight context propagation
+- Observation schema v4
+- Data-quality classification and provenance
+- Read-only historical integrity audit
+- Controlled non-production observation validation
+- Production-data immutability verification
+
 ---
 
 # Development Backlog
@@ -370,7 +389,7 @@ Items that threaten production operation, historical evidence, research integrit
 ## Complete Hindsight Observation Context
 
 **Type:** Data Integrity / Learning  
-**Status:** Active — Sprint 34A
+**Status:** Completed — Sprint 34A
 
 ### Objective
 
