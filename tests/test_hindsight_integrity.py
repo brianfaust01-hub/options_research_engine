@@ -47,6 +47,8 @@ class HindsightIntegrityTests(unittest.TestCase):
     def test_research_score_is_explicit_alias_without_behavior_change(self):
         result = evaluate_strategies(self._research_row())
 
+        self.assertIn(result["MomentumDirection"], {"Bullish", "Bearish"})
+
         self.assertEqual(result["ResearchScore"], result["StrategyScore"])
 
     def test_trade_carries_opportunity_context_for_pass_record(self):
@@ -179,7 +181,7 @@ class HindsightIntegrityTests(unittest.TestCase):
             row[key] = value
 
         trade = evaluate_opportunities(row)
-        self.assertEqual(trade.action, "Pass")
+        self.assertEqual(trade.action, "Watch")
 
         observation = _build_completed_observation(
             trade_row=asdict(trade),

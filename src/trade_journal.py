@@ -460,6 +460,7 @@ def _order_observation(
         "ResearchScore",
         "TrendScore",
         "MomentumScore",
+        "MomentumDirection",
         "LiquidityScore",
         "StrategyScore",
         "OpportunityScore",

@@ -70,6 +70,11 @@ def evaluate_strategies(row):
         evaluate_market_regime(row),
     ]
 
+    momentum_module = next(
+        module for module in modules
+        if module.module == "Momentum"
+    )
+
     bullish_modules = [
         module for module in modules
         if module.signal == "Bullish"
@@ -148,6 +153,10 @@ def evaluate_strategies(row):
         "MomentumScore": round(
             sum(momentum_modules) / max(1, len(momentum_modules))
         ),
+        # MomentumScore is strength, not direction. Preserve the module's
+        # direction separately so downstream scoring cannot interpret a
+        # strong bearish reading as bullish momentum.
+        "MomentumDirection": momentum_module.signal,
         "RiskScore": round(
             sum(risk_modules) / max(1, len(risk_modules))
         ),

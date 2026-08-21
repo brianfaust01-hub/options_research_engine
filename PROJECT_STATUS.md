@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 35B complete — Daily Run Latency Review next  
+**Current Sprint:** Sprint 35C complete — Daily Run Latency Review next  
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -221,6 +221,36 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 35C — Directional Momentum Scoring Correction
+
+### Decision
+
+Correct the production defect confirmed in Sprint 35B. Strategy variety is
+not forced: put candidates must clear the same score and conviction gates as
+call candidates.
+
+### Implementation
+
+- The Research Engine now preserves `MomentumDirection` separately from the
+  momentum strength score.
+- The Opportunity Engine applies momentum points to the preserved direction.
+- Older callers fall back to overall research direction; callers with neither
+  field retain legacy compatibility.
+- Existing opportunity thresholds, liquidity gates, contract selection, and
+  allocation limits remain unchanged.
+- `MomentumDirection` is retained in the preferred journal column order for
+  future hindsight analysis.
+
+### Validation
+
+- Strong bearish trend plus strong bearish momentum can clear the Long Put
+  candidate gate.
+- Low momentum strength no longer creates artificial bearish conviction.
+- Explicit component direction takes precedence over overall consensus.
+- No call/put quota or minimum strategy mix was introduced.
+- Production journal, paper portfolio, weekly log, and historical snapshots
+  were not modified during validation.
 
 ## Sprint 35B — Long-Call Concentration Review
 
@@ -482,6 +512,13 @@ Future:
 - Added read-only stage-attrition and structural diagnostics
 - Recommended directional score preservation and shadow evaluation
 - Preserved production scoring behavior
+
+## Sprint 35C
+
+- Preserved momentum direction as a first-class research field
+- Corrected bearish momentum attribution in production opportunity scoring
+- Enabled evidence-qualified Long Put candidates without a strategy quota
+- Preserved thresholds, liquidity discipline, contract gates, and allocation cap
 
 ---
 

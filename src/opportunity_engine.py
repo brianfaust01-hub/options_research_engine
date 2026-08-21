@@ -18,15 +18,18 @@ from trade_constructor import construct_trade
 
 
 def calculate_directional_opportunity_scores(row) -> dict:
-    """Expose the current scoring behavior for diagnostics and tests.
+    """Calculate directional scores without losing momentum direction.
 
-    This extraction intentionally preserves production behavior. It does
-    not correct the known directional-information loss identified during
-    the Long-Call Concentration Review.
+    New research rows provide MomentumDirection explicitly. The overall
+    research Direction is a backward-compatible fallback for older callers.
     """
 
     trend = row["TrendScore"]
     momentum = row["MomentumScore"]
+    momentum_direction = row.get(
+        "MomentumDirection",
+        row.get("Direction"),
+    )
     liquidity = row["LiquidityScore"]
     strategy_score = row["StrategyScore"]
 
@@ -50,14 +53,29 @@ def calculate_directional_opportunity_scores(row) -> dict:
     # Momentum
     #
 
-    if momentum >= 70:
-        bullish_score += 35
+    if momentum_direction is None:
+        # Preserve the legacy interpretation only for callers that provide
+        # neither the new component direction nor the overall direction.
+        if momentum >= 70:
+            bullish_score += 35
+        elif momentum >= 55:
+            bullish_score += 20
+        elif momentum <= 30:
+            bearish_score += 35
+        elif momentum <= 45:
+            bearish_score += 20
+        momentum_points = 0
+    elif momentum >= 70:
+        momentum_points = 35
     elif momentum >= 55:
-        bullish_score += 20
-    elif momentum <= 30:
-        bearish_score += 35
-    elif momentum <= 45:
-        bearish_score += 20
+        momentum_points = 20
+    else:
+        momentum_points = 0
+
+    if momentum_direction == "Bullish":
+        bullish_score += momentum_points
+    elif momentum_direction == "Bearish":
+        bearish_score += momentum_points
 
     #
     # Liquidity

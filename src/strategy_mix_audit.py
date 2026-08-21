@@ -53,8 +53,8 @@ def _structural_fixtures() -> dict:
         "bullish_research_fixture": bullish,
         "strong_bearish_research_fixture": strong_bearish,
         "low_momentum_bearish_fixture": low_momentum_bearish,
-        "research_direction_consumed_by_current_scoring": False,
-        "high_bearish_momentum_magnitude_is_scored_as_bullish": True,
+        "research_direction_consumed_by_current_scoring": True,
+        "high_bearish_momentum_magnitude_is_scored_as_bullish": False,
     }
 
 
@@ -130,7 +130,7 @@ def audit_files(files: list[Path]) -> dict:
         "allocated_strategies": dict(allocated_strategies),
         "first_zero_put_stage": first_zero_put_stage,
         "structural_diagnostics": _structural_fixtures(),
-        "production_behavior_changed": False,
+        "directional_scoring_fix_active": True,
         "limitations": [
             "Legacy processed files do not preserve directional component scores.",
             "Reviewed files may contain repeated intraday runs.",
