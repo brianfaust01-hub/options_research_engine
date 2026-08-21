@@ -138,6 +138,10 @@ def evaluate_strategies(row):
         "Strategy": "Consensus",
         "Direction": direction,
         "StrategyScore": confidence,
+        # ResearchScore is the canonical hindsight name for the
+        # consensus strategy confidence. This is an alias only and does
+        # not change production scoring behavior.
+        "ResearchScore": confidence,
         "TrendScore": round(
             sum(trend_modules) / max(1, len(trend_modules))
         ),

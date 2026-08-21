@@ -31,6 +31,8 @@ from typing import Any
 
 import pandas as pd
 
+from data_quality import assess_observation
+
 from config import (
     VERSION,
     CONFIG_VERSION,
@@ -420,13 +422,17 @@ def _build_completed_observation(
         observation
     )
 
-    return {
+    normalized_observation = {
         key: _normalize_value(
             value
         )
         for key, value
         in observation.items()
     }
+
+    return assess_observation(
+        normalized_observation
+    )
 
 
 def _order_observation(
@@ -460,6 +466,17 @@ def _order_observation(
         "BullishScore",
         "BearishScore",
         "DirectionalConviction",
+
+        #
+        # Data quality and provenance
+        #
+
+        "ObservationSchemaGeneration",
+        "DataQualityStatus",
+        "DataQualityIssues",
+        "RecommendationTruthSource",
+        "ExecutionTruthSource",
+        "BrokerReconciliationStatus",
 
         #
         # Core indicators

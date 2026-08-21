@@ -703,6 +703,22 @@ def construct_trade(
             "OpportunityScore"
         ],
         expected_apr=None,
+        research_score=row.get(
+            "ResearchScore",
+            row.get("StrategyScore"),
+        ),
+        opportunity_score=row.get(
+            "OpportunityScore"
+        ),
+        bullish_score=row.get(
+            "BullishScore"
+        ),
+        bearish_score=row.get(
+            "BearishScore"
+        ),
+        directional_conviction=row.get(
+            "DirectionalConviction"
+        ),
         option_strategy=option_strategy,
         option_type=option_strategy,
         expiration=expiration,

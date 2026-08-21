@@ -27,6 +27,20 @@ class TradeRecommendation:
     expected_apr: float | None
 
     # ------------------------------------------------------------------
+    # Hindsight Research Context (Sprint 34A)
+    # ------------------------------------------------------------------
+
+    research_score: float | None
+
+    opportunity_score: float | None
+
+    bullish_score: float | None
+
+    bearish_score: float | None
+
+    directional_conviction: float | None
+
+    # ------------------------------------------------------------------
     # Option Details
     # ------------------------------------------------------------------
 

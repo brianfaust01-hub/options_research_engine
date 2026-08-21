@@ -31,8 +31,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from data_quality import assess_observation
 
-SCHEMA_VERSION = "3.0"
+
+SCHEMA_VERSION = "4.0"
 MODEL_VERSION = "0.3.0-alpha"
 
 SNAPSHOT_DIRECTORY = (
@@ -143,13 +145,20 @@ def write_observation_snapshot(
         / filename
     )
 
+    assessed_observation = assess_observation(
+        observation
+    )
+
     snapshot = {
         "schema_version": SCHEMA_VERSION,
         "model_version": MODEL_VERSION,
         "recommendation_id": recommendation_id,
         "created_utc": created_utc.isoformat(),
+        "data_quality_status": assessed_observation[
+            "DataQualityStatus"
+        ],
         "observation": _serialize(
-            observation
+            assessed_observation
         ),
     }
 
