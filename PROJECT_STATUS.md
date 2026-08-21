@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 36A in progress — email delivery setup pending  
+**Current Sprint:** Sprint 36A complete — scheduled-run confirmation pending  
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -267,9 +267,9 @@ Allocation candidates remain research evidence outside that section.
 
 ### Remaining
 
-- Run interactive SMTP configuration and confirm the test message
-- Update the scheduled task to invoke the complete daily workflow
-- Confirm delivery and rendering in the recipient's email client
+- Run the scheduler setup under the user's Windows account
+- Confirm the first unattended run and email delivery
+- Add an exchange-holiday guard before treating holiday suppression as complete
 
 ## Sprint 35D — Daily Run Opportunity Pipeline Latency
 
