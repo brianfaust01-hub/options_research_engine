@@ -12,6 +12,7 @@ if ([string]::IsNullOrWhiteSpace($emailTo)) { $emailTo = $smtpUser }
 
 $securePassword = Read-Host "Email app password (hidden)" -AsSecureString
 $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+$emailConfigured = $false
 
 try {
     $smtpPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
@@ -25,11 +26,6 @@ try {
     }
 
     foreach ($setting in $settings.GetEnumerator()) {
-        [Environment]::SetEnvironmentVariable(
-            $setting.Key,
-            $setting.Value,
-            "User"
-        )
         Set-Item -Path "Env:$($setting.Key)" -Value $setting.Value
     }
 
@@ -40,9 +36,29 @@ try {
         throw "Test email failed with exit code $LASTEXITCODE."
     }
 
+    foreach ($setting in $settings.GetEnumerator()) {
+        [Environment]::SetEnvironmentVariable(
+            $setting.Key,
+            $setting.Value,
+            "User"
+        )
+    }
+
+    $emailConfigured = $true
     Write-Host "Email settings saved for this Windows user."
 }
 finally {
+    if (-not $emailConfigured) {
+        foreach ($settingName in @(
+            "STONKS_SMTP_HOST",
+            "STONKS_SMTP_PORT",
+            "STONKS_SMTP_USER",
+            "STONKS_SMTP_PASSWORD",
+            "STONKS_EMAIL_TO"
+        )) {
+            Remove-Item -Path "Env:$settingName" -ErrorAction SilentlyContinue
+        }
+    }
     if ($passwordPointer -ne [IntPtr]::Zero) {
         [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
     }
