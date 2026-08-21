@@ -14,6 +14,8 @@ The audit is diagnostic only and does not change contract selection.
 
 from __future__ import annotations
 
+from time import perf_counter
+
 import pandas as pd
 
 from schwab.market_data_client import (
@@ -31,8 +33,10 @@ from config import (
 from options_engine import (
     get_target_expirations,
     get_option_chain,
+    get_option_chain_snapshot,
     score_contracts,
 )
+from pipeline_metrics import record_count, record_duration
 
 
 
@@ -322,7 +326,7 @@ def _print_contract_sample(
     )
 
 
-def select_best_contract(
+def _select_best_contract(
     ticker: str,
     opportunity_type: str,
     expected_holding_days=None,
@@ -336,6 +340,7 @@ def select_best_contract(
         f"{ticker} =========="
     )
 
+    record_count("equity_quote_requests")
     stock_price = _get_stock_price(
         ticker
     )
@@ -363,8 +368,21 @@ def select_best_contract(
         )
     )
 
+    try:
+        normalized_contracts = get_option_chain_snapshot(
+            ticker=ticker,
+            option_type=option_type.upper(),
+        )
+    except Exception as error:
+        _debug(
+            f"Failed to retrieve option-chain snapshot "
+            f"for {ticker}: {error}"
+        )
+        return None
+
     expirations = get_target_expirations(
-        ticker
+        ticker,
+        normalized_contracts=normalized_contracts,
     )
 
     if not expirations:
@@ -383,6 +401,7 @@ def select_best_contract(
                 ticker=ticker,
                 expiration=expiration,
                 option_type=option_type,
+                normalized_contracts=normalized_contracts,
             )
             
             if chain.empty:
@@ -549,3 +568,26 @@ def select_best_contract(
     )
 
     return selected
+
+
+def select_best_contract(
+    ticker: str,
+    opportunity_type: str,
+    expected_holding_days=None,
+):
+    """Select a contract and record non-persistent runtime diagnostics."""
+
+    started = perf_counter()
+    record_count("contract_selection_candidates")
+
+    try:
+        return _select_best_contract(
+            ticker=ticker,
+            opportunity_type=opportunity_type,
+            expected_holding_days=expected_holding_days,
+        )
+    finally:
+        record_duration(
+            "contract_selection",
+            perf_counter() - started,
+        )

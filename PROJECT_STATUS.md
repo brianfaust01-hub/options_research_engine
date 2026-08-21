@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 35C complete — Daily Run Latency Review next  
+**Current Sprint:** Sprint 35D complete — validate latency in next live run  
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -221,6 +221,41 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 35D — Daily Run Opportunity Pipeline Latency
+
+### Finding
+
+Contract selection repeatedly downloaded the full Schwab option chain. Each
+actionable ticker used one chain request to discover expirations and then up
+to eight more full-chain requests while scoring those expirations.
+
+### Implementation
+
+- Fetch one normalized option-chain snapshot per actionable ticker and reuse
+  it across expiration filtering and contract scoring.
+- Preserve the existing retry behavior for the consolidated chain request.
+- Add in-memory timing for the opportunity pipeline and contract selection.
+- Report candidate count, average contract-selection time, and actual quote
+  and option-chain request attempts at the end of the stage.
+- Keep scoring weights, expiration limits, liquidity rules, contract ranking,
+  and allocation behavior unchanged.
+
+### Validation
+
+- A controlled two-expiration fixture uses one chain request rather than
+  three; the same design caps the normal eight-expiration path at one rather
+  than nine chain requests per ticker.
+- Retry attempts are preserved and counted.
+- Partial option-chain data safely produces no selected contract.
+- Twenty regression tests passed, including retry and partial-data fixtures.
+- Production journal, paper portfolio, weekly log, and historical snapshots
+  were not modified.
+
+### Operational Follow-up
+
+The next normal daily run will provide the first live timing baseline. Review
+its reported totals before considering bounded concurrency or API batching.
 
 ## Sprint 35C — Directional Momentum Scoring Correction
 
@@ -519,6 +554,13 @@ Future:
 - Corrected bearish momentum attribution in production opportunity scoring
 - Enabled evidence-qualified Long Put candidates without a strategy quota
 - Preserved thresholds, liquidity discipline, contract gates, and allocation cap
+
+## Sprint 35D
+
+- Reused one option-chain snapshot across all scored expirations per ticker
+- Added opportunity-stage and per-candidate latency reporting
+- Added external quote and chain request-attempt counts
+- Preserved retry behavior and contract-selection standards
 
 ---
 
@@ -836,7 +878,7 @@ Explain why daily runs consistently allocate three trades and determine whether 
 ## Daily Run Opportunity Pipeline Latency Review
 
 **Type:** Performance / Reliability  
-**Status:** Backlog — after Long-Call Concentration Review
+**Status:** Completed — Sprint 35D; live-run validation pending
 
 ### Objective
 

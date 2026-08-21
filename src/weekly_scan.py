@@ -5,6 +5,7 @@ Weekly Scan Runner
 
 from dataclasses import asdict
 from datetime import datetime
+from time import perf_counter
 
 import pandas as pd
 
@@ -32,6 +33,7 @@ from portfolio_exposure import (
 from position_review import review_positions
 from research_engine import evaluate_strategies
 from opportunity_engine import evaluate_opportunities
+from pipeline_metrics import get_pipeline_metrics, reset_pipeline_metrics
 from trade_journal import log_completed_observations
 
 def _has_valid_option_trade(trade) -> bool:
@@ -118,6 +120,9 @@ def main():
 
     print("\nRunning opportunity engine...")
 
+    reset_pipeline_metrics()
+    opportunity_started = perf_counter()
+
     trade_recommendations = indicators_df.apply(
         evaluate_opportunities,
         axis=1,
@@ -125,6 +130,32 @@ def main():
 
     trades_df = pd.DataFrame(
         [asdict(trade) for trade in trade_recommendations]
+    )
+
+    opportunity_seconds = perf_counter() - opportunity_started
+    pipeline_metrics = get_pipeline_metrics()
+    metric_counts = pipeline_metrics["counts"]
+    metric_durations = pipeline_metrics["durations_seconds"]
+    candidate_count = metric_counts.get(
+        "contract_selection_candidates", 0
+    )
+    average_candidate_seconds = (
+        metric_durations.get("contract_selection", 0.0)
+        / candidate_count
+        if candidate_count
+        else 0.0
+    )
+
+    print(
+        "Opportunity pipeline timing: "
+        f"{opportunity_seconds:.2f}s total; "
+        f"{candidate_count} contract candidates; "
+        f"{average_candidate_seconds:.2f}s average per candidate"
+    )
+    print(
+        "Opportunity market-data requests: "
+        f"{metric_counts.get('equity_quote_requests', 0)} quotes; "
+        f"{metric_counts.get('option_chain_requests', 0)} chains"
     )
 
     print("\nRunning portfolio allocator...")

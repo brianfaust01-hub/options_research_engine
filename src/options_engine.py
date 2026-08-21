@@ -34,6 +34,7 @@ from schwab.market_data_client import (
 )
 
 from config import MAX_ACCEPTABLE_SPREAD_PCT
+from pipeline_metrics import record_count
 
 
 # ---------------------------------------------------------------------------
@@ -185,11 +186,40 @@ def get_option_expirations(
     return []
 
 
+def get_option_chain_snapshot(
+    ticker: str,
+    option_type: str,
+    max_retries: int = 1,
+    retry_sleep_seconds: float = 1.0,
+) -> list[dict]:
+    """Fetch one reusable normalized chain while preserving retry behavior."""
+
+    for attempt in range(max_retries + 1):
+        try:
+            record_count("option_chain_requests")
+            return get_normalized_option_chain(
+                ticker=ticker,
+                option_type=option_type,
+            )
+        except Exception as error:
+            print(
+                "[options_engine] WARNING: failed to fetch reusable "
+                f"option chain for {ticker} on attempt "
+                f"{attempt + 1}/{max_retries + 1}: "
+                f"{type(error).__name__}: {error}"
+            )
+            if attempt < max_retries:
+                time.sleep(retry_sleep_seconds)
+
+    return []
+
+
 def get_target_expirations(
     ticker: str,
     min_dte: int = 30,
     max_dte: int = 120,
     max_expirations: int = 8,
+    normalized_contracts: list[dict] | None = None,
 ) -> list[str]:
     """
     Return expirations in the broad research-mode DTE window.
@@ -201,9 +231,18 @@ def get_target_expirations(
     for that ranking step.
     """
 
-    expirations = get_option_expirations(
-        ticker
-    )
+    if normalized_contracts is None:
+        expirations = get_option_expirations(
+            ticker
+        )
+    else:
+        expirations = sorted(
+            {
+                str(contract["Expiration"])
+                for contract in normalized_contracts
+                if contract.get("Expiration")
+            }
+        )
 
     target_expirations: list[str] = []
 
@@ -244,6 +283,7 @@ def get_option_chain(
     option_type: str,
     max_retries: int = 1,
     retry_sleep_seconds: float = 1.0,
+    normalized_contracts: list[dict] | None = None,
 ) -> pd.DataFrame:
     """
     Fetch one call or put chain from Schwab.
@@ -288,12 +328,13 @@ def get_option_chain(
     ):
         try:
 
-            contracts = (
-                get_normalized_option_chain(
+            contracts = normalized_contracts
+
+            if contracts is None:
+                contracts = get_normalized_option_chain(
                     ticker=ticker,
                     option_type=schwab_option_type,
                 )
-            )
 
             matching_contracts = [
                 contract
