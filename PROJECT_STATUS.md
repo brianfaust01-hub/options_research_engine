@@ -242,6 +242,12 @@ entry without confusing watchlist research with allocated recommendations.
 - Detailed recommendation and position-action CSV attachments
 - Persisted the enriched position-action output separately from the outcome
   review snapshot
+- The standard batch entry point now runs the complete scan, action-report,
+  and email workflow
+- Interactive email setup stores credentials in the Windows user environment
+  without printing the app password
+- A test-send command rebuilds the brief from the latest completed scan and
+  does not create new recommendations or portfolio records
 
 ### Safety Decision
 
@@ -261,8 +267,7 @@ Allocation candidates remain research evidence outside that section.
 
 ### Remaining
 
-- Configure SMTP credentials and recipient
-- Send a test email without running a new production scan
+- Run interactive SMTP configuration and confirm the test message
 - Update the scheduled task to invoke the complete daily workflow
 - Confirm delivery and rendering in the recipient's email client
 

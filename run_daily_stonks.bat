@@ -11,7 +11,7 @@ echo ================================================== >> logs\weekly_scan.log
 
 call .venv\Scripts\activate >> logs\weekly_scan.log 2>&1
 
-python -u src\weekly_scan.py >> logs\weekly_scan.log 2>&1
+python -u src\daily_run.py >> logs\weekly_scan.log 2>&1
 set "STONKS_EXIT_CODE=%errorlevel%"
 
 echo Project Stonks run finished: %date% %time% >> logs\weekly_scan.log
