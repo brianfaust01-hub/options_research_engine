@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 35A complete — next sprint selection pending  
+**Current Sprint:** Sprint 35B complete — Daily Run Latency Review next  
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -222,6 +222,55 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## Sprint 35B — Long-Call Concentration Review
+
+### Finding
+
+Long-call dominance originates in the Opportunity Engine before contract selection or portfolio allocation.
+
+The Research Engine produces a directional label and a momentum magnitude, but the Opportunity Engine ignores the directional label. A high MomentumScore is always awarded bullish points even when the Research Engine determined that bearish momentum produced the score.
+
+### Historical Evidence
+
+The read-only audit examined the 20 most recent processed recommendation files:
+
+- 6,884 total recommendations
+- 3,045 Pass recommendations
+- 1,440 Watch recommendations
+- 2,399 Long Call candidates
+- Zero Long Put candidates
+- 851 Long Calls survived contract selection
+- 1,548 Long Call candidates failed contract selection
+- 33 Long Calls were allocated
+- Zero Long Puts reached any reviewed downstream stage
+
+### Structural Evidence
+
+- Changing only the Research Engine Direction between Bullish and Bearish does not change Opportunity Engine scoring
+- A strong bearish fixture with TrendScore 0 and MomentumScore 80 produces BearishScore 65, below the 75 put threshold
+- The same high bearish momentum magnitude contributes 35 bullish points
+- A low MomentumScore of 20 can produce BearishScore 100, demonstrating that magnitude is interpreted as direction
+
+### Decision
+
+The current behavior requires recalibration, not strategy expansion for variety.
+
+Do not change production thresholds or weights immediately. First preserve separate bullish and bearish research components, generate corrected decisions in shadow mode, and compare them with current recommendations and subsequent outcomes.
+
+### Validation
+
+- Read-only stage-attrition audit added
+- Current opportunity scoring was extracted into a diagnostic function without behavior changes
+- Fifteen regression tests passed
+- Production journal, paper portfolio, and weekly log hashes were unchanged
+
+### Limitations
+
+- Legacy processed files do not preserve directional component scores
+- Reviewed files include repeated intraday runs
+- Market regime may legitimately influence the observed direction mix
+- Outcome performance and broker execution are not reconciled
+
 ## Sprint 35A — Daily Allocation Capacity Review
 
 ### Finding
@@ -425,6 +474,15 @@ Future:
 - Retained production limit pending holdings and diversification context
 - Confirmed long-call concentration originates upstream of allocation
 
+## Sprint 35B
+
+- Quantified recommendation and strategy mix
+- Located first zero-put stage in the Opportunity Engine
+- Identified directional-information loss in MomentumScore handling
+- Added read-only stage-attrition and structural diagnostics
+- Recommended directional score preservation and shadow evaluation
+- Preserved production scoring behavior
+
 ---
 
 # Development Backlog
@@ -608,7 +666,7 @@ This provides an important reconciliation layer between Project Stonks recommend
 ## Investment Guidance / Strategy Diversity Review
 
 **Type:** Research / Product  
-**Status:** Backlog
+**Status:** Completed — Sprint 35B
 
 ### Objective
 
@@ -648,6 +706,35 @@ This may indicate:
   - be recalibrated,
   - or be expanded
 - No strategy expansion solely for the purpose of producing variety
+
+---
+
+## Directional Score Preservation & Shadow Evaluation
+
+**Type:** Research Integrity / Model Validation  
+**Status:** Backlog — after Daily Run Latency Review
+
+### Objective
+
+Preserve distinct bullish and bearish research components and evaluate a corrected directional opportunity model in shadow mode before changing production recommendations.
+
+### Scope
+
+- Preserve bullish and bearish trend components
+- Preserve bullish and bearish momentum components
+- Preserve the research direction consumed by opportunity scoring
+- Produce current-model and shadow-model decisions side by side
+- Capture disagreement reason, score deltas, and threshold outcomes
+- Evaluate calls, puts, Watch, and Pass decisions without executing shadow recommendations
+
+### Success Criteria
+
+- No directional magnitude is interpreted without its direction
+- Current production recommendations remain unchanged during shadow evaluation
+- Shadow recommendations are persisted as non-executable analytical evidence
+- Recommendation disagreement is quantitatively attributable
+- Liquidity and contract-selection standards remain unchanged
+- Production changes require explicit evidence-based approval
 
 ---
 

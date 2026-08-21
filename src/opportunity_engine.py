@@ -17,7 +17,14 @@ completed.
 from trade_constructor import construct_trade
 
 
-def evaluate_opportunities(row):
+def calculate_directional_opportunity_scores(row) -> dict:
+    """Expose the current scoring behavior for diagnostics and tests.
+
+    This extraction intentionally preserves production behavior. It does
+    not correct the known directional-information loss identified during
+    the Long-Call Concentration Review.
+    """
+
     trend = row["TrendScore"]
     momentum = row["MomentumScore"]
     liquidity = row["LiquidityScore"]
@@ -86,6 +93,22 @@ def evaluate_opportunities(row):
         winning_score
         - losing_score
     )
+
+    return {
+        "BullishScore": bullish_score,
+        "BearishScore": bearish_score,
+        "DirectionalConviction": conviction_gap,
+        "WinningScore": winning_score,
+    }
+
+
+def evaluate_opportunities(row):
+    scores = calculate_directional_opportunity_scores(row)
+
+    bullish_score = scores["BullishScore"]
+    bearish_score = scores["BearishScore"]
+    conviction_gap = scores["DirectionalConviction"]
+    winning_score = scores["WinningScore"]
 
     row["BullishScore"] = bullish_score
     row["BearishScore"] = bearish_score
