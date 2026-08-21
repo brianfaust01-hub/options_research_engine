@@ -194,14 +194,72 @@ def apply_confirmed_closures(report: dict, portfolio_path: str | Path) -> int:
     return applied
 
 
+def build_attribution_report(report: dict, review: dict) -> dict:
+    """Layer reviewed source/cause attribution onto immutable broker truth."""
+    allocated = set(review.get("confirmed_project_allocations", []))
+    recommended = set(review.get("project_recommendation_only", []))
+    threshold = float(review["execution_error_loss_threshold"])
+    attributed = []
+    matched_by_open = {
+        item["broker_trade"]["opened_at"]: item
+        for item in report["portfolio_reconciliation"]
+        if item.get("broker_trade")
+    }
+    trades = [
+        item["broker_trade"] for item in report["portfolio_reconciliation"]
+        if item.get("broker_trade")
+    ] + report["unmatched_broker_round_trips"]
+    for trade in trades:
+        opened_at = trade.get("opened_at")
+        if opened_at in matched_by_open or opened_at in allocated:
+            source = "PROJECT_STONKS_ALLOCATED"
+            confidence = "CONFIRMED"
+        elif opened_at in recommended:
+            source = "PROJECT_STONKS_RECOMMENDATION_ALLOCATION_UNKNOWN"
+            confidence = "PARTIAL"
+        else:
+            source = "UNCLASSIFIED"
+            confidence = "UNRESOLVED"
+        return_pct = (
+            float(trade["exit_price"]) / float(trade["entry_price"]) - 1
+            if trade.get("entry_price") and trade.get("exit_price") is not None
+            else None
+        )
+        execution_error = return_pct is not None and return_pct < threshold
+        attributed.append({
+            **trade,
+            "return_pct": return_pct,
+            "trade_source": source,
+            "source_confidence": confidence,
+            "outcome_attribution": (
+                "USER_REVIEWED_EXECUTION_PROCESS_ERROR"
+                if execution_error else "NOT_CLASSIFIED_AS_EXECUTION_ERROR"
+            ),
+        })
+    return {
+        "schema_version": "2.0",
+        "base_reconciliation_source": report.get("source_path"),
+        "review_basis": review,
+        "trade_count": len(attributed),
+        "project_allocated_count": sum(t["trade_source"] == "PROJECT_STONKS_ALLOCATED" for t in attributed),
+        "execution_error_count": sum(t["outcome_attribution"] == "USER_REVIEWED_EXECUTION_PROCESS_ERROR" for t in attributed),
+        "unclassified_count": sum(t["trade_source"] == "UNCLASSIFIED" for t in attributed),
+        "trades": attributed,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Read-only broker reconciliation")
     parser.add_argument("statement")
     parser.add_argument("--portfolio", default="data/paper_portfolio.csv")
     parser.add_argument("--output", help="Optional new JSON report path")
     parser.add_argument("--apply-confirmed-closures", action="store_true")
+    parser.add_argument("--review", help="Optional reviewed attribution JSON")
     args = parser.parse_args()
     report = build_report(args.statement, args.portfolio)
+    if args.review:
+        review = json.loads(Path(args.review).read_text(encoding="utf-8"))
+        report = build_attribution_report(report, review)
     rendered = json.dumps(report, indent=2)
     if args.output:
         output = Path(args.output)

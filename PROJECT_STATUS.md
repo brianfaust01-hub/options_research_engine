@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 37A complete
+**Current Sprint:** Sprint 37B complete
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -221,6 +221,44 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 37B — Reviewed Trade Attribution
+
+### Objective
+
+Separate broker P/L from its reviewed causal attribution so hindsight can
+distinguish strategy evidence from known execution/process failures.
+
+### Reviewed Rule
+
+The account owner classified any realized option-premium loss worse than 20%
+as an execution/process error. This label adds context; it does not remove or
+alter the loss in broker or account performance.
+
+### Evidence
+
+- All 28 broker round trips retain their actual fills and gross P/L
+- 26 trades have confirmed Project Stonks allocation evidence
+- One additional C trade matches a Project Stonks recommendation but lacks
+  preserved allocation evidence
+- WRB remains source-unclassified rather than being guessed
+- Eight trades breached the reviewed execution-error threshold and lost
+  $3,021 gross
+- The other 20 trades produced $1,220 gross
+- Combined gross P/L remains exactly -$1,801 before fees
+
+### Data-Integrity Decision
+
+Trade source and outcome attribution are separate fields. A trade not labeled
+as an execution error is not automatically declared a valid strategy outcome.
+Attribution is stored in a new v2 artifact; the v1 broker reconciliation and
+original statement remain unchanged.
+
+### Validation
+
+- Controlled attribution fixture preserves the original loss
+- Threshold and reviewed source labels are explicit in the artifact
+- Full regression suite passed without writing journal or snapshot history
 
 ## Sprint 37A — Thinkorswim Broker Reconciliation
 

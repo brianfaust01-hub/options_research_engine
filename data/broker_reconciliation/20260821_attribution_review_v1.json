@@ -1,0 +1,35 @@
+{
+  "reviewed_on": "2026-08-21",
+  "reviewed_by": "ACCOUNT_OWNER",
+  "execution_error_loss_threshold": -0.20,
+  "execution_error_rule": "A realized option-premium loss worse than 20% is attributed to user execution/process error. Actual broker P&L remains unchanged.",
+  "confirmed_project_allocations": [
+    "2026-07-10T12:35:45",
+    "2026-07-06T11:14:05",
+    "2026-07-06T11:12:49",
+    "2026-07-17T09:31:04",
+    "2026-07-10T12:37:58",
+    "2026-07-17T09:31:08",
+    "2026-07-14T09:31:04",
+    "2026-07-17T09:31:16",
+    "2026-07-20T09:31:21",
+    "2026-07-10T13:06:38",
+    "2026-07-07T09:31:02",
+    "2026-07-14T09:31:05",
+    "2026-07-14T09:31:53",
+    "2026-07-24T14:26:25",
+    "2026-08-10T11:40:39",
+    "2026-08-10T11:39:47",
+    "2026-08-12T09:31:44",
+    "2026-08-12T09:31:05",
+    "2026-08-12T09:31:50",
+    "2026-08-13T12:14:46"
+  ],
+  "project_recommendation_only": [
+    "2026-07-06T11:09:19"
+  ],
+  "unresolved_source": [
+    "2026-07-22T09:31:25"
+  ],
+  "evidence": "Exact contract and fill matches against committed paper-portfolio history and immutable trade-journal recommendations."
+}
