@@ -171,6 +171,12 @@ def main():
     print("\nReviewing existing portfolio...")
     positions_df = review_positions(trades_df)
 
+    position_actions_file = (
+        PROCESSED_DATA_DIR
+        / f"position_actions_{timestamp}.csv"
+    )
+    positions_df.to_csv(position_actions_file, index=False)
+
     trades_df["breadth_score"] = market_breadth["breadth_score"]
     trades_df["breadth_regime"] = market_breadth["breadth_regime"]
     trades_df["breadth_reasons"] = "; ".join(
@@ -221,6 +227,7 @@ def main():
     print(f"Watchlist trades: {len(watchlist)}")
     print(f"Raw data saved to: {raw_file}")
     print(f"Trade recommendations saved to: {processed_file}")
+    print(f"Position actions saved to: {position_actions_file}")
 
     print("\n==================================================")
     print("Project Stonks Recommendations")

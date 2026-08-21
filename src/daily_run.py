@@ -51,7 +51,7 @@ def main() -> None:
     )
 
     positions_review_path = latest_file(
-        str(DATA_PROCESSED_DIR / "*position*.csv")
+        str(DATA_PROCESSED_DIR / "position_actions_*.csv")
     )
 
     if recommendations_path is None:
@@ -68,7 +68,17 @@ def main() -> None:
     print(f"Report written to: {report_path}")
 
     try:
-        send_email_report(report_path)
+        send_email_report(
+            report_path,
+            attachment_paths=[
+                recommendations_path,
+                *(
+                    [positions_review_path]
+                    if positions_review_path is not None
+                    else []
+                ),
+            ],
+        )
         print("Daily email report sent successfully.")
 
     except ValueError as e:

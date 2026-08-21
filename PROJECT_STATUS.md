@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 35D complete — validate latency in next live run  
+**Current Sprint:** Sprint 36A in progress — email delivery setup pending  
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -221,6 +221,50 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 36A — Execution-Oriented Daily Email
+
+### Objective
+
+Turn the daily report into a concise call to action that supports manual order
+entry without confusing watchlist research with allocated recommendations.
+
+### Implemented
+
+- HTML action brief with a plain-text fallback
+- Current-position HOLD, REVIEW, and SELL analysis with reason, current price,
+  P/L, target, stop, and DTE
+- New-order section restricted to trades explicitly marked `Allocate`
+- Contract direction, expiration, strike, quantity, entry limit, profit-target
+  exit, stop-loss exit, time stop, maximum risk, and quality grades
+- Run-health warnings when recommendations, position analysis, or live option
+  pricing are unavailable
+- Detailed recommendation and position-action CSV attachments
+- Persisted the enriched position-action output separately from the outcome
+  review snapshot
+
+### Safety Decision
+
+The current bid is no longer presented as a future exit target. The action
+brief distinguishes the entry limit, profit-target exit, and stop-loss exit.
+Only allocated trades appear in the order-entry section; Watch and No
+Allocation candidates remain research evidence outside that section.
+
+### Validation
+
+- Controlled fixture confirms an allocated Long Put appears with calculated
+  entry, target, and stop prices
+- Watch-only candidate is excluded from the order-entry section
+- Position recommendation and rationale are included
+- Twenty-one regression tests passed
+- Tests did not modify production data
+
+### Remaining
+
+- Configure SMTP credentials and recipient
+- Send a test email without running a new production scan
+- Update the scheduled task to invoke the complete daily workflow
+- Confirm delivery and rendering in the recipient's email client
 
 ## Sprint 35D — Daily Run Opportunity Pipeline Latency
 
