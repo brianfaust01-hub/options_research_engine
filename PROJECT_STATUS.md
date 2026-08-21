@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 36A complete — scheduled-run confirmation pending  
+**Current Sprint:** Sprint 37A complete
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -221,6 +221,59 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 37A — Thinkorswim Broker Reconciliation
+
+### Objective
+
+Establish broker execution truth as a separate, non-destructive evidence layer
+for hindsight analysis and portfolio-state review.
+
+### Implemented
+
+- Read-only Thinkorswim Account Trade History schema detection and normalization
+- FIFO pairing of option opening and closing executions by exact contract
+- Broker entry, exit, date, quantity, order type, and gross P/L preservation
+- Exact-contract comparison with the Project Stonks paper portfolio
+- Explicit stale-open detection without modifying portfolio or journal records
+- Preservation of unmatched broker round trips for manual attribution review
+- Optional versioned JSON output that refuses to overwrite an existing report
+
+### Initial Reconciliation Evidence
+
+- 56 broker executions normalized into 28 completed round trips
+- Zero broker-open option positions in the supplied statement
+- All six Project Stonks positions still marked OPEN matched completed broker trades
+- Matched gross P/L for those six round trips was -$118 before fees
+- 22 additional broker round trips remain deliberately unmatched pending attribution
+
+### Data-Integrity Decision
+
+Broker records do not overwrite recommendation history, modeled execution, or
+portfolio state. Strategy-versus-execution attribution remains explicitly
+`REQUIRES_USER_REVIEW`; the importer does not infer causality from P/L alone.
+
+### Validation
+
+- Controlled FIFO P/L and stop-order fixture passed
+- Controlled stale-open detection confirmed the input portfolio is unchanged
+- Eight existing hindsight-integrity regressions passed
+- Real export produced the expected 56 executions, 28 round trips, and six
+  stale-open matches
+- Production portfolio, journal, logs, and historical snapshots were not written
+
+### Remaining
+
+- Review attribution of the 22 unmatched broker round trips
+- Extend the append-only reconciliation artifact with reviewed attribution
+
+### Approved State Application
+
+- The reviewed reconciliation artifact was stored before portfolio correction
+- A, IR, NVDA, PCG, TFC, and TSN were changed from OPEN to CLOSED using their
+  broker-reported exit timestamps and fill prices
+- Exit reason is explicitly `BROKER_RECONCILED_CLOSE`
+- The paper portfolio now contains zero open positions
 
 ## Sprint 36A — Execution-Oriented Daily Email
 
@@ -756,7 +809,7 @@ The first objective is to **capture the information historically** so Project St
 ## Paper Trading Performance CSV Import
 
 **Type:** Capability / Data Integrity  
-**Status:** Backlog
+**Status:** Completed — Sprint 37A
 
 ### Objective
 
@@ -1047,7 +1100,7 @@ Ensure new allocation decisions fully consider existing portfolio positions rath
 ## Broker Reconciliation
 
 **Type:** Data Integrity / Execution  
-**Status:** Backlog
+**Status:** Completed — Sprint 37A
 
 ### Objective
 
