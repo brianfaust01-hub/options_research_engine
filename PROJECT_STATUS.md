@@ -193,6 +193,28 @@ The current milestone should establish a reliable institutional-quality decision
 
 ---
 
+# Current Research Priorities
+
+The following concerns require explicit evidence and should guide sprint sequencing:
+
+1. **Hindsight data credibility**
+   - Determine which records are suitable for quantitative analysis, qualitative review, broker reconciliation, or operational evidence only.
+   - Preserve imperfect historical records while making their limitations explicit.
+
+2. **Daily allocation capacity**
+   - Determine why `daily_run` consistently allocates only three trades.
+   - Establish whether the result comes from an intentional risk budget, a fixed cap, portfolio constraints, candidate quality, liquidity gates, or unintended allocator behavior.
+   - Do not increase trade count until portfolio-level risk and expected learning value justify it.
+
+3. **Long-call concentration**
+   - Determine whether long-call dominance is supported by market conditions and subsequent outcomes or caused by asymmetric research, strategy, or contract-selection logic.
+
+4. **Liquidity discipline**
+   - Recent progress eliminating low-liquidity trades is considered valuable and must be protected by regression validation.
+   - Future changes to allocation capacity or strategy diversity must not weaken execution-quality and liquidity standards merely to produce more trades or more variety.
+
+---
+
 # Active Sprint
 
 ## Sprint 34A — Hindsight Data Integrity & Provenance
@@ -578,6 +600,36 @@ Determine whether Institutional Trade Score predicts subsequent trade quality an
 - Component attribution
 - Regime attribution
 - Evidence-based recommendation before changing production weights
+
+---
+
+## Daily Allocation Capacity Review
+
+**Type:** Portfolio Decision Quality / Research  
+**Status:** Backlog
+
+### Objective
+
+Explain why daily runs consistently allocate three trades and determine whether the observed limit is intentional, evidence-supported, and appropriate for the portfolio.
+
+### Questions
+
+- Is three an explicit configuration limit or an emergent result?
+- Which candidates would be selected if the limit were higher?
+- Which gates reject otherwise executable fourth and later candidates?
+- Does the current risk budget support more simultaneous allocations?
+- Would additional allocations increase independent learning samples or merely add correlated exposure?
+- Do rejected candidates satisfy current liquidity and execution standards?
+- How would existing holdings change the decision?
+
+### Success Criteria
+
+- Quantitative attribution of every allocation rejection
+- Counterfactual ranking beyond the third allocated trade
+- Portfolio-risk and concentration comparison for alternative allocation counts
+- Confirmation that liquidity standards remain unchanged
+- Evidence-based recommendation to retain, remove, or replace any fixed trade-count limit
+- No production allocation-cap change during the review
 
 ---
 
