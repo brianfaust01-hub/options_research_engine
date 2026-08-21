@@ -213,6 +213,11 @@ The following concerns require explicit evidence and should guide sprint sequenc
    - Recent progress eliminating low-liquidity trades is considered valuable and must be protected by regression validation.
    - Future changes to allocation capacity or strategy diversity must not weaken execution-quality and liquidity standards merely to produce more trades or more variety.
 
+5. **Daily-run latency**
+   - The daily workflow becomes extremely slow after entering the Opportunity Engine stage.
+   - Measure stage, candidate, contract-selection, and external market-data latency before changing implementation.
+   - Preserve recommendation completeness, contract quality, liquidity discipline, and API reliability while improving runtime.
+
 ---
 
 # Recent Sprint Records
@@ -701,6 +706,45 @@ Explain why daily runs consistently allocate three trades and determine whether 
 - Confirmation that liquidity standards remain unchanged
 - Evidence-based recommendation to retain, remove, or replace any fixed trade-count limit
 - No production allocation-cap change during the review
+
+---
+
+## Daily Run Opportunity Pipeline Latency Review
+
+**Type:** Performance / Reliability  
+**Status:** Backlog — after Long-Call Concentration Review
+
+### Objective
+
+Identify and correct the dominant causes of daily-run latency observed after the workflow enters the Opportunity Engine stage.
+
+### Initial Hypothesis
+
+Opportunity scoring itself is computationally small, but each actionable candidate immediately enters trade construction, contract selection, execution analysis, and external market-data access. The visible stage boundary may therefore attribute downstream serial work to the Opportunity Engine.
+
+This is a hypothesis to measure, not a conclusion.
+
+### Questions
+
+- How much time is spent in opportunity scoring versus trade construction?
+- How many option-chain and quote requests occur per daily run and per candidate?
+- Are external requests serialized, duplicated, retried, or rate-limited?
+- Are non-actionable candidates performing unnecessary downstream work?
+- Can safe caching, request reuse, batching, or bounded concurrency reduce latency?
+- Does token renewal or authentication contribute material delay?
+- How does candidate count affect total runtime?
+- Can performance improve without weakening liquidity or contract-selection standards?
+
+### Success Criteria
+
+- Stage-level and per-candidate timing instrumentation
+- External request counts and latency attribution
+- Reproducible baseline using a controlled non-production run
+- Identification of the dominant latency contributors
+- Measured performance improvement with unchanged recommendations on a fixed fixture
+- No reduction in liquidity, execution, or contract-quality validation
+- No production scoring or allocation behavior change
+- Regression validation for failures, retries, rate limits, and partial market data
 
 ---
 
