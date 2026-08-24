@@ -13,7 +13,10 @@ REPORTS_DIR = Path("reports")
 def _safe_read_csv(path):
     if path is None or not Path(path).exists():
         return pd.DataFrame()
-    return pd.read_csv(path)
+    try:
+        return pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame()
 
 
 def _number(value, default=None):
@@ -138,6 +141,10 @@ def build_daily_report(
     html_path = output_dir / f"{stem}.html"
 
     recommendations = _safe_read_csv(recommendations_path)
+    positions_source_exists = (
+        positions_review_path is not None
+        and Path(positions_review_path).exists()
+    )
     positions = _safe_read_csv(positions_review_path)
     trade_rows = _allocated_rows(recommendations)
     position_rows = _position_rows(positions)
@@ -154,7 +161,7 @@ def build_daily_report(
     warnings = []
     if recommendations.empty:
         warnings.append("NO RECOMMENDATIONS — do not place new trades.")
-    if positions.empty:
+    if positions.empty and not positions_source_exists:
         warnings.append(
             "Position analysis unavailable — review open positions manually."
         )

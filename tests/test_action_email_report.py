@@ -17,6 +17,26 @@ from report_writer import build_daily_report  # noqa: E402
 
 
 class ActionEmailReportTests(unittest.TestCase):
+    def test_flat_portfolio_empty_csv_builds_report_without_false_warning(self):
+        recommendations = pd.DataFrame([{
+            "ticker": "WATCH1", "opportunity_type": "Long Call Candidate",
+            "allocation_decision": "Watch", "allocation_rank": 1,
+            "market_regime": "Neutral", "risk_mode": "Normal",
+            "breadth_regime": "Neutral",
+        }])
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rec_path = root / "recommendations.csv"
+            pos_path = root / "position_actions.csv"
+            recommendations.to_csv(rec_path, index=False)
+            pos_path.write_text("\n", encoding="utf-8")
+            report_path = build_daily_report(rec_path, pos_path, root)
+            markdown = report_path.read_text(encoding="utf-8")
+
+        self.assertIn("## Current Position Actions\n\nNone.", markdown)
+        self.assertNotIn("Position analysis unavailable", markdown)
+
     def test_report_contains_only_allocated_trade_actions(self):
         recommendations = pd.DataFrame([
             {

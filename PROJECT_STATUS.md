@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 37B complete
+**Current Sprint:** Sprint 38A complete — local resend pending
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -221,6 +221,31 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 38A — Flat-Portfolio Email Reliability
+
+### Finding
+
+The August 24 scheduled scan completed, but report generation failed before
+email delivery because a flat portfolio produced an empty position-actions
+CSV and pandas raised `EmptyDataError`.
+
+### Implementation
+
+- Empty position-action CSVs are handled as a valid zero-position result
+- A present empty file no longer produces a false "position analysis
+  unavailable" warning
+- Missing position-analysis files still retain the operational warning
+- The latest completed recommendations can be rebuilt and sent without
+  rerunning research or creating duplicate recommendations
+
+### Validation
+
+- Controlled empty-file/flat-portfolio regression passed
+- Existing allocated-trade and position-action email regression passed
+- Full suite of 26 tests passed
+- Today's completed recommendation file rebuilt successfully
+- Production research and portfolio state were not rerun or modified
 
 ## Sprint 37B — Reviewed Trade Attribution
 
