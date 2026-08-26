@@ -50,6 +50,9 @@ PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 
 DEFAULT_HOLDING_PERIOD_DAYS = 45
 MINIMUM_TRADING_DAYS = 2
+FIXED_HORIZON_TRADING_DAYS = (3, 5, 7, 14, 30)
+MEANINGFUL_RETURN_THRESHOLD = 0.01
+NEUTRAL_RETURN_BAND = 0.0025
 
 
 def _safe_float(value: Any) -> float | None:
@@ -566,6 +569,103 @@ def _classify_thesis(
     return "FLAT"
 
 
+def _classify_meaningful_outcome(
+    directional_return: float | None,
+    neutral_band: float = NEUTRAL_RETURN_BAND,
+    meaningful_threshold: float = MEANINGFUL_RETURN_THRESHOLD,
+) -> str:
+    """Classify signal magnitude without replacing the legacy direction label."""
+    if directional_return is None:
+        return "UNKNOWN"
+    if directional_return >= meaningful_threshold:
+        return "MEANINGFUL_WIN"
+    if directional_return <= -meaningful_threshold:
+        return "MEANINGFUL_LOSS"
+    if abs(directional_return) <= neutral_band:
+        return "NOISE"
+    return "SMALL_WIN" if directional_return > 0 else "SMALL_LOSS"
+
+
+def _evaluate_fixed_horizon(
+    ticker_prices: pd.Series,
+    spy_prices: pd.Series,
+    recommendation_date: pd.Timestamp,
+    entry_price: float,
+    direction: str,
+    trading_days: int,
+) -> dict:
+    """Evaluate an exact number of completed trading sessions after entry."""
+    available = ticker_prices[
+        ticker_prices.index.date >= recommendation_date.date()
+    ].dropna().sort_index()
+    prefix = f"Horizon{trading_days}D"
+    empty = {
+        f"{prefix}Status": "IN_PROGRESS",
+        f"{prefix}EvaluationDate": None,
+        f"{prefix}UnderlyingReturnPct": None,
+        f"{prefix}DirectionalReturnPct": None,
+        f"{prefix}SPYReturnPct": None,
+        f"{prefix}AlphaVsSPY": None,
+        f"{prefix}MaxFavorableExcursionPct": None,
+        f"{prefix}MaxAdverseExcursionPct": None,
+        f"{prefix}ThesisResult": "UNKNOWN",
+        f"{prefix}MagnitudeResult": "UNKNOWN",
+        f"{prefix}FirstThresholdEvent": "NONE",
+    }
+
+    # Row zero is the entry session; row N is N completed sessions later.
+    if len(available) <= trading_days:
+        return empty
+
+    horizon_prices = available.iloc[: trading_days + 1]
+    exit_price = float(horizon_prices.iloc[-1])
+    raw_return = _calculate_raw_return(entry_price, exit_price)
+    directional_return = _calculate_directional_return(raw_return, direction)
+    favorable, adverse = _calculate_excursions(
+        horizon_prices, entry_price, direction
+    )
+    spy_horizon = spy_prices[
+        spy_prices.index.date >= recommendation_date.date()
+    ].dropna().sort_index().iloc[: trading_days + 1]
+    spy_return = None
+    if len(spy_horizon) > trading_days:
+        spy_return = _calculate_raw_return(
+            float(spy_horizon.iloc[0]), float(spy_horizon.iloc[-1])
+        )
+    alpha = (
+        directional_return - spy_return
+        if directional_return is not None and spy_return is not None
+        else None
+    )
+
+    raw_path = (horizon_prices.astype(float) - entry_price) / entry_price
+    directional_path = -raw_path if direction == "BEARISH" else raw_path
+    first_event = "NONE"
+    for value in directional_path.iloc[1:]:
+        if value >= MEANINGFUL_RETURN_THRESHOLD:
+            first_event = "FAVORABLE_FIRST"
+            break
+        if value <= -MEANINGFUL_RETURN_THRESHOLD:
+            first_event = "ADVERSE_FIRST"
+            break
+
+    return {
+        f"{prefix}Status": "COMPLETE",
+        f"{prefix}EvaluationDate": horizon_prices.index[-1].date().isoformat(),
+        f"{prefix}UnderlyingReturnPct": raw_return,
+        f"{prefix}DirectionalReturnPct": directional_return,
+        f"{prefix}SPYReturnPct": spy_return,
+        f"{prefix}AlphaVsSPY": alpha,
+        f"{prefix}MaxFavorableExcursionPct": favorable,
+        f"{prefix}MaxAdverseExcursionPct": adverse,
+        f"{prefix}ThesisResult": _classify_thesis(directional_return),
+        f"{prefix}MagnitudeResult": _classify_meaningful_outcome(
+            directional_return
+        ),
+        f"{prefix}FirstThresholdEvent": first_event,
+    }
+
+
 def _resolve_entry_price(
     row: pd.Series,
     prices: pd.Series,
@@ -631,6 +731,38 @@ def _evaluate_recommendation(
         "Confidence": _safe_float(
             row.get("confidence")
         ),
+        "ResearchScore": _safe_float(
+            row.get("ResearchScore", row.get("research_score"))
+        ),
+        "TimeEdgeScore": _safe_float(
+            row.get("time_edge_score")
+        ),
+        "TimeEdgeGrade": row.get("time_edge_grade"),
+        "DirectionalConviction": _safe_float(
+            row.get("DirectionalConviction", row.get("directional_conviction"))
+        ),
+        "BullishScore": _safe_float(
+            row.get("BullishScore", row.get("bullish_score"))
+        ),
+        "BearishScore": _safe_float(
+            row.get("BearishScore", row.get("bearish_score"))
+        ),
+        "InstitutionalTradeScore": _safe_float(
+            row.get("InstitutionalTradeScore", row.get("institutional_trade_score"))
+        ),
+        "ExecutionScore": _safe_float(
+            row.get("execution_score")
+        ),
+        "AllocationDecision": row.get("allocation_decision"),
+        "AllocationRank": _safe_float(row.get("allocation_rank")),
+        "MarketRegime": row.get("market_regime"),
+        "EarningsDate": row.get("earnings_date"),
+        "EarningsStatus": row.get("earnings_status"),
+        "ContractOutcomeStatus": "UNAVAILABLE",
+        "ContractOutcomeReason": (
+            "Historical option quotes are not available; underlying outcomes "
+            "must not be presented as option returns."
+        ),
         "HoldingPeriodDays": holding_period_days,
         "RecommendationAgeDays": None,
         "EvaluationDate": None,
@@ -661,6 +793,21 @@ def _evaluate_recommendation(
             "ConfigVersion"
         ),
     }
+
+    for fixed_horizon in FIXED_HORIZON_TRADING_DAYS:
+        result.update({
+            f"Horizon{fixed_horizon}DStatus": "NOT_EVALUATED",
+            f"Horizon{fixed_horizon}DEvaluationDate": None,
+            f"Horizon{fixed_horizon}DUnderlyingReturnPct": None,
+            f"Horizon{fixed_horizon}DDirectionalReturnPct": None,
+            f"Horizon{fixed_horizon}DSPYReturnPct": None,
+            f"Horizon{fixed_horizon}DAlphaVsSPY": None,
+            f"Horizon{fixed_horizon}DMaxFavorableExcursionPct": None,
+            f"Horizon{fixed_horizon}DMaxAdverseExcursionPct": None,
+            f"Horizon{fixed_horizon}DThesisResult": "UNKNOWN",
+            f"Horizon{fixed_horizon}DMagnitudeResult": "UNKNOWN",
+            f"Horizon{fixed_horizon}DFirstThresholdEvent": "NONE",
+        })
 
     if not ticker or recommendation_date is None:
         result["EvaluationStatus"] = "INVALID_INPUT"
@@ -780,6 +927,16 @@ def _evaluate_recommendation(
             ),
         }
     )
+
+    for fixed_horizon in FIXED_HORIZON_TRADING_DAYS:
+        result.update(_evaluate_fixed_horizon(
+            ticker_prices=ticker_prices,
+            spy_prices=spy_prices,
+            recommendation_date=recommendation_date,
+            entry_price=entry_price,
+            direction=direction,
+            trading_days=fixed_horizon,
+        ))
 
     matured = as_of_date >= evaluation_date
 

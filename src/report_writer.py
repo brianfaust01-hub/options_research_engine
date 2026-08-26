@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from html import escape
+import json
 from pathlib import Path
 
 import pandas as pd
 
 
 REPORTS_DIR = Path("reports")
+HINDSIGHT_DATA_DIR = Path("data") / "processed"
 
 
 def _safe_read_csv(path):
@@ -153,10 +155,37 @@ def _html_table(headers, rows):
     return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
 
 
+def _latest_hindsight_health(summary_path=None):
+    """Load the latest precomputed research-health summary without running it."""
+    if summary_path is not None:
+        candidates = [Path(summary_path)]
+    else:
+        candidates = sorted(
+            HINDSIGHT_DATA_DIR.glob("hindsight_analytics_*.json"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+    if not candidates or not candidates[0].exists():
+        return None
+    try:
+        payload = json.loads(candidates[0].read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    horizon = payload.get("horizons", {}).get("7D", {})
+    return {
+        "generated_at": payload.get("generated_at", "Unknown"),
+        "win_rate": horizon.get("win_rate"),
+        "evaluated": horizon.get("evaluated", 0),
+        "episodes": payload.get("counts", {}).get("thesis_episodes", 0),
+        "sample_status": horizon.get("sample_status", "PRELIMINARY"),
+    }
+
+
 def build_daily_report(
     recommendations_path,
     positions_review_path=None,
     output_dir=REPORTS_DIR,
+    hindsight_summary_path=None,
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -173,6 +202,7 @@ def build_daily_report(
     positions = _safe_read_csv(positions_review_path)
     trade_rows = _allocated_rows(recommendations)
     position_rows = _position_rows(positions)
+    hindsight_health = _latest_hindsight_health(hindsight_summary_path)
     first = recommendations.iloc[0] if not recommendations.empty else {}
     market = str(first.get("market_regime", "Unavailable"))
     risk = str(first.get("risk_mode", "Unavailable"))
@@ -249,6 +279,18 @@ def build_daily_report(
         "sizing is validated.", "",
         "Only enter trades marked Allocate. Use limit orders; "
         "do not chase above the entry limit.", "",
+        "## Research Health (Not Trading Guidance)", "",
+        *(
+            [
+                f"7-day directional win rate: {_percent(hindsight_health['win_rate'])}",
+                f"Evaluated observations: {hindsight_health['evaluated']:,}",
+                f"Deduplicated thesis episodes: {hindsight_health['episodes']:,}",
+                f"Sample status: {hindsight_health['sample_status']}",
+                f"Analytics generated: {hindsight_health['generated_at']}",
+            ]
+            if hindsight_health else
+            ["No fixed-horizon analytics report is available yet."]
+        ), "",
         "Project Stonks system recommendation. Confirm live quotes "
         "and account risk before order entry.",
     ]
@@ -275,6 +317,15 @@ Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}
 <p><b>Shadow C/B/A is research-only.</b> Execute the production Qty until the
 shadow sizing profiles are validated.</p>
 <p><b>Only enter allocated trades. Use limit orders; do not chase above the entry limit.</b></p>
+<h2>Research Health (Not Trading Guidance)</h2>
+{
+    '<p>7-day directional win rate: ' + escape(_percent(hindsight_health['win_rate']))
+    + '<br>Evaluated observations: ' + str(hindsight_health['evaluated'])
+    + '<br>Deduplicated thesis episodes: ' + str(hindsight_health['episodes'])
+    + '<br>Sample status: ' + escape(str(hindsight_health['sample_status']))
+    + '<br>Analytics generated: ' + escape(str(hindsight_health['generated_at'])) + '</p>'
+    if hindsight_health else '<p>No fixed-horizon analytics report is available yet.</p>'
+}
 <p class="footer">Project Stonks system recommendation. Confirm live quotes and account risk before order entry.</p>
 </body></html>"""
     html_path.write_text(html, encoding="utf-8")

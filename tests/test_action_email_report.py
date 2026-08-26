@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -79,7 +80,18 @@ class ActionEmailReportTests(unittest.TestCase):
             pos_path = root / "positions.csv"
             recommendations.to_csv(rec_path, index=False)
             positions.to_csv(pos_path, index=False)
-            report_path = build_daily_report(rec_path, pos_path, root)
+            hindsight_path = root / "hindsight.json"
+            hindsight_path.write_text(json.dumps({
+                "generated_at": "2026-08-25T12:00:00",
+                "horizons": {"7D": {
+                    "win_rate": .56, "evaluated": 42,
+                    "sample_status": "CREDIBLE",
+                }},
+                "counts": {"thesis_episodes": 31},
+            }), encoding="utf-8")
+            report_path = build_daily_report(
+                rec_path, pos_path, root, hindsight_path
+            )
             markdown = report_path.read_text(encoding="utf-8")
             html = report_path.with_suffix(".html").read_text(encoding="utf-8")
 
@@ -93,6 +105,9 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("1/2/3", markdown)
         self.assertIn("Day 2 / 5", markdown)
         self.assertIn("research-only", markdown)
+        self.assertIn("Research Health (Not Trading Guidance)", markdown)
+        self.assertIn("7-day directional win rate: 56.0%", markdown)
+        self.assertIn("Deduplicated thesis episodes: 31", markdown)
         self.assertIn("PUT1", html)
 
 

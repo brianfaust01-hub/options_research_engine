@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 39A complete — first live shadow run pending
+**Current Sprint:** Sprint 39B complete — refreshed live hindsight run pending
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -166,6 +166,10 @@ Every release should strengthen this feedback loop.
 - Historical validation
 - Structured learning dataset
 - Counterfactual recommendation preservation
+- Fixed 3/5/7/14/30-trading-day research outcomes
+- Raw-observation and deduplicated thesis-episode analytics
+- Score, Time Edge, direction, allocation, regime, and earnings calibration
+- Confidence intervals, sample-size labels, and credibility warnings
 
 ## Automation
 
@@ -221,6 +225,93 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 39B — Hindsight Analytics & Score Calibration
+
+### Objective
+
+Convert preliminary win-rate analysis into a reproducible, read-only learning
+system that measures every directional recommendation, including unallocated
+recommendations, without inflating confidence through repeated ticker theses.
+
+### Evidence and Learning Value
+
+- The August 7 hindsight file contained 9,019 records and 5,305 evaluable
+  directional observations, but only 17 recommendation-date cohorts
+- The legacy 51.3% directional win rate classified any return above zero as a
+  win and did not expose fixed trading-session horizons
+- Repeated recommendations for the same ticker and direction were separate
+  observations even when they represented one continuing thesis
+- Preliminary results suggested stronger performance around 4–7 days, but
+  production scoring changes would be premature without standardized horizons
+- Confidence and bearish-result samples require explicit calibration and
+  minimum-sample warnings
+
+### Implemented
+
+- Research hindsight now records exact 3, 5, 7, 14, and 30 trading-session
+  outcomes in addition to the backward-compatible current and final results
+- Each fixed horizon preserves raw return, direction-adjusted return, SPY
+  return, alpha, maximum favorable/adverse excursion, evaluation date, legacy
+  direction result, magnitude-aware result, and first meaningful threshold hit
+- Meaningful outcomes distinguish at least +1% wins, at most -1% losses,
+  ±0.25% noise, and smaller directional moves while preserving the legacy
+  above/below-zero classification
+- Hindsight output now preserves Research Score, Time Edge, directional
+  conviction, bullish/bearish scores, Institutional Trade Score, execution
+  score, allocation state/rank, market regime, and earnings context when those
+  fields exist in the source observation
+- A new read-only analytics subsystem assigns contiguous ticker/direction
+  recommendations to thesis episodes, with a new episode after a direction
+  change or seven-calendar-day reset
+- Reports present raw-observation and first-observation-per-episode performance
+  separately, with Wilson 95% win-rate intervals and preliminary/credible
+  sample labels
+- Calibration tables cover direction, confidence, Research Score, Time Edge,
+  Institutional Trade Score, directional conviction, allocation decision,
+  market regime, and earnings status
+- Daily action emails can display the latest precomputed 7-day research-health
+  summary, explicitly labeled as not trading guidance; email generation never
+  launches the expensive hindsight market-data workflow
+- Historical option-contract counterfactuals are explicitly marked unavailable
+  when option quote paths do not exist; underlying returns are never mislabeled
+  as option returns
+
+### Data Integrity
+
+- Historical recommendations and snapshots remain immutable
+- Watch, Pass, non-executable, and unallocated evidence remains preserved
+- Only directional observations enter win/loss calculations
+- Incomplete horizons remain in progress and are excluded from evaluated win
+  rates
+- Analytics do not modify scoring, allocation, portfolio, journal, or execution
+  behavior
+- Output generation is timestamped and read-only with respect to its sources
+
+### Regression Risks and Controls
+
+- Off-by-one trading-horizon risk is controlled by tests that distinguish the
+  entry session from N completed sessions after entry
+- Bullish/bearish sign reversal is tested directly
+- Repeated-thesis inflation is controlled by deterministic episode tests
+- Missing fixed-horizon fields remain backward compatible and produce an
+  explicit regenerate-hindsight warning
+- Email output labels research health separately from actionable guidance
+- Full regression suite passed: 39 tests
+
+### Success Criteria
+
+- Every directional recommendation can receive reproducible fixed-horizon
+  outcomes: complete
+- Raw and deduplicated performance remain separate: complete
+- Confidence intervals and minimum-sample warnings are visible: complete
+- New Time Edge and existing scores are measurable without changing weights:
+  complete
+- Call/put direction is independently attributable: complete
+- Missing historical option paths are explicit rather than inferred: complete
+- Production behavior remains unchanged: complete
+- Refreshed live hindsight and first populated fixed-horizon analytics report:
+  pending an authorized live run with valid Schwab market-data access
 
 ## Sprint 39A — Time Edge, Earnings Guard, and Shadow Risk Sizing
 
