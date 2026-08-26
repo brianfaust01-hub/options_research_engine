@@ -25,6 +25,7 @@ import pandas as pd
 
 from paper_portfolio import get_open_positions
 from schwab.market_data_client import get_normalized_option
+from decision_enrichment import get_next_earnings_date
 
 
 DEFAULT_PROFIT_TARGET_PCT = 0.75
@@ -384,6 +385,9 @@ def _review_single_position(
     latest_allocation_score = None
     latest_trade_quality = None
     latest_grade = None
+    time_edge_score = None
+    expected_move_window_days = None
+    earnings_date = None
 
     if latest_recommendation is not None:
 
@@ -416,6 +420,49 @@ def _review_single_position(
                 "trade_quality_grade"
             )
         )
+        time_edge_score = _safe_float(
+            latest_recommendation.get("time_edge_score")
+        )
+        expected_move_window_days = _safe_int(
+            latest_recommendation.get("expected_move_window_days")
+        )
+        earnings_date = latest_recommendation.get("earnings_date")
+
+    if earnings_date is None or pd.isna(earnings_date):
+        try:
+            resolved_earnings = get_next_earnings_date(ticker)
+            earnings_date = (
+                resolved_earnings.isoformat()
+                if resolved_earnings is not None else None
+            )
+        except Exception:
+            earnings_date = None
+
+    earnings_inside_thesis_window = False
+    if earnings_date is not None and expected_move_window_days is not None:
+        parsed_earnings = pd.to_datetime(earnings_date, errors="coerce")
+        if pd.notna(parsed_earnings):
+            trading_days_to_earnings = max(
+                0,
+                len(pd.bdate_range(datetime.today().date(), parsed_earnings.date())) - 1,
+            )
+            earnings_inside_thesis_window = (
+                parsed_earnings.date() >= datetime.today().date()
+                and trading_days_to_earnings <= expected_move_window_days
+            )
+
+    entry_date = pd.to_datetime(position.get("EntryDate"), errors="coerce")
+    trading_days_in_position = None
+    thesis_deadline = None
+    if pd.notna(entry_date) and expected_move_window_days is not None:
+        today = pd.Timestamp(datetime.today().date())
+        trading_days_in_position = max(
+            0, len(pd.bdate_range(entry_date.date(), today.date())) - 1
+        )
+        thesis_deadline = (
+            entry_date.normalize()
+            + pd.offsets.BDay(expected_move_window_days)
+        ).date().isoformat()
 
     recommendation = "HOLD"
     reason = "Position remains open"
@@ -454,6 +501,27 @@ def _review_single_position(
         reason = (
             "Time stop reached"
         )
+
+    elif earnings_inside_thesis_window:
+        recommendation = "SELL"
+        reason = "Earnings inside thesis window; earnings strategy disabled"
+
+    elif (
+        trading_days_in_position is not None
+        and expected_move_window_days is not None
+        and trading_days_in_position >= expected_move_window_days
+        and (pnl_pct is None or pnl_pct <= 0)
+    ):
+        recommendation = "SELL"
+        reason = "Short thesis window expired without positive progress"
+
+    elif (
+        trading_days_in_position is not None
+        and expected_move_window_days is not None
+        and trading_days_in_position >= expected_move_window_days
+    ):
+        recommendation = "REVIEW"
+        reason = "Thesis deadline reached; protect gains or require new evidence"
 
     elif latest_recommendation is None:
 
@@ -536,6 +604,12 @@ def _review_single_position(
             latest_trade_quality
         ),
         "latest_grade": latest_grade,
+        "time_edge_score": time_edge_score,
+        "expected_move_window_days": expected_move_window_days,
+        "trading_days_in_position": trading_days_in_position,
+        "thesis_deadline": thesis_deadline,
+        "earnings_date": earnings_date,
+        "earnings_inside_thesis_window": earnings_inside_thesis_window,
         "position_recommendation": (
             recommendation
         ),

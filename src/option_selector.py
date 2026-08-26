@@ -26,6 +26,7 @@ from config import (
     DEBUG_OPTION_SELECTOR,
     MAX_POSITION_SIZE_PCT,
     MIN_EXECUTABLE_CONTRACT_SCORE,
+    MIN_LONG_PREMIUM_DTE,
     PAPER_PORTFOLIO_VALUE,
 )
 
@@ -260,6 +261,10 @@ def _build_rejection_reason(
             "BELOW_MIN_FINAL_SCORE"
         )
 
+    dte = pd.to_numeric(row.get("DTE"), errors="coerce")
+    if pd.isna(dte) or dte < MIN_LONG_PREMIUM_DTE:
+        reasons.append("BELOW_LONG_PREMIUM_DTE_FLOOR")
+
     if not reasons:
         return "LOWER_RANKED_ELIGIBLE_CONTRACT"
 
@@ -465,6 +470,7 @@ def _select_best_contract(
             ranked["SelectorEligible"] = (
                 ranked["QuoteExecutable"]
                 & ranked["Affordable"]
+                & (ranked["DTE"] >= MIN_LONG_PREMIUM_DTE)
                 & (
                     ranked[
                         "FinalContractScore"

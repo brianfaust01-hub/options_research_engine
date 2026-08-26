@@ -49,6 +49,12 @@ class ActionEmailReportTests(unittest.TestCase):
                 "max_risk_dollars": 200, "institutional_trade_grade": "A",
                 "execution_grade": "A", "market_regime": "Neutral",
                 "risk_mode": "Normal", "breadth_regime": "Neutral",
+                "expected_move_window_days": 5, "time_edge_score": 88,
+                "time_edge_grade": "A", "earnings_date": "2026-11-01",
+                "earnings_status": "CONFIRMED",
+                "shadow_conservative_contracts": 1,
+                "shadow_balanced_contracts": 2,
+                "shadow_aggressive_contracts": 3,
             },
             {
                 "ticker": "WATCH1", "opportunity_type": "Long Call Candidate",
@@ -61,6 +67,10 @@ class ActionEmailReportTests(unittest.TestCase):
             "strike": 100, "contracts": 1, "current_price": 4,
             "pnl_pct": .10, "profit_target": 7, "stop_loss": 2.6,
             "dte": 91, "position_reason": "No exit rule triggered",
+            "trading_days_in_position": 2,
+            "expected_move_window_days": 5,
+            "thesis_deadline": "2026-08-28",
+            "earnings_date": "2026-11-01",
         }])
 
         with tempfile.TemporaryDirectory() as directory:
@@ -79,6 +89,10 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("$3.50", markdown)
         self.assertIn("$1.30", markdown)
         self.assertIn("HOLD", markdown)
+        self.assertIn("5d / 88 A", markdown)
+        self.assertIn("1/2/3", markdown)
+        self.assertIn("Day 2 / 5", markdown)
+        self.assertIn("research-only", markdown)
         self.assertIn("PUT1", html)
 
 

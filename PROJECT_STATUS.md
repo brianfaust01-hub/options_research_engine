@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 38A complete — local resend pending
+**Current Sprint:** Sprint 39A complete — first live shadow run pending
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -221,6 +221,60 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 39A — Time Edge, Earnings Guard, and Shadow Risk Sizing
+
+### Objective
+
+Make speed of thesis resolution a bounded component of institutional decision
+quality while retaining long calls and long puts as the defined-risk strategy
+universe and separating short holding horizon from contract expiration runway.
+
+### Implemented
+
+- Production long-premium contract selection now enforces at least 45 DTE
+- Shadow Time Edge combines momentum, trend, directional conviction,
+  ATR-normalized price acceleration, volume confirmation, signal freshness,
+  and fresh 20-day breakout/breakdown state
+- Expected move windows are 5, 7, or 14 trading days
+- Time Edge contributes 10% only to a shadow score and does not replace the
+  existing institutional or portfolio assessment
+- Conservative, Balanced, and Aggressive shadow contract counts use bounded
+  conviction, execution quality, spread stress, risk budget, and premium caps
+- Production quantity remains unchanged while shadow sizing is validated
+- Live earnings dates are cached through the existing market-data dependency
+- Confirmed earnings inside the thesis window blocks a new allocation and
+  promotes the next-ranked eligible candidate
+- Current positions receive an earnings check; earnings inside the thesis
+  window produces a SELL action because earnings strategies remain disabled
+- Position review now reports Day N of M, thesis deadline, and earnings date
+- The action email displays Time Edge, expected holding window, earnings date,
+  and all three shadow sizes with an explicit research-only label
+- One-, three-, and five-day returns plus all Time Edge inputs flow into the
+  journal and immutable observation snapshots
+
+### Safety and Data Integrity
+
+- Enabled strategies remain Long Call and Long Put; short option selling is not
+  introduced
+- Missing earnings data is shown as UNKNOWN and requires manual confirmation
+  rather than being silently treated as safe
+- Shadow sizing cannot change executable production quantity
+- Historical observations and recommendation snapshots are not rewritten
+- Earnings is an event-risk guard, not an earnings-event trading strategy
+
+### Initial Operational Evidence
+
+- Live earnings lookup returned October 22 for PCG and F
+- Live earnings lookup returned August 26 for NVDA, confirming the need for
+  current-position event guidance before tomorrow's report
+
+### Validation
+
+- Fast-thesis, earnings-block, unknown-date, replacement-allocation,
+  45-DTE-floor, position-deadline, and current-position earnings fixtures pass
+- Full regression suite passes without a production research run
+- First live shadow output remains pending tomorrow's scheduled run
 
 ## Sprint 38A — Flat-Portfolio Email Reliability
 

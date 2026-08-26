@@ -78,6 +78,21 @@ def _allocated_rows(recommendations):
                 f"{trade.get('institutional_trade_grade', '')} / "
                 f"Exec {trade.get('execution_grade', '')}"
             ),
+            (
+                f"{_whole(trade.get('expected_move_window_days'))}d / "
+                f"{_whole(trade.get('time_edge_score'))} "
+                f"{trade.get('time_edge_grade', '')}"
+            ),
+            (
+                str(trade.get("earnings_date"))
+                if pd.notna(trade.get("earnings_date"))
+                else "Unknown"
+            ),
+            (
+                f"{_whole(trade.get('shadow_conservative_contracts'))}/"
+                f"{_whole(trade.get('shadow_balanced_contracts'))}/"
+                f"{_whole(trade.get('shadow_aggressive_contracts'))}"
+            ),
         ])
     return rows
 
@@ -99,6 +114,16 @@ def _position_rows(positions):
             _money(position.get("profit_target")),
             _money(position.get("stop_loss")),
             _whole(position.get("dte")),
+            (
+                f"Day {_whole(position.get('trading_days_in_position'))} / "
+                f"{_whole(position.get('expected_move_window_days'))}; "
+                f"deadline {position.get('thesis_deadline') or 'unknown'}"
+            ),
+            (
+                str(position.get("earnings_date"))
+                if pd.notna(position.get("earnings_date"))
+                else "Unknown"
+            ),
             str(position.get("position_reason", "Review required")),
         ])
     return rows
@@ -170,14 +195,37 @@ def build_daily_report(
         warnings.append(
             f"{missing_prices} open position(s) lack current option pricing."
         )
+    if "earnings_status" in recommendations:
+        unknown_earnings = recommendations[
+            recommendations["allocation_decision"].eq("Allocate")
+            & recommendations["earnings_status"].eq("UNKNOWN")
+        ]
+        if not unknown_earnings.empty:
+            warnings.append(
+                "Earnings date unavailable for allocated trade(s): "
+                + ", ".join(unknown_earnings["ticker"].astype(str))
+                + ". Confirm manually before entry."
+            )
+    if "earnings_allocation_override" in recommendations:
+        blocked = recommendations[
+            recommendations["earnings_allocation_override"]
+            .fillna(False).astype(bool)
+        ]
+        if not blocked.empty:
+            warnings.append(
+                "Blocked from allocation because earnings falls inside the "
+                "thesis window: "
+                + ", ".join(blocked["ticker"].astype(str))
+            )
 
     position_headers = [
         "Action", "Ticker", "Contract", "Current", "P/L",
-        "Target", "Stop", "DTE", "Reason",
+        "Target", "Stop", "DTE", "Thesis Clock", "Earnings", "Reason",
     ]
     trade_headers = [
         "Rank", "Ticker", "Contract", "Qty", "Entry Limit",
         "Target Exit", "Stop Exit", "Time Stop", "Max Risk", "Grade",
+        "Hold / Time Edge", "Earnings", "Shadow C/B/A",
     ]
     summary = (
         f"Market: {market} | Risk: {risk} | Breadth: {breadth}\n"
@@ -196,6 +244,9 @@ def build_daily_report(
         *_markdown_table(position_headers, position_rows),
         "## New Trades to Enter", "",
         *_markdown_table(trade_headers, trade_rows),
+        "Shadow C/B/A shows research-only Conservative, Balanced, and "
+        "Aggressive contract counts. Execute the production Qty until shadow "
+        "sizing is validated.", "",
         "Only enter trades marked Allocate. Use limit orders; "
         "do not chase above the entry limit.", "",
         "Project Stonks system recommendation. Confirm live quotes "
@@ -221,6 +272,8 @@ Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}
 <h2>Attention Required</h2><div class="warning"><ul>{warning_html}</ul></div>
 <h2>Current Position Actions</h2>{_html_table(position_headers, position_rows)}
 <h2>New Trades to Enter</h2>{_html_table(trade_headers, trade_rows)}
+<p><b>Shadow C/B/A is research-only.</b> Execute the production Qty until the
+shadow sizing profiles are validated.</p>
 <p><b>Only enter allocated trades. Use limit orders; do not chase above the entry limit.</b></p>
 <p class="footer">Project Stonks system recommendation. Confirm live quotes and account risk before order entry.</p>
 </body></html>"""

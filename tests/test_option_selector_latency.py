@@ -124,6 +124,30 @@ class OptionSelectorLatencyTests(unittest.TestCase):
         self.assertEqual(normalized_chain.call_count, 1)
         self.assertEqual(score_contracts.call_count, 2)
 
+    @patch("option_selector.score_contracts")
+    @patch("option_selector.get_option_chain_snapshot")
+    @patch("option_selector.get_normalized_quote", return_value={"Mark": 100.0})
+    def test_long_premium_selector_enforces_45_dte_floor(
+        self, _quote, chain, score_contracts,
+    ):
+        chain.return_value = [
+            {"Expiration": str(date.today() + timedelta(days=40)), "Symbol": "TEST_40"},
+            {"Expiration": str(date.today() + timedelta(days=60)), "Symbol": "TEST_60"},
+        ]
+
+        def scored_frame(chain, stock_price, option_type, expiration):
+            dte = (date.fromisoformat(expiration) - date.today()).days
+            return pd.DataFrame([{
+                "contractSymbol": f"TEST_{dte}", "strike": 100,
+                "Expiration": expiration, "DTE": dte, "mid": 1,
+                "Executable": True, "ContractScore": 200 if dte == 40 else 90,
+                "PremiumPctOfStock": .01,
+            }])
+
+        score_contracts.side_effect = scored_frame
+        selected = select_best_contract("TEST", "Long Call Candidate", 5)
+        self.assertEqual(selected["DTE"], 60)
+
 
 if __name__ == "__main__":
     unittest.main()

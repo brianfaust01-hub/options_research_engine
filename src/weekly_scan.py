@@ -35,6 +35,7 @@ from research_engine import evaluate_strategies
 from opportunity_engine import evaluate_opportunities
 from pipeline_metrics import get_pipeline_metrics, reset_pipeline_metrics
 from trade_journal import log_completed_observations
+from decision_enrichment import enrich_decisions
 
 def _has_valid_option_trade(trade) -> bool:
     return (
@@ -174,6 +175,12 @@ def main():
     position_actions_file = (
         PROCESSED_DATA_DIR
         / f"position_actions_{timestamp}.csv"
+    )
+
+    print("\nEnriching time edge, earnings risk, and shadow sizing...")
+    trades_df = enrich_decisions(
+        trades_df=trades_df,
+        research_df=indicators_df,
     )
     positions_df.to_csv(position_actions_file, index=False)
 

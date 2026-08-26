@@ -77,6 +77,11 @@ MIN_OPPORTUNITY_SCORE = 70
 
 MIN_OPTION_DTE = 14
 
+# Long-premium recommendations use expiration runway separately from their
+# short thesis clock. Production selection will not choose contracts below
+# this floor.
+MIN_LONG_PREMIUM_DTE = 45
+
 MAX_OPTION_DTE = 150
 
 MIN_OPTION_PREMIUM = 0.05
