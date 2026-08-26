@@ -61,7 +61,10 @@ def build_thesis_episodes(
     """Assign ticker/direction observations to contiguous thesis episodes."""
     result = observations.copy()
     result["RecommendationDateParsed"] = pd.to_datetime(
-        _column(result, "RecommendationDate"), errors="coerce", utc=True
+        _column(result, "RecommendationDate"),
+        errors="coerce",
+        utc=True,
+        format="mixed",
     ).dt.tz_convert(None)
     result["DirectionNormalized"] = _column(result, "Direction").fillna("")
     result["TickerNormalized"] = _column(result, "Ticker", "ticker").fillna("")
@@ -209,7 +212,11 @@ def analyze_hindsight(frame: pd.DataFrame) -> dict:
             for name, groups in fields.items()
         }
 
-    dates = pd.to_datetime(_column(directional, "RecommendationDate"), errors="coerce")
+    dates = pd.to_datetime(
+        _column(directional, "RecommendationDate"),
+        errors="coerce",
+        format="mixed",
+    )
     missing_rate = float(directional.isna().mean().mean()) if not directional.empty else 0.0
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),

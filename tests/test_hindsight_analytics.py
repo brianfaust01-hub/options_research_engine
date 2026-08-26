@@ -57,7 +57,7 @@ class CredibilityAnalyticsTests(unittest.TestCase):
         rows = []
         for recommendation_id, ticker, date, direction, result in [
             ("A1", "AAA", "2026-08-03", "BULLISH", .02),
-            ("A2", "AAA", "2026-08-04", "BULLISH", .03),
+            ("A2", "AAA", "2026-08-04T10:30:00.123456", "BULLISH", .03),
             ("A3", "AAA", "2026-08-20", "BULLISH", -.02),
             ("B1", "BBB", "2026-08-03", "BEARISH", .01),
         ]:
@@ -78,6 +78,10 @@ class CredibilityAnalyticsTests(unittest.TestCase):
         aaa = episodes[episodes["Ticker"] == "AAA"]
         self.assertEqual(aaa["ThesisEpisodeID"].nunique(), 2)
         self.assertEqual(episodes["ThesisEpisodeID"].nunique(), 3)
+
+    def test_mixed_timestamp_formats_preserve_date_cohorts(self):
+        result = analyze_hindsight(self._frame())
+        self.assertEqual(result["counts"]["recommendation_date_cohorts"], 3)
 
     def test_raw_and_episode_metrics_are_separate(self):
         result = analyze_hindsight(self._frame())
