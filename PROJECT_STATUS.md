@@ -1590,6 +1590,38 @@ It never automatically changes production behavior.
 
 10. Production behavior never changes automatically because of a learning-system recommendation.
 
+11. Preserve productization optionality without prioritizing commercialization before strategy validation.
+
+---
+
+# Long-Term Productization Principle
+
+Project Stonks is currently a private research and decision platform. It must
+first prove durable strategy quality, execution discipline, data integrity,
+and risk-adjusted performance. Commercialization is not a current milestone
+or sprint objective.
+
+Architecture should nevertheless preserve the option to become a commercial
+product without requiring the decision engine to be rewritten. In particular:
+
+- Research, strategy, contract selection, execution, scoring, allocation,
+  reporting, and learning remain independently owned subsystems
+- User interfaces, email, schedulers, and future applications call the engine;
+  they do not own core investment logic
+- Broker and market-data integrations remain replaceable adapters
+- Configuration, schemas, model versions, and recommendation lineage remain
+  explicit, versioned, reproducible, and auditable
+- Secrets, personal portfolio data, and machine-specific paths remain outside
+  reusable application logic
+- A future desktop, web, or mobile application should be an interface over the
+  existing engine rather than a replacement for it
+
+Future commercialization would require separate evaluation of security,
+multi-user isolation, reliability, market-data licensing, broker permissions,
+regulatory and legal obligations, disclosures, billing, and customer support.
+Those obligations must not be introduced prematurely or allowed to distract
+from validating the investment methodology.
+
 ---
 
 # Subsystem Ownership
