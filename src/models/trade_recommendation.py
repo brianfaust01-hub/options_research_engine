@@ -122,6 +122,12 @@ class TradeRecommendation:
 
     execution_engine_test_mode: bool = False
 
+    profit_target_price: float | None = None
+    stop_loss_price: float | None = None
+    exit_reference_price: float | None = None
+    stop_loss_reason: str | None = None
+    profit_target_reason: str | None = None
+
     # Greek and volatility observations (shadow research only)
     broker_delta: float | None = None
     broker_gamma: float | None = None

@@ -203,6 +203,11 @@ def construct_trade(
     profit_target_pct = None
     stop_loss_pct = None
     time_stop_dte = None
+    profit_target_price = None
+    stop_loss_price = None
+    exit_reference_price = None
+    stop_loss_reason = None
+    profit_target_reason = None
 
     trade_quality_score = None
     trade_quality_grade = None
@@ -487,6 +492,14 @@ def construct_trade(
                     premium=premium,
                     dte=dte,
                     theta=theta,
+                    entry_price=execution_entry_price,
+                    implied_volatility=implied_volatility,
+                    spread_pct=spread_pct,
+                    execution_score=execution_score,
+                    time_edge_score=_safe_float(row.get("time_edge_score")),
+                    expected_move_window_days=_safe_int(
+                        row.get("expected_move_window_days")
+                    ),
                 )
 
                 profit_target_pct = exit_plan[
@@ -500,6 +513,11 @@ def construct_trade(
                 time_stop_dte = exit_plan[
                     "time_stop_dte"
                 ]
+                profit_target_price = exit_plan["profit_target_price"]
+                stop_loss_price = exit_plan["stop_loss_price"]
+                exit_reference_price = exit_plan["exit_reference_price"]
+                stop_loss_reason = exit_plan["stop_loss_reason"]
+                profit_target_reason = exit_plan["profit_target_reason"]
 
                 notes.append(
                     f"Recommended premium: "
@@ -753,6 +771,11 @@ def construct_trade(
         profit_target_pct=profit_target_pct,
         stop_loss_pct=stop_loss_pct,
         time_stop_dte=time_stop_dte,
+        profit_target_price=profit_target_price,
+        stop_loss_price=stop_loss_price,
+        exit_reference_price=exit_reference_price,
+        stop_loss_reason=stop_loss_reason,
+        profit_target_reason=profit_target_reason,
         trade_quality_score=(
             trade_quality_score
         ),

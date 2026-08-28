@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 40A complete — Greek/IV shadow evidence collection active
+**Current Sprint:** Sprint 40B complete — adaptive exit guidance in paper validation
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -225,6 +225,40 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 40B — Adaptive Entry-Anchored Exit Guidance
+
+### Objective
+
+Replace legacy confidence-bucket exits with auditable, short-thesis-aware
+guidance that limits routine losses while preserving positive payoff asymmetry.
+
+### Implemented
+
+- Stop guidance is anchored to the displayed execution entry limit rather than
+  the research midpoint
+- Planned loss is bounded between 5% and 20%; 20% is a hard backstop, not the
+  default
+- Short thesis windows, execution quality, spread, Time Edge, theta drag, and
+  IV transparently tighten or widen the stop inside those bounds
+- A two-spread quote-noise floor prevents nominally tight stops from sitting
+  inside ordinary bid/ask movement
+- Profit targets are expressed as bounded 2.0R–3.0R multiples of planned loss,
+  adjusted for Time Edge, research confidence, IV, and theta drag
+- Exact stop/target prices, reference price, percentages, and rule reasons are
+  preserved in recommendations, journals, and immutable snapshots
+- Position review's missing-rule fallback is reduced from 35% to the 20% hard
+  backstop
+
+### Guardrails
+
+- Paper-trading validation only; these rules require fill and outcome evidence
+  before real-money use
+- Stops remain trigger guidance rather than guaranteed fill prices
+- Future tuning must compare planned exits, actual fills, premature stops,
+  adverse excursion, payoff ratio, and net expectancy
+
+---
 
 ## Sprint 40A — Greek & Volatility Observation Integrity
 

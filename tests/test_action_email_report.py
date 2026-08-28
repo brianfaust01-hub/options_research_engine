@@ -47,6 +47,7 @@ class ActionEmailReportTests(unittest.TestCase):
                 "strike": 90, "contracts": 1, "premium": 2,
                 "execution_entry_price": 2.05, "profit_target_pct": .75,
                 "stop_loss_pct": .35, "time_stop_dte": 14,
+                "profit_target_price": 3.58, "stop_loss_price": 1.75,
                 "max_risk_dollars": 200, "institutional_trade_grade": "A",
                 "execution_grade": "A", "market_regime": "Neutral",
                 "risk_mode": "Normal", "breadth_regime": "Neutral",
@@ -108,8 +109,8 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("PUT1", markdown)
         self.assertNotIn("WATCH1", markdown)
         self.assertIn("Long Put", markdown)
-        self.assertIn("$3.50", markdown)
-        self.assertIn("$1.30", markdown)
+        self.assertIn("$3.58", markdown)
+        self.assertIn("$1.75", markdown)
         self.assertIn("HOLD", markdown)
         self.assertIn("5d / 88 A", markdown)
         self.assertIn("1/2/3", markdown)

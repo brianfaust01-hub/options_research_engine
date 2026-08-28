@@ -29,7 +29,7 @@ from decision_enrichment import get_next_earnings_date
 
 
 DEFAULT_PROFIT_TARGET_PCT = 0.75
-DEFAULT_STOP_LOSS_PCT = 0.35
+DEFAULT_STOP_LOSS_PCT = 0.20
 DEFAULT_TIME_STOP_DTE = 14
 
 

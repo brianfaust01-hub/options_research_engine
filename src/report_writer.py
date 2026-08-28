@@ -67,12 +67,14 @@ def _allocated_rows(recommendations):
             _whole(trade.get("contracts")),
             _money(trade.get("execution_entry_price")),
             _money(
-                premium * (1 + target_pct)
-                if premium is not None and target_pct is not None else None
+                _number(trade.get("profit_target_price"),
+                    premium * (1 + target_pct)
+                    if premium is not None and target_pct is not None else None)
             ),
             _money(
-                premium * (1 - stop_pct)
-                if premium is not None and stop_pct is not None else None
+                _number(trade.get("stop_loss_price"),
+                    premium * (1 - stop_pct)
+                    if premium is not None and stop_pct is not None else None)
             ),
             f"{_whole(trade.get('time_stop_dte'))} DTE",
             _money(trade.get("max_risk_dollars")),
