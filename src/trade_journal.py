@@ -509,6 +509,21 @@ def _order_observation(
         "execution_friction",
         "execution_entry_price",
         "execution_exit_price",
+        "broker_delta",
+        "broker_gamma",
+        "broker_theta",
+        "broker_vega",
+        "broker_rho",
+        "implied_volatility",
+        "iv_rank",
+        "iv_percentile",
+        "estimated_delta",
+        "estimated_theta",
+        "theta_drag_pct_per_day",
+        "gamma_per_premium",
+        "vega_per_premium",
+        "greeks_source",
+        "iv_context_status",
 
         #
         # Institutional / portfolio decision

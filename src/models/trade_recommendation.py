@@ -122,6 +122,23 @@ class TradeRecommendation:
 
     execution_engine_test_mode: bool = False
 
+    # Greek and volatility observations (shadow research only)
+    broker_delta: float | None = None
+    broker_gamma: float | None = None
+    broker_theta: float | None = None
+    broker_vega: float | None = None
+    broker_rho: float | None = None
+    implied_volatility: float | None = None
+    iv_rank: float | None = None
+    iv_percentile: float | None = None
+    estimated_delta: float | None = None
+    estimated_theta: float | None = None
+    theta_drag_pct_per_day: float | None = None
+    gamma_per_premium: float | None = None
+    vega_per_premium: float | None = None
+    greeks_source: str | None = None
+    iv_context_status: str | None = None
+
     # ------------------------------------------------------------------
     # Institutional Trade Score (Sprint 33A)
     # ------------------------------------------------------------------

@@ -174,6 +174,47 @@ def _group_metrics(frame: pd.DataFrame, group: pd.Series, return_col: str) -> li
     return sorted(rows, key=lambda row: row["group"])
 
 
+def _numeric_bands(series: pd.Series, bins: list[float], labels: list[str]) -> pd.Series:
+    numeric = pd.to_numeric(series, errors="coerce")
+    return pd.cut(numeric, bins=bins, labels=labels, include_lowest=True).astype("object").fillna("Unknown")
+
+
+def _greek_calibration(frame: pd.DataFrame, return_col: str) -> dict:
+    if return_col not in frame:
+        return {}
+    complete = frame[pd.to_numeric(frame[return_col], errors="coerce").notna()]
+    fields = {
+        "absolute_broker_delta": _numeric_bands(
+            pd.to_numeric(
+                _column(complete, "BrokerDelta", "broker_delta"), errors="coerce"
+            ).abs(),
+            [-math.inf, .25, .35, .50, .60, math.inf],
+            ["<0.25", "0.25-0.35", "0.35-0.50", "0.50-0.60", ">0.60"],
+        ),
+        "theta_drag_pct_per_day": _numeric_bands(
+            _column(complete, "ThetaDragPctPerDay", "theta_drag_pct_per_day"),
+            [-math.inf, .01, .02, .03, .05, math.inf],
+            ["<1%", "1-2%", "2-3%", "3-5%", ">5%"],
+        ),
+        "gamma_per_premium": _numeric_bands(
+            _column(complete, "GammaPerPremium", "gamma_per_premium"),
+            [-math.inf, .005, .01, .02, .04, math.inf],
+            ["<0.005", "0.005-0.01", "0.01-0.02", "0.02-0.04", ">0.04"],
+        ),
+        "vega_per_premium": _numeric_bands(
+            _column(complete, "VegaPerPremium", "vega_per_premium"),
+            [-math.inf, .02, .05, .10, .20, math.inf],
+            ["<0.02", "0.02-0.05", "0.05-0.10", "0.10-0.20", ">0.20"],
+        ),
+        "implied_volatility": _numeric_bands(
+            _column(complete, "ImpliedVolatility", "implied_volatility"),
+            [-math.inf, .20, .40, .60, .80, 1.20, math.inf],
+            ["<20%", "20-40%", "40-60%", "60-80%", "80-120%", ">120%"],
+        ),
+    }
+    return {name: _group_metrics(complete, groups, return_col) for name, groups in fields.items()}
+
+
 def _episode_representatives(episodes: pd.DataFrame, return_col: str) -> pd.DataFrame:
     complete = episodes[pd.to_numeric(episodes[return_col], errors="coerce").notna()]
     if complete.empty:
@@ -181,6 +222,18 @@ def _episode_representatives(episodes: pd.DataFrame, return_col: str) -> pd.Data
     return complete.sort_values("RecommendationDateParsed").groupby(
         "ThesisEpisodeID", as_index=False
     ).first()
+
+
+def _allocation_breakdown(frame: pd.DataFrame, return_col: str) -> dict:
+    decisions = _column(frame, "AllocationDecision", "allocation_decision") \
+        .fillna("").astype(str).str.strip()
+    allocated = decisions.str.casefold().eq("allocate")
+    known = ~decisions.str.casefold().isin(["", "unknown", "nan"])
+    return {
+        "all_recommendations": _metrics(frame[return_col]),
+        "allocated": _metrics(frame.loc[allocated, return_col]),
+        "unallocated": _metrics(frame.loc[known & ~allocated, return_col]),
+    }
 
 
 def analyze_hindsight(frame: pd.DataFrame) -> dict:
@@ -192,6 +245,31 @@ def analyze_hindsight(frame: pd.DataFrame) -> dict:
         "Horizon7DDirectionalReturnPct" if primary_days else "CurrentDirectionalReturnPct"
     )
     episode_view = _episode_representatives(episodes, primary_col)
+    primary_complete = directional[
+        pd.to_numeric(directional[primary_col], errors="coerce").notna()
+    ] if primary_col in directional else directional.iloc[0:0]
+    allocation_primary = (
+        _allocation_breakdown(primary_complete, primary_col)
+        if primary_col in primary_complete else {}
+    )
+
+    version_series = _column(directional, "ProjectVersion").fillna("").astype(str).str.strip()
+    dated_versions = pd.DataFrame({
+        "version": version_series,
+        "date": pd.to_datetime(
+            _column(directional, "RecommendationDate"),
+            errors="coerce", format="mixed",
+        ),
+    })
+    dated_versions = dated_versions[dated_versions["version"].ne("")].dropna(subset=["date"])
+    latest_version = (
+        str(dated_versions.sort_values("date").iloc[-1]["version"])
+        if not dated_versions.empty else None
+    )
+    recent = (
+        primary_complete[version_series.loc[primary_complete.index].eq(latest_version)]
+        if latest_version else primary_complete.iloc[0:0]
+    )
 
     calibration = {}
     if primary_col in directional:
@@ -211,6 +289,14 @@ def analyze_hindsight(frame: pd.DataFrame) -> dict:
             name: _group_metrics(complete, groups, primary_col)
             for name, groups in fields.items()
         }
+
+    greek_calibration_by_horizon = {}
+    for days in (3, 5, 7, 14):
+        return_col = f"Horizon{days}DDirectionalReturnPct"
+        if return_col in directional:
+            greek_calibration_by_horizon[f"{days}D"] = _greek_calibration(
+                directional, return_col
+            )
 
     dates = pd.to_datetime(
         _column(directional, "RecommendationDate"),
@@ -234,7 +320,26 @@ def analyze_hindsight(frame: pd.DataFrame) -> dict:
         "horizons": horizon_summary,
         "raw_primary": _metrics(directional[primary_col]) if primary_col in directional else _metrics(pd.Series(dtype=float)),
         "episode_primary": _metrics(episode_view[primary_col]) if primary_col in episode_view else _metrics(pd.Series(dtype=float)),
+        "allocation_primary": allocation_primary,
+        "recent_version": {
+            "version": latest_version,
+            "allocation": (
+                _allocation_breakdown(recent, primary_col)
+                if primary_col in recent else {}
+            ),
+        },
         "calibration": calibration,
+        "greek_calibration_by_horizon": greek_calibration_by_horizon,
+        "iv_context": {
+            "rank_status": (
+                "AVAILABLE" if pd.to_numeric(_column(directional, "IVRank", "iv_rank"), errors="coerce").notna().any()
+                else "UNAVAILABLE_NO_HISTORY"
+            ),
+            "percentile_status": (
+                "AVAILABLE" if pd.to_numeric(_column(directional, "IVPercentile", "iv_percentile"), errors="coerce").notna().any()
+                else "UNAVAILABLE_NO_HISTORY"
+            ),
+        },
         "data_quality": {
             "overall_missing_cell_rate": missing_rate,
             "minimum_credible_sample": MIN_CREDIBLE_SAMPLE,
@@ -314,6 +419,22 @@ def _markdown(summary: dict, source: Path) -> str:
                 f"{row['sample_status']} |"
             )
         lines.append("")
+    lines.extend(["", "## Greek and IV Shadow Calibration", ""])
+    iv_context = summary.get("iv_context", {})
+    lines.append(
+        f"IV rank: **{iv_context.get('rank_status', 'UNAVAILABLE')}**; "
+        f"IV percentile: **{iv_context.get('percentile_status', 'UNAVAILABLE')}**."
+    )
+    for horizon, sections in summary.get("greek_calibration_by_horizon", {}).items():
+        lines.extend(["", f"### {horizon}", ""])
+        for section_name, rows in sections.items():
+            lines.append(f"- {section_name.replace('_', ' ').title()}")
+            for row in rows:
+                lines.append(
+                    f"  - {row['group']}: n={row['evaluated']}; "
+                    f"win rate {_pct(row.get('win_rate'))}; "
+                    f"average return {_pct(row.get('average_return'))}"
+                )
     contract = summary["contract_counterfactual"]
     lines.extend([
         "## Option-Contract Counterfactual", "",

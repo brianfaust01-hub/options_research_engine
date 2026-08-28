@@ -88,6 +88,16 @@ class ActionEmailReportTests(unittest.TestCase):
                     "sample_status": "CREDIBLE",
                 }},
                 "counts": {"thesis_episodes": 31},
+                "allocation_primary": {
+                    "all_recommendations": {"win_rate": .56, "evaluated": 42, "sample_status": "CREDIBLE"},
+                    "allocated": {"win_rate": .60, "evaluated": 5, "sample_status": "PRELIMINARY"},
+                    "unallocated": {"win_rate": .54, "evaluated": 30, "sample_status": "CREDIBLE"},
+                },
+                "episode_primary": {"win_rate": .55, "evaluated": 31, "sample_status": "CREDIBLE"},
+                "recent_version": {
+                    "version": "0.3.0",
+                    "allocation": {"allocated": {"win_rate": .75, "evaluated": 4, "sample_status": "PRELIMINARY"}},
+                },
             }), encoding="utf-8")
             report_path = build_daily_report(
                 rec_path, pos_path, root, hindsight_path
@@ -106,8 +116,10 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("Day 2 / 5", markdown)
         self.assertIn("research-only", markdown)
         self.assertIn("Research Health (Not Trading Guidance)", markdown)
-        self.assertIn("7-day directional win rate: 56.0%", markdown)
-        self.assertIn("Deduplicated thesis episodes: 31", markdown)
+        self.assertIn("All recommendations: 56.0% (42 evaluated; CREDIBLE)", markdown)
+        self.assertIn("Allocated recommendations: 60.0% (5 evaluated; PRELIMINARY)", markdown)
+        self.assertIn("Known unallocated recommendations: 54.0%", markdown)
+        self.assertIn("Latest-version allocated: 75.0%", markdown)
         self.assertIn("PUT1", html)
 
 

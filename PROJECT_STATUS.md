@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 39B complete — refreshed live hindsight run pending
+**Current Sprint:** Sprint 40A complete — Greek/IV shadow evidence collection active
 **Status:** ACTIVE DEVELOPMENT
 
 ---
@@ -226,6 +226,40 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## Sprint 40A — Greek & Volatility Observation Integrity
+
+### Objective
+
+Build trustworthy Greek and implied-volatility evidence before tuning live
+configuration, while leaving contract selection, scoring, and allocation
+behavior unchanged.
+
+### Implemented
+
+- Schwab delta, gamma, theta, vega, and rho are preserved as broker fields;
+  the legacy delta/theta estimates remain separately labeled and continue to
+  drive existing production behavior
+- Recommendations, the trade journal, immutable observation snapshots, and
+  research hindsight now carry the structured Greek and IV fields
+- Theta drag, gamma exposure, and vega exposure are normalized by contract
+  premium for cross-contract comparison
+- IV rank and percentile are explicitly marked `UNAVAILABLE_NO_HISTORY`
+  instead of being inferred from a single quote
+- Read-only hindsight analytics now calibrate broker delta, normalized theta,
+  normalized gamma, normalized vega, and IV across 3, 5, 7, and 14 trading-day
+  outcomes
+
+### Guardrails and Validation
+
+- Shadow research only: no production weights, gates, contract scores,
+  position sizing, or allocation decisions changed
+- Broker observations are never overwritten by estimates
+- Full regression suite: 42 tests passed
+- Do not tune Greek or IV configuration until approximately two weeks of new
+  observations mature and sample-size/status warnings are reviewed
+
+---
+
 ## Sprint 39B — Hindsight Analytics & Score Calibration
 
 ### Objective
@@ -273,6 +307,13 @@ recommendations, without inflating confidence through repeated ticker theses.
 - Daily action emails can display the latest precomputed 7-day research-health
   summary, explicitly labeled as not trading guidance; email generation never
   launches the expensive hindsight market-data workflow
+- Daily research health distinguishes all directional recommendations,
+  allocated recommendations, known unallocated recommendations, and
+  deduplicated thesis episodes, with evaluated sample size and credibility
+  status beside each win rate
+- Latest-version allocated performance is displayed separately so legacy
+  behavior is not silently blended with the current implementation; immature
+  recommendations remain excluded until their seven-day horizon completes
 - Historical option-contract counterfactuals are explicitly marked unavailable
   when option quote paths do not exist; underlying returns are never mislabeled
   as option returns
@@ -311,7 +352,7 @@ recommendations, without inflating confidence through repeated ticker theses.
 - Missing historical option paths are explicit rather than inferred: complete
 - Production behavior remains unchanged: complete
 - Refreshed live hindsight and first populated fixed-horizon analytics report:
-  pending an authorized live run with valid Schwab market-data access
+  complete; daily email comparison active
 
 ## Sprint 39A — Time Edge, Earnings Guard, and Shadow Risk Sizing
 

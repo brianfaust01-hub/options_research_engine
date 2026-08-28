@@ -67,6 +67,10 @@ class CredibilityAnalyticsTests(unittest.TestCase):
                 "Ticker": ticker,
                 "Direction": direction,
                 "Confidence": 85,
+                "ProjectVersion": "0.3.0" if recommendation_id != "A1" else "0.2.0",
+                "AllocationDecision": (
+                    "Allocate" if recommendation_id in {"A2", "B1"} else "Watch"
+                ),
                 "Horizon7DStatus": "COMPLETE",
                 "Horizon7DDirectionalReturnPct": result,
                 "Horizon7DAlphaVsSPY": result - .005,
@@ -90,6 +94,13 @@ class CredibilityAnalyticsTests(unittest.TestCase):
         self.assertEqual(result["counts"]["thesis_episodes"], 3)
         self.assertEqual(result["horizons"]["7D"]["win_rate"], .75)
         self.assertEqual(result["horizons"]["7D"]["sample_status"], "PRELIMINARY")
+        self.assertEqual(result["allocation_primary"]["allocated"]["evaluated"], 2)
+        self.assertEqual(result["allocation_primary"]["allocated"]["win_rate"], 1.0)
+        self.assertEqual(result["allocation_primary"]["unallocated"]["evaluated"], 2)
+        self.assertEqual(result["recent_version"]["version"], "0.3.0")
+        self.assertEqual(
+            result["recent_version"]["allocation"]["allocated"]["evaluated"], 2
+        )
 
     def test_generation_writes_only_requested_output_directories(self):
         with tempfile.TemporaryDirectory() as directory:

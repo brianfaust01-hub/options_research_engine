@@ -235,6 +235,12 @@ def construct_trade(
     option_open_interest = None
 
     execution_engine_test_mode = False
+    broker_delta = broker_gamma = broker_theta = None
+    broker_vega = broker_rho = implied_volatility = None
+    iv_rank = iv_percentile = None
+    estimated_delta = estimated_theta = None
+    theta_drag_pct_per_day = gamma_per_premium = vega_per_premium = None
+    greeks_source = iv_context_status = None
 
     holding_period_days = row.get(
         "HoldingPeriodDays",
@@ -418,6 +424,22 @@ def construct_trade(
                 ),
                 default=False,
             )
+
+            broker_delta = _safe_float(best_contract.get("broker_delta"))
+            broker_gamma = _safe_float(best_contract.get("broker_gamma"))
+            broker_theta = _safe_float(best_contract.get("broker_theta"))
+            broker_vega = _safe_float(best_contract.get("broker_vega"))
+            broker_rho = _safe_float(best_contract.get("broker_rho"))
+            implied_volatility = _safe_float(best_contract.get("implied_volatility"))
+            iv_rank = _safe_float(best_contract.get("iv_rank"))
+            iv_percentile = _safe_float(best_contract.get("iv_percentile"))
+            estimated_delta = _safe_float(best_contract.get("estimated_delta"))
+            estimated_theta = _safe_float(best_contract.get("estimated_theta"))
+            theta_drag_pct_per_day = _safe_float(best_contract.get("theta_drag_pct_per_day"))
+            gamma_per_premium = _safe_float(best_contract.get("gamma_per_premium"))
+            vega_per_premium = _safe_float(best_contract.get("vega_per_premium"))
+            greeks_source = _safe_text(best_contract.get("greeks_source"))
+            iv_context_status = _safe_text(best_contract.get("iv_context_status"))
 
             if (
                 strike is not None
@@ -774,6 +796,21 @@ def construct_trade(
         execution_engine_test_mode=(
             execution_engine_test_mode
         ),
+        broker_delta=broker_delta,
+        broker_gamma=broker_gamma,
+        broker_theta=broker_theta,
+        broker_vega=broker_vega,
+        broker_rho=broker_rho,
+        implied_volatility=implied_volatility,
+        iv_rank=iv_rank,
+        iv_percentile=iv_percentile,
+        estimated_delta=estimated_delta,
+        estimated_theta=estimated_theta,
+        theta_drag_pct_per_day=theta_drag_pct_per_day,
+        gamma_per_premium=gamma_per_premium,
+        vega_per_premium=vega_per_premium,
+        greeks_source=greeks_source,
+        iv_context_status=iv_context_status,
         notes=notes,
     )
 

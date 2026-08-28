@@ -172,13 +172,28 @@ def _latest_hindsight_health(summary_path=None):
     except (OSError, json.JSONDecodeError):
         return None
     horizon = payload.get("horizons", {}).get("7D", {})
+    allocation = payload.get("allocation_primary", {})
+    recent = payload.get("recent_version", {})
     return {
         "generated_at": payload.get("generated_at", "Unknown"),
         "win_rate": horizon.get("win_rate"),
         "evaluated": horizon.get("evaluated", 0),
         "episodes": payload.get("counts", {}).get("thesis_episodes", 0),
         "sample_status": horizon.get("sample_status", "PRELIMINARY"),
+        "all_recommendations": allocation.get("all_recommendations", horizon),
+        "allocated": allocation.get("allocated", {}),
+        "unallocated": allocation.get("unallocated", {}),
+        "episode_performance": payload.get("episode_primary", {}),
+        "recent_version": recent,
     }
+
+
+def _health_line(label, metric):
+    return (
+        f"{label}: {_percent(metric.get('win_rate'))} "
+        f"({int(metric.get('evaluated', 0)):,} evaluated; "
+        f"{metric.get('sample_status', 'PRELIMINARY')})"
+    )
 
 
 def build_daily_report(
@@ -282,10 +297,21 @@ def build_daily_report(
         "## Research Health (Not Trading Guidance)", "",
         *(
             [
-                f"7-day directional win rate: {_percent(hindsight_health['win_rate'])}",
-                f"Evaluated observations: {hindsight_health['evaluated']:,}",
-                f"Deduplicated thesis episodes: {hindsight_health['episodes']:,}",
-                f"Sample status: {hindsight_health['sample_status']}",
+                "7-day directional outcomes:",
+                _health_line("All recommendations", hindsight_health["all_recommendations"]),
+                _health_line("Allocated recommendations", hindsight_health["allocated"]),
+                _health_line("Known unallocated recommendations", hindsight_health["unallocated"]),
+                _health_line("Deduplicated thesis episodes", hindsight_health["episode_performance"]),
+                *(
+                    [
+                        f"Latest version: {hindsight_health['recent_version'].get('version')}",
+                        _health_line(
+                            "Latest-version allocated",
+                            hindsight_health["recent_version"].get("allocation", {}).get("allocated", {}),
+                        ),
+                    ]
+                    if hindsight_health["recent_version"].get("version") else []
+                ),
                 f"Analytics generated: {hindsight_health['generated_at']}",
             ]
             if hindsight_health else
@@ -319,10 +345,19 @@ shadow sizing profiles are validated.</p>
 <p><b>Only enter allocated trades. Use limit orders; do not chase above the entry limit.</b></p>
 <h2>Research Health (Not Trading Guidance)</h2>
 {
-    '<p>7-day directional win rate: ' + escape(_percent(hindsight_health['win_rate']))
-    + '<br>Evaluated observations: ' + str(hindsight_health['evaluated'])
-    + '<br>Deduplicated thesis episodes: ' + str(hindsight_health['episodes'])
-    + '<br>Sample status: ' + escape(str(hindsight_health['sample_status']))
+    '<p><b>7-day directional outcomes</b><br>'
+    + escape(_health_line('All recommendations', hindsight_health['all_recommendations']))
+    + '<br>' + escape(_health_line('Allocated recommendations', hindsight_health['allocated']))
+    + '<br>' + escape(_health_line('Known unallocated recommendations', hindsight_health['unallocated']))
+    + '<br>' + escape(_health_line('Deduplicated thesis episodes', hindsight_health['episode_performance']))
+    + (
+        '<br>Latest version: ' + escape(str(hindsight_health['recent_version'].get('version')))
+        + '<br>' + escape(_health_line(
+            'Latest-version allocated',
+            hindsight_health['recent_version'].get('allocation', {}).get('allocated', {}),
+        ))
+        if hindsight_health['recent_version'].get('version') else ''
+    )
     + '<br>Analytics generated: ' + escape(str(hindsight_health['generated_at'])) + '</p>'
     if hindsight_health else '<p>No fixed-horizon analytics report is available yet.</p>'
 }

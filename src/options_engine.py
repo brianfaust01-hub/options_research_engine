@@ -1365,6 +1365,11 @@ def score_contracts(
         "volume",
         "openInterest",
         "impliedVolatility",
+        "schwabDelta",
+        "schwabGamma",
+        "schwabTheta",
+        "schwabVega",
+        "schwabRho",
     ]
 
     for column in required_columns:
@@ -1438,6 +1443,8 @@ def score_contracts(
         )
     )
 
+    scored["estimated_delta"] = scored["delta"]
+
     scored["theta"] = (
         scored["mid"].apply(
             lambda premium: (
@@ -1452,6 +1459,51 @@ def score_contracts(
                 else None
             )
         )
+    )
+
+    scored["estimated_theta"] = scored["theta"]
+
+    # Broker observations are research data. Legacy delta/theta proxies above
+    # remain untouched so this sprint cannot change production selection.
+    broker_fields = {
+        "broker_delta": "schwabDelta",
+        "broker_gamma": "schwabGamma",
+        "broker_theta": "schwabTheta",
+        "broker_vega": "schwabVega",
+        "broker_rho": "schwabRho",
+    }
+    for output_column, source_column in broker_fields.items():
+        scored[output_column] = pd.to_numeric(
+            scored[source_column], errors="coerce"
+        ) if source_column in scored.columns else pd.NA
+
+    scored["implied_volatility"] = scored["impliedVolatility"]
+    scored["iv_rank"] = pd.NA
+    scored["iv_percentile"] = pd.NA
+    scored["iv_context_status"] = "UNAVAILABLE_NO_HISTORY"
+    scored["greeks_source"] = scored.apply(
+        lambda row: (
+            "SCHWAB"
+            if any(pd.notna(row.get(column)) for column in broker_fields)
+            else "ESTIMATED_ONLY"
+        ), axis=1,
+    )
+
+    def _per_premium(value, premium, absolute=False):
+        numeric_value = _safe_float(value)
+        numeric_premium = _safe_float(premium)
+        if numeric_value is None or numeric_premium is None or numeric_premium <= 0:
+            return None
+        return (abs(numeric_value) if absolute else numeric_value) / numeric_premium
+
+    scored["theta_drag_pct_per_day"] = scored.apply(
+        lambda row: _per_premium(row.get("broker_theta"), row.get("mid"), True), axis=1,
+    )
+    scored["gamma_per_premium"] = scored.apply(
+        lambda row: _per_premium(row.get("broker_gamma"), row.get("mid")), axis=1,
+    )
+    scored["vega_per_premium"] = scored.apply(
+        lambda row: _per_premium(row.get("broker_vega"), row.get("mid")), axis=1,
     )
 
     scored["PremiumPctOfStock"] = (
