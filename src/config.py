@@ -79,6 +79,23 @@ MAX_AGGREGATE_STOP_LOSS_PCT = 0.10
 MAX_SECTOR_EXPOSURE_PCT = 0.35
 MAX_THEME_EXPOSURE_PCT = 0.25
 
+# Portfolio construction must balance diversification with operational
+# simplicity. Existing holdings consume slots; ADD decisions do not.
+MAX_ACTIVE_PORTFOLIO_POSITIONS = 10
+MIN_POSITION_VALUE_PCT = 0.02
+MAX_CONTRACTS_PER_POSITION = 3
+
+# Long-premium stop orders are execution guidance, not guaranteed loss caps.
+# Bound total premium exposed even when modeled stop losses remain acceptable.
+MAX_LONG_PREMIUM_AT_RISK_PCT = 0.50
+
+# A new ticker must overcome a small operational hurdle. Repeated sector and
+# theme exposure receives an additional marginal ranking penalty while hard
+# concentration limits remain in force.
+PORTFOLIO_NEW_POSITION_PENALTY = 2.0
+PORTFOLIO_SECTOR_REPEAT_PENALTY = 2.0
+PORTFOLIO_THEME_REPEAT_PENALTY = 3.0
+
 MIN_OPPORTUNITY_SCORE = 70
 
 # ---------------------------------------------------------------------

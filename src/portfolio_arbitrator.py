@@ -7,20 +7,27 @@ It does not weaken upstream qualification, liquidity, execution, or exit rules.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import floor
+from math import ceil, floor
 from typing import Any
 
 import pandas as pd
 
 from config import (
     MAX_AGGREGATE_STOP_LOSS_PCT,
+    MAX_ACTIVE_PORTFOLIO_POSITIONS,
     MAX_CAPITAL_UTILIZATION_PCT,
+    MAX_CONTRACTS_PER_POSITION,
+    MAX_LONG_PREMIUM_AT_RISK_PCT,
     MAX_POSITION_SIZE_PCT,
     MAX_SECTOR_EXPOSURE_PCT,
     MAX_THEME_EXPOSURE_PCT,
+    MIN_POSITION_VALUE_PCT,
     MIN_EXECUTION_SCORE,
     PORTFOLIO_INCUMBENT_ADVANTAGE,
     PORTFOLIO_MIN_FORWARD_SCORE,
+    PORTFOLIO_NEW_POSITION_PENALTY,
+    PORTFOLIO_SECTOR_REPEAT_PENALTY,
+    PORTFOLIO_THEME_REPEAT_PENALTY,
 )
 from portfolio_exposure import classify_ticker
 
@@ -58,13 +65,34 @@ def _boolean(value, default=False):
         return default
 
 
-def _candidate_asset(index, row, nav):
-    contracts = _integer(row.get("contracts"))
+def _candidate_asset(
+    index, row, nav, existing_ticker_value=0.0, existing_ticker_contracts=0,
+):
+    upstream_contracts = _integer(row.get("contracts"))
     entry = _number(row.get("execution_entry_price")) or _number(row.get("premium"))
-    value = (entry or 0) * 100 * contracts
+    value_per_contract = (entry or 0) * 100
     # Portfolio Score is the approved production ranking signal. Time Edge and
     # other shadow fields remain persisted evidence until separately promoted.
     score = _number(row.get("portfolio_score"), 0.0)
+    execution = _number(row.get("execution_score"), 0.0)
+    remaining_ticker_capacity = max(
+        0.0, nav * MAX_POSITION_SIZE_PCT - existing_ticker_value
+    )
+    max_by_exposure = (
+        floor(remaining_ticker_capacity / value_per_contract)
+        if value_per_contract > 0 else 0
+    )
+    max_incremental_contracts = max(
+        0, MAX_CONTRACTS_PER_POSITION - existing_ticker_contracts
+    )
+    max_contracts = min(max_incremental_contracts, max_by_exposure)
+    quality_contracts = 3 if score >= 90 and execution >= 80 else 2 if score >= 80 else 1
+    minimum_contracts = (
+        ceil(nav * MIN_POSITION_VALUE_PCT / value_per_contract)
+        if value_per_contract > 0 else MAX_CONTRACTS_PER_POSITION + 1
+    )
+    contracts = min(max_contracts, max(upstream_contracts, quality_contracts, minimum_contracts))
+    value = value_per_contract * contracts
     stop_price = _number(row.get("stop_loss_price"))
     stop_pct = _number(row.get("stop_loss_pct"), 0.20)
     expected_loss = (
@@ -83,7 +111,6 @@ def _candidate_asset(index, row, nav):
         reasons.append(
             f"forward score {score:.1f} below {PORTFOLIO_MIN_FORWARD_SCORE:.1f} threshold"
         )
-    execution = _number(row.get("execution_score"), 0.0)
     if execution < MIN_EXECUTION_SCORE:
         reasons.append(f"execution score {execution:.1f} below {MIN_EXECUTION_SCORE}")
     if _boolean(row.get("earnings_allocation_override", False)):
@@ -92,12 +119,17 @@ def _candidate_asset(index, row, nav):
         reasons.append("outside bounded arbitration candidate pool")
     if value > nav * MAX_POSITION_SIZE_PCT + 0.01:
         reasons.append("single-position exposure limit")
+    if value < nav * MIN_POSITION_VALUE_PCT - 0.01:
+        reasons.append("below minimum material position value")
     return {
         "kind": "candidate", "index": index, "ticker": ticker,
-        "score": score, "adjusted_score": score, "value": value,
+        "score": score,
+        "adjusted_score": score - PORTFOLIO_NEW_POSITION_PENALTY,
+        "value": value,
         "expected_loss": expected_loss, "contracts": contracts,
         "sector": exposure["sector"], "theme": exposure["theme"],
         "eligible": not reasons, "base_reasons": reasons,
+        "upstream_contracts": upstream_contracts,
     }
 
 
@@ -142,11 +174,19 @@ def _position_asset(index, row, nav):
     }
 
 
-def _constraint_reason(asset, used, stop_risk, ticker_values, sector_values, theme_values, nav):
+def _constraint_reason(
+    asset, used, stop_risk, ticker_values, sector_values, theme_values,
+    selected_tickers, nav,
+):
     if used + asset["value"] > nav * MAX_CAPITAL_UTILIZATION_PCT + 0.01:
         return "insufficient capital under utilization limit"
     if stop_risk + asset["expected_loss"] > nav * MAX_AGGREGATE_STOP_LOSS_PCT + 0.01:
         return "aggregate expected loss at stops would exceed limit"
+    if used + asset["value"] > nav * MAX_LONG_PREMIUM_AT_RISK_PCT + 0.01:
+        return "full-premium loss backstop would exceed limit"
+    is_new_slot = asset["ticker"] not in selected_tickers
+    if is_new_slot and len(selected_tickers) >= MAX_ACTIVE_PORTFOLIO_POSITIONS:
+        return "active-position limit reached"
     if ticker_values.get(asset["ticker"], 0) + asset["value"] > nav * MAX_POSITION_SIZE_PCT + 0.01:
         return f"single-position exposure limit: {asset['ticker']}"
     sector = asset["sector"]
@@ -156,6 +196,16 @@ def _constraint_reason(asset, used, stop_risk, ticker_values, sector_values, the
     if theme != "Unknown" and theme_values.get(theme, 0) + asset["value"] > nav * MAX_THEME_EXPOSURE_PCT + 0.01:
         return f"theme/correlation proxy limit: {theme}"
     return None
+
+
+def _marginal_score(asset, sector_counts, theme_counts):
+    """Apply bounded portfolio-context penalties without changing base scores."""
+    penalty = 0.0
+    if asset["sector"] != "Unknown":
+        penalty += sector_counts.get(asset["sector"], 0) * PORTFOLIO_SECTOR_REPEAT_PENALTY
+    if asset["theme"] != "Unknown":
+        penalty += theme_counts.get(asset["theme"], 0) * PORTFOLIO_THEME_REPEAT_PENALTY
+    return asset["adjusted_score"] - penalty, penalty
 
 
 def arbitrate_portfolio(
@@ -168,19 +218,34 @@ def arbitrate_portfolio(
         raise ValueError("account_nav must be positive")
     candidates = candidates.copy()
     positions = positions.copy()
-    candidate_assets = [
-        _candidate_asset(index, row, account_nav)
-        for index, row in candidates.iterrows()
-    ]
     position_assets = [
         _position_asset(index, row, account_nav)
         for index, row in positions.iterrows()
     ]
-    assets = sorted(
-        [asset for asset in candidate_assets + position_assets if asset["eligible"]],
-        key=lambda asset: (asset["adjusted_score"], asset["score"]),
-        reverse=True,
-    )
+    existing_ticker_values: dict[str, float] = {}
+    existing_ticker_contracts: dict[str, int] = {}
+    for asset in position_assets:
+        existing_ticker_values[asset["ticker"]] = (
+            existing_ticker_values.get(asset["ticker"], 0.0)
+            + asset.get("full_value", asset["value"])
+        )
+        existing_ticker_contracts[asset["ticker"]] = (
+            existing_ticker_contracts.get(asset["ticker"], 0)
+            + asset.get("original_contracts", asset["contracts"])
+        )
+    candidate_assets = [
+        _candidate_asset(
+            index,
+            row,
+            account_nav,
+            existing_ticker_values.get(_text(row.get("ticker")).upper(), 0.0),
+            existing_ticker_contracts.get(_text(row.get("ticker")).upper(), 0),
+        )
+        for index, row in candidates.iterrows()
+    ]
+    assets = [
+        asset for asset in candidate_assets + position_assets if asset["eligible"]
+    ]
     selected = set()
     rejected = {}
     used = 0.0
@@ -188,11 +253,33 @@ def arbitrate_portfolio(
     ticker_values: dict[str, float] = {}
     sector_values: dict[str, float] = {}
     theme_values: dict[str, float] = {}
-    for asset in assets:
+    sector_counts: dict[str, int] = {}
+    theme_counts: dict[str, int] = {}
+    selected_tickers: set[str] = set()
+    marginal_penalties: dict[tuple[str, Any], float] = {}
+    while assets:
+        assets.sort(
+            key=lambda asset: (
+                _marginal_score(asset, sector_counts, theme_counts)[0],
+                asset["score"],
+            ),
+            reverse=True,
+        )
+        asset = assets.pop(0)
+        effective_score, correlation_penalty = _marginal_score(
+            asset, sector_counts, theme_counts
+        )
         reason = _constraint_reason(
-            asset, used, stop_risk, ticker_values, sector_values, theme_values, account_nav
+            asset, used, stop_risk, ticker_values, sector_values, theme_values,
+            selected_tickers, account_nav,
         )
         key = (asset["kind"], asset["index"])
+        marginal_penalties[key] = correlation_penalty
+        if effective_score < PORTFOLIO_MIN_FORWARD_SCORE:
+            reason = (
+                f"portfolio-context score {effective_score:.1f} below "
+                f"{PORTFOLIO_MIN_FORWARD_SCORE:.1f} threshold"
+            )
         if reason:
             rejected[key] = reason
             continue
@@ -200,21 +287,31 @@ def arbitrate_portfolio(
         used += asset["value"]
         stop_risk += asset["expected_loss"]
         ticker_values[asset["ticker"]] = ticker_values.get(asset["ticker"], 0) + asset["value"]
+        is_new_ticker = asset["ticker"] not in selected_tickers
+        selected_tickers.add(asset["ticker"])
         if asset["sector"] != "Unknown":
             sector_values[asset["sector"]] = sector_values.get(asset["sector"], 0) + asset["value"]
         if asset["theme"] != "Unknown":
             theme_values[asset["theme"]] = theme_values.get(asset["theme"], 0) + asset["value"]
+        if is_new_ticker and asset["sector"] != "Unknown":
+            sector_counts[asset["sector"]] = sector_counts.get(asset["sector"], 0) + 1
+        if is_new_ticker and asset["theme"] != "Unknown":
+            theme_counts[asset["theme"]] = theme_counts.get(asset["theme"], 0) + 1
 
     for column, default in {
         "portfolio_action": "PASS", "portfolio_action_reason": "",
         "portfolio_forward_score": 0.0, "portfolio_target_value": 0.0,
         "portfolio_expected_loss_at_stop": 0.0,
+        "portfolio_target_contracts": 0,
+        "portfolio_correlation_penalty": 0.0,
     }.items():
         candidates[column] = default
     open_tickers = {asset["ticker"] for asset in position_assets}
     for asset in candidate_assets:
         key = ("candidate", asset["index"])
         candidates.at[asset["index"], "portfolio_forward_score"] = asset["score"]
+        candidates.at[asset["index"], "portfolio_target_contracts"] = asset["contracts"] if key in selected else 0
+        candidates.at[asset["index"], "portfolio_correlation_penalty"] = marginal_penalties.get(key, 0.0)
         candidates.at[asset["index"], "portfolio_target_value"] = asset["value"] if key in selected else 0.0
         candidates.at[asset["index"], "portfolio_expected_loss_at_stop"] = asset["expected_loss"] if key in selected else 0.0
         if key in selected:
@@ -224,6 +321,10 @@ def arbitrate_portfolio(
             # Preserve legacy OPEN/NOT_ALLOCATED status semantics; the richer
             # OPEN versus ADD decision lives in portfolio_action.
             candidates.at[asset["index"], "PortfolioStatus"] = "OPEN"
+            candidates.at[asset["index"], "contracts"] = asset["contracts"]
+            candidates.at[asset["index"], "position_value"] = asset["value"]
+            candidates.at[asset["index"], "max_risk_dollars"] = asset["value"]
+            candidates.at[asset["index"], "position_size_pct"] = asset["value"] / account_nav
         else:
             action = "PASS"
             reasons = asset["base_reasons"] or [rejected.get(key, "lower-ranked than feasible portfolio assets")]
@@ -300,6 +401,8 @@ def arbitrate_portfolio(
         "intentional_cash_reason": cash_reason,
         "expected_loss_at_stops": round(stop_risk, 2),
         "expected_loss_at_stops_pct": stop_risk / account_nav,
+        "long_premium_at_risk": round(used, 2),
+        "long_premium_at_risk_pct": used / account_nav,
         "return_on_deployed_capital_pct": unrealized_pnl / deployed_cost if deployed_cost else 0.0,
         "return_on_total_nav_pct": unrealized_pnl / account_nav,
         "capital_recycled": round(recycled, 2),
@@ -309,6 +412,8 @@ def arbitrate_portfolio(
         "positions_closed": closed_count,
         "value_closed": round(value_closed, 2),
         "positions_reduced": reduced_count,
+        "active_positions": len(selected_tickers),
+        "active_position_limit": MAX_ACTIVE_PORTFOLIO_POSITIONS,
     }
     for key, value in summary.items():
         candidates[f"portfolio_{key}"] = value

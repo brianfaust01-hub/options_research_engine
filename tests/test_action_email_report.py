@@ -65,6 +65,8 @@ class ActionEmailReportTests(unittest.TestCase):
                 "portfolio_intentional_cash_reason": "remaining cash is intentional: risk limit",
                 "portfolio_expected_loss_at_stops": 900,
                 "portfolio_expected_loss_at_stops_pct": .06,
+                "portfolio_long_premium_at_risk": 7500,
+                "portfolio_long_premium_at_risk_pct": .50,
                 "portfolio_return_on_deployed_capital_pct": .08,
                 "portfolio_return_on_total_nav_pct": .064,
                 "portfolio_capital_recycled": 1000,
@@ -74,6 +76,8 @@ class ActionEmailReportTests(unittest.TestCase):
                 "portfolio_positions_closed": 1,
                 "portfolio_value_closed": 1000,
                 "portfolio_positions_reduced": 0,
+                "portfolio_active_positions": 8,
+                "portfolio_active_position_limit": 10,
             },
             {
                 "ticker": "WATCH1", "opportunity_type": "Long Call Candidate",
@@ -141,6 +145,8 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("Capital deployed: $12,000.00 (80.0%)", markdown)
         self.assertIn("Intentional cash: $3,000.00 (20.0%)", markdown)
         self.assertIn("Expected loss at stops: $900.00 (6.0% of NAV)", markdown)
+        self.assertIn("Full long-premium exposure: $7,500.00 (50.0% of NAV)", markdown)
+        self.assertIn("Active portfolio slots: 8 / 10", markdown)
         self.assertIn("Capital recycled: $1,000.00; turnover 10.0%", markdown)
         self.assertIn("2 opened/added ($1,500.00), 1 closed ($1,000.00)", markdown)
         self.assertIn("PUT1", html)

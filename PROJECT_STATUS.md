@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41A complete — portfolio capital arbitration in paper validation
+**Current Sprint:** Sprint 41A.1 complete — portfolio slot, materiality, and bounded multi-contract controls in paper validation
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -328,6 +328,79 @@ position-level quality, liquidity, execution, exit, or concentration controls.
   expanded before real-money use
 - Open-position NAV returns currently reflect unrealized P/L; realized cash
   ledger integration remains a next iteration
+
+---
+
+## Sprint 41A.1 — Portfolio Slot, Materiality, and Bounded Multi-Contract Controls
+
+### Evidence and Objective
+
+The first live Sprint 41A portfolio used 21 new one-contract positions on a
+$15,000 configured paper NAV. Capital and modeled stop-risk constraints worked
+as designed, but ticker count overstated diversification because the portfolio
+remained entirely long premium, largely shared one expiration, contained
+repeated energy exposure, and required excessive manual order management.
+
+The objective was to make portfolio slots scarce, scale stronger affordable
+positions to two or three contracts when feasible, and preserve qualified but
+unfunded recommendations as research evidence.
+
+### Implemented
+
+- Maximum active portfolio size is 10 tickers; existing holdings consume slots
+  while an ADD to an existing ticker does not create a new slot
+- Production long-premium quantity is bounded at three total contracts per
+  ticker, including existing plus incremental contracts
+- Portfolio Score and execution quality determine whether feasible production
+  sizing targets one, two, or three contracts
+- A 2% NAV minimum material position value prevents operationally expensive
+  positions that remain immaterial even at the three-contract ceiling
+- A 50% NAV full-premium exposure backstop supplements the 10% modeled
+  aggregate stop-loss limit because stop fills are not guaranteed
+- New-ticker allocations carry a bounded operational hurdle
+- Repeated known sector and theme exposure receives a marginal portfolio-
+  context penalty while existing hard concentration limits remain active
+- Daily reporting now distinguishes OPEN from ADD, shows active slots and full
+  premium exposure, and preserves the strongest qualified-but-unfunded
+  candidates with explicit rejection reasons
+- Selected recommendation position value, maximum premium risk, quantity, and
+  position-size percentage are recomputed after final portfolio sizing
+
+### Broker-State Reconciliation
+
+- The August 31 Thinkorswim statement confirmed AAPL October 16 $320 Call x1
+  at $10.55 and HAL October 16 $36 Call x1 at $1.85 as the only open options
+- CVX was absent from broker holdings and was closed internally with explicit
+  `BROKER_RECONCILED_POSITION_ABSENT` status; no exit price was invented
+- The accidental NVDA short call was confirmed closed by the account owner and
+  was not introduced into the Project Stonks portfolio
+- The statement contained no trade-history rows, so missing CVX and NVDA exit
+  fills remain unavailable rather than inferred from marks
+
+### Live Validation
+
+- Corrected August 31 rerun produced 10 active tickers: two existing holdings,
+  eight OPEN recommendations, and one HAL ADD
+- Affordable selected trades received two or three contracts; HOOD remained
+  one contract because of the single-position exposure limit
+- HAL ADD was limited to two incremental contracts so the combined position
+  cannot exceed three
+- Capital deployed was $6,857 (45.7% of NAV); modeled expected loss at stops
+  was $1,063 (7.1% of NAV)
+- Five qualified-but-unfunded candidates remained visible in the action brief
+- Report and email completed successfully at 12:52 on August 31
+- Full regression suite passed: 62 tests
+
+### Regression Risks and Guardrails
+
+- Portfolio Score remains the approved ranking signal; no research, contract,
+  execution, Time Edge, Greek, IV, or exit weight changed
+- Sector/theme penalties remain bounded proxies pending measured correlation
+  and full-universe exposure coverage in Sprint 41B
+- Multiple contracts increase dollar exposure and do not imply higher
+  certainty; position, premium, stop-risk, sector, and theme limits still apply
+- Historical recommendations and snapshots remain immutable; repeated live
+  runs are preserved as distinct operational evidence
 
 ---
 

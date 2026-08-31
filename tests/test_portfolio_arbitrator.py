@@ -45,7 +45,7 @@ class PortfolioArbitratorTests(unittest.TestCase):
         holdings = [position(f"H{i}", score=100 - i, price=2.4) for i in range(12)]
         holdings[-1]["latest_allocation_score"] = 70
         result = arbitrate_portfolio(
-            pd.DataFrame([candidate("BETTER", score=95, price=2.4)]),
+            pd.DataFrame([candidate("BETTER", score=110, price=2.4)]),
             pd.DataFrame(holdings), 3000,
         )
         self.assertEqual(result.candidates.iloc[0]["portfolio_action"], "OPEN")
@@ -53,8 +53,8 @@ class PortfolioArbitratorTests(unittest.TestCase):
         self.assertGreater(result.summary["capital_recycled"], 0)
 
     def test_strong_incumbent_holds_despite_new_candidate(self):
-        holdings = [position(f"H{i}", score=100, price=2.4) for i in range(11)]
-        holdings.append(position("KEEP", score=90, price=2.4))
+        holdings = [position(f"H{i}", score=100, price=1.2) for i in range(9)]
+        holdings.append(position("KEEP", score=90, price=1.2))
         result = arbitrate_portfolio(
             pd.DataFrame([candidate("NEW", score=92, price=2.4)]),
             pd.DataFrame(holdings), 3000,
@@ -89,8 +89,9 @@ class PortfolioArbitratorTests(unittest.TestCase):
     def test_independent_opportunities_deploy_more_than_old_three_trade_allocator(self):
         rows = [candidate(f"I{i}", score=99 - i) for i in range(8)]
         result = arbitrate_portfolio(pd.DataFrame(rows), pd.DataFrame(), 15000)
-        self.assertEqual(int(result.candidates["allocation_decision"].eq("Allocate").sum()), 8)
+        self.assertEqual(int(result.candidates["allocation_decision"].eq("Allocate").sum()), 7)
         self.assertGreater(result.summary["capital_deployed"], 3000)
+        self.assertLessEqual(result.summary["capital_utilization_pct"], .50)
 
     def test_profitable_but_deteriorated_position_closes(self):
         result = arbitrate_portfolio(
@@ -119,6 +120,16 @@ class PortfolioArbitratorTests(unittest.TestCase):
         )
         self.assertEqual(result.candidates.iloc[0]["portfolio_action"], "ADD")
         self.assertEqual(result.candidates.iloc[0]["PortfolioStatus"], "OPEN")
+        self.assertEqual(result.candidates.iloc[0]["contracts"], 1)
+
+    def test_add_never_exceeds_total_three_contract_ceiling(self):
+        result = arbitrate_portfolio(
+            pd.DataFrame([candidate("SAME", score=95, price=2)]),
+            pd.DataFrame([position("SAME", score=90, price=2, contracts=1)]),
+            15000,
+        )
+        self.assertEqual(result.candidates.iloc[0]["portfolio_action"], "ADD")
+        self.assertEqual(result.candidates.iloc[0]["contracts"], 2)
 
     def test_oversized_multicontract_position_is_reduced(self):
         result = arbitrate_portfolio(
@@ -128,6 +139,32 @@ class PortfolioArbitratorTests(unittest.TestCase):
         )
         self.assertEqual(result.positions.iloc[0]["portfolio_action"], "REDUCE")
         self.assertEqual(result.positions.iloc[0]["portfolio_target_contracts"], 1)
+
+    def test_high_quality_affordable_candidate_receives_multiple_contracts(self):
+        result = arbitrate_portfolio(
+            pd.DataFrame([candidate("SCALE", score=95, price=2)]),
+            pd.DataFrame(), 15000,
+        )
+        self.assertEqual(result.candidates.iloc[0]["contracts"], 3)
+        self.assertEqual(result.candidates.iloc[0]["portfolio_target_contracts"], 3)
+
+    def test_immaterial_candidate_passes_when_three_contracts_are_still_too_small(self):
+        result = arbitrate_portfolio(
+            pd.DataFrame([candidate("TINY", score=95, price=.50)]),
+            pd.DataFrame(), 15000,
+        )
+        self.assertEqual(result.candidates.iloc[0]["portfolio_action"], "PASS")
+        self.assertIn("material", result.candidates.iloc[0]["portfolio_action_reason"])
+
+    def test_active_position_limit_bounds_manual_workload(self):
+        rows = [candidate(f"SLOT{i}", score=110 - i, price=2) for i in range(14)]
+        result = arbitrate_portfolio(pd.DataFrame(rows), pd.DataFrame(), 15000)
+        self.assertLessEqual(result.summary["active_positions"], 10)
+        self.assertTrue(
+            result.candidates["portfolio_action_reason"].str.contains(
+                "active-position limit"
+            ).any()
+        )
 
 
 if __name__ == "__main__":

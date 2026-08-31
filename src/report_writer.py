@@ -58,6 +58,7 @@ def _allocated_rows(recommendations):
         stop_pct = _number(trade.get("stop_loss_pct"))
         rows.append([
             _whole(trade.get("allocation_rank")),
+            str(trade.get("portfolio_action", "OPEN")),
             str(trade.get("ticker", "")),
             (
                 f"{trade.get('option_strategy', '')} "
@@ -131,6 +132,33 @@ def _position_rows(positions):
             str(position.get("position_reason", "Review required")),
         ])
     return rows
+
+
+def _qualified_unfunded_rows(recommendations, limit=5):
+    """Show the strongest feasible research candidates denied portfolio capital."""
+    if recommendations.empty or "allocation_decision" not in recommendations:
+        return []
+    rows = recommendations[
+        recommendations["allocation_decision"].eq("Watch")
+        & recommendations.get(
+            "portfolio_action_reason", pd.Series("", index=recommendations.index)
+        ).astype(str).ne("")
+    ].copy()
+    if rows.empty:
+        return []
+    score_column = (
+        "portfolio_forward_score"
+        if "portfolio_forward_score" in rows else "portfolio_score"
+    )
+    rows[score_column] = pd.to_numeric(rows.get(score_column), errors="coerce")
+    rows = rows.sort_values(score_column, ascending=False).head(limit)
+    return [[
+        str(row.get("ticker", "")),
+        _whole(row.get("allocation_rank")),
+        _whole(row.get(score_column)),
+        str(row.get("institutional_trade_grade", "")),
+        str(row.get("portfolio_action_reason", "")),
+    ] for _, row in rows.iterrows()]
 
 
 def _markdown_table(headers, rows):
@@ -212,6 +240,8 @@ def _portfolio_construction_summary(recommendations, positions):
         "cash_reason": str(source.get("portfolio_intentional_cash_reason", "Unavailable")),
         "stop_loss": _number(source.get("portfolio_expected_loss_at_stops")),
         "stop_loss_pct": _number(source.get("portfolio_expected_loss_at_stops_pct")),
+        "premium_risk": _number(source.get("portfolio_long_premium_at_risk")),
+        "premium_risk_pct": _number(source.get("portfolio_long_premium_at_risk_pct")),
         "deployed_return": _number(source.get("portfolio_return_on_deployed_capital_pct")),
         "nav_return": _number(source.get("portfolio_return_on_total_nav_pct")),
         "recycled": _number(source.get("portfolio_capital_recycled")),
@@ -221,6 +251,8 @@ def _portfolio_construction_summary(recommendations, positions):
         "closed": _number(source.get("portfolio_positions_closed"), 0),
         "value_closed": _number(source.get("portfolio_value_closed"), 0),
         "reduced": _number(source.get("portfolio_positions_reduced"), 0),
+        "active": _number(source.get("portfolio_active_positions"), 0),
+        "active_limit": _number(source.get("portfolio_active_position_limit")),
     }
 
 
@@ -245,6 +277,7 @@ def build_daily_report(
     positions = _safe_read_csv(positions_review_path)
     trade_rows = _allocated_rows(recommendations)
     position_rows = _position_rows(positions)
+    unfunded_rows = _qualified_unfunded_rows(recommendations)
     hindsight_health = _latest_hindsight_health(hindsight_summary_path)
     construction = _portfolio_construction_summary(recommendations, positions)
     first = recommendations.iloc[0] if not recommendations.empty else {}
@@ -297,10 +330,11 @@ def build_daily_report(
         "Target", "Stop", "DTE", "Thesis Clock", "Earnings", "Reason",
     ]
     trade_headers = [
-        "Rank", "Ticker", "Contract", "Qty", "Entry Limit",
+        "Rank", "Action", "Ticker", "Contract", "Qty", "Entry Limit",
         "Target Exit", "Stop Exit", "Time Stop", "Max Risk", "Grade",
         "Hold / Time Edge", "Earnings", "Shadow C/B/A",
     ]
+    unfunded_headers = ["Ticker", "Rank", "Portfolio Score", "Grade", "Why Unfunded"]
     summary = (
         f"Market: {market} | Risk: {risk} | Breadth: {breadth}\n"
         f"Candidates: {call_count} calls | {put_count} puts | "
@@ -325,6 +359,10 @@ def build_daily_report(
         f"- Cash rationale: {construction['cash_reason']}",
         f"- Expected loss at stops: {_money(construction['stop_loss'])} "
         f"({_percent(construction['stop_loss_pct'])} of NAV)",
+        f"- Full long-premium exposure: {_money(construction['premium_risk'])} "
+        f"({_percent(construction['premium_risk_pct'])} of NAV)",
+        f"- Active portfolio slots: {int(construction['active'])} / "
+        f"{_whole(construction['active_limit'])}",
         f"- Open-position return on deployed capital: {_percent(construction['deployed_return'])}",
         f"- Open-position return on total NAV: {_percent(construction['nav_return'])}",
         f"- Capital recycled: {_money(construction['recycled'])}; "
@@ -340,6 +378,9 @@ def build_daily_report(
         "sizing is validated.", "",
         "Only enter trades marked Allocate. Use limit orders; "
         "do not chase above the entry limit.", "",
+        "## Qualified but Unfunded", "",
+        "These candidates remain research evidence but did not earn a funded portfolio slot.", "",
+        *_markdown_table(unfunded_headers, unfunded_rows),
         "## Research Health (Not Trading Guidance)", "",
         *(
             [
@@ -392,6 +433,8 @@ Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}
 <li>Intentional cash: {_money(construction['cash'])} ({_percent(construction['cash_pct'])})</li>
 <li>Cash rationale: {escape(construction['cash_reason'])}</li>
 <li>Expected loss at stops: {_money(construction['stop_loss'])} ({_percent(construction['stop_loss_pct'])} of NAV)</li>
+<li>Full long-premium exposure: {_money(construction['premium_risk'])} ({_percent(construction['premium_risk_pct'])} of NAV)</li>
+<li>Active portfolio slots: {int(construction['active'])} / {_whole(construction['active_limit'])}</li>
 <li>Open-position return on deployed capital: {_percent(construction['deployed_return'])}</li>
 <li>Open-position return on total NAV: {_percent(construction['nav_return'])}</li>
 <li>Capital recycled: {_money(construction['recycled'])}; turnover {_percent(construction['turnover'])}</li>
@@ -401,6 +444,9 @@ Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}
 <p><b>Shadow C/B/A is research-only.</b> Execute the production Qty until the
 shadow sizing profiles are validated.</p>
 <p><b>Only enter allocated trades. Use limit orders; do not chase above the entry limit.</b></p>
+<h2>Qualified but Unfunded</h2>
+<p>These candidates remain research evidence but did not earn a funded portfolio slot.</p>
+{_html_table(unfunded_headers, unfunded_rows)}
 <h2>Research Health (Not Trading Guidance)</h2>
 {
     '<p><b>7-day directional outcomes</b><br>'

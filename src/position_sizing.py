@@ -16,6 +16,7 @@ Everything else is derived from that value.
 from math import floor
 
 from config import (
+    MAX_CONTRACTS_PER_POSITION,
     MAX_POSITION_SIZE_PCT,
     PAPER_PORTFOLIO_VALUE,
 )
@@ -57,15 +58,9 @@ def calculate_position_size(
             / contract_cost
         )
 
-    #
-    # Research mode currently supports at most one contract.
-    # Future portfolio versions may allow scaling into
-    # multiple contracts.
-    #
-
     contracts = min(
         contracts,
-        1,
+        MAX_CONTRACTS_PER_POSITION,
     )
 
     position_value = (
