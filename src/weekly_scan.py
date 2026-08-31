@@ -18,6 +18,8 @@ from config import (
     PROCESSED_DATA_DIR,
     TEST_MODE,
     TEST_TICKERS,
+    PAPER_PORTFOLIO_VALUE,
+    PORTFOLIO_ARBITRATION_CANDIDATE_POOL,
 )
 
 from data_loader import get_sp500_tickers, download_price_data
@@ -26,6 +28,7 @@ from market_breadth import evaluate_market_breadth
 from market_context import evaluate_market_context
 from outcome_review import review_open_trades
 from portfolio_allocator import allocate_portfolio
+from portfolio_arbitrator import arbitrate_portfolio
 from portfolio_exposure import (
     add_exposure_fields,
     summarize_allocated_exposure,
@@ -163,24 +166,39 @@ def main():
     trades_df = allocate_portfolio(
         trades_df=trades_df,
         market_context=market_context,
+        max_recommendations=PORTFOLIO_ARBITRATION_CANDIDATE_POOL,
     )
 
-    print("\nEvaluating portfolio exposure...")
+    print("\nClassifying portfolio exposure...")
     trades_df = add_exposure_fields(trades_df)
-    exposure_summary = summarize_allocated_exposure(trades_df)
-
-    print("\nReviewing existing portfolio...")
-    positions_df = review_positions(trades_df)
-
-    position_actions_file = (
-        PROCESSED_DATA_DIR
-        / f"position_actions_{timestamp}.csv"
-    )
 
     print("\nEnriching time edge, earnings risk, and shadow sizing...")
     trades_df = enrich_decisions(
         trades_df=trades_df,
         research_df=indicators_df,
+    )
+
+    print("\nRe-underwriting existing portfolio...")
+    positions_df = review_positions(trades_df)
+
+    print("\nRunning portfolio capital arbitration...")
+    arbitration = arbitrate_portfolio(
+        candidates=trades_df,
+        positions=positions_df,
+        account_nav=PAPER_PORTFOLIO_VALUE,
+    )
+    trades_df = arbitration.candidates
+    positions_df = arbitration.positions
+    exposure_summary = summarize_allocated_exposure(trades_df)
+    print(
+        "Capital utilization: "
+        f"{arbitration.summary['capital_utilization_pct']:.1%}; "
+        f"intentional cash: ${arbitration.summary['intentional_cash']:,.2f}"
+    )
+
+    position_actions_file = (
+        PROCESSED_DATA_DIR
+        / f"position_actions_{timestamp}.csv"
     )
     positions_df.to_csv(position_actions_file, index=False)
 

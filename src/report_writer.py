@@ -198,6 +198,32 @@ def _health_line(label, metric):
     )
 
 
+def _portfolio_construction_summary(recommendations, positions):
+    source = (
+        recommendations.iloc[0] if not recommendations.empty
+        else positions.iloc[0] if not positions.empty else {}
+    )
+    return {
+        "nav": _number(source.get("portfolio_account_nav")),
+        "deployed": _number(source.get("portfolio_capital_deployed")),
+        "utilization": _number(source.get("portfolio_capital_utilization_pct")),
+        "cash": _number(source.get("portfolio_intentional_cash")),
+        "cash_pct": _number(source.get("portfolio_intentional_cash_pct")),
+        "cash_reason": str(source.get("portfolio_intentional_cash_reason", "Unavailable")),
+        "stop_loss": _number(source.get("portfolio_expected_loss_at_stops")),
+        "stop_loss_pct": _number(source.get("portfolio_expected_loss_at_stops_pct")),
+        "deployed_return": _number(source.get("portfolio_return_on_deployed_capital_pct")),
+        "nav_return": _number(source.get("portfolio_return_on_total_nav_pct")),
+        "recycled": _number(source.get("portfolio_capital_recycled")),
+        "turnover": _number(source.get("portfolio_turnover_pct")),
+        "opened": _number(source.get("portfolio_positions_opened"), 0),
+        "value_opened": _number(source.get("portfolio_value_opened"), 0),
+        "closed": _number(source.get("portfolio_positions_closed"), 0),
+        "value_closed": _number(source.get("portfolio_value_closed"), 0),
+        "reduced": _number(source.get("portfolio_positions_reduced"), 0),
+    }
+
+
 def build_daily_report(
     recommendations_path,
     positions_review_path=None,
@@ -220,6 +246,7 @@ def build_daily_report(
     trade_rows = _allocated_rows(recommendations)
     position_rows = _position_rows(positions)
     hindsight_health = _latest_hindsight_health(hindsight_summary_path)
+    construction = _portfolio_construction_summary(recommendations, positions)
     first = recommendations.iloc[0] if not recommendations.empty else {}
     market = str(first.get("market_regime", "Unavailable"))
     risk = str(first.get("risk_mode", "Unavailable"))
@@ -289,6 +316,23 @@ def build_daily_report(
         ),
         "", "## Current Position Actions", "",
         *_markdown_table(position_headers, position_rows),
+        "## Portfolio Construction", "",
+        f"- Account NAV: {_money(construction['nav'])}",
+        f"- Capital deployed: {_money(construction['deployed'])} "
+        f"({_percent(construction['utilization'])})",
+        f"- Intentional cash: {_money(construction['cash'])} "
+        f"({_percent(construction['cash_pct'])})",
+        f"- Cash rationale: {construction['cash_reason']}",
+        f"- Expected loss at stops: {_money(construction['stop_loss'])} "
+        f"({_percent(construction['stop_loss_pct'])} of NAV)",
+        f"- Open-position return on deployed capital: {_percent(construction['deployed_return'])}",
+        f"- Open-position return on total NAV: {_percent(construction['nav_return'])}",
+        f"- Capital recycled: {_money(construction['recycled'])}; "
+        f"turnover {_percent(construction['turnover'])}",
+        f"- Actions: {int(construction['opened'])} opened/added "
+        f"({_money(construction['value_opened'])}), {int(construction['closed'])} closed "
+        f"({_money(construction['value_closed'])}), {int(construction['reduced'])} reduced",
+        "",
         "## New Trades to Enter", "",
         *_markdown_table(trade_headers, trade_rows),
         "Shadow C/B/A shows research-only Conservative, Balanced, and "
@@ -341,6 +385,18 @@ Market: {escape(market)} | Risk: {escape(risk)} | Breadth: {escape(breadth)}<br>
 Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}</div>
 <h2>Attention Required</h2><div class="warning"><ul>{warning_html}</ul></div>
 <h2>Current Position Actions</h2>{_html_table(position_headers, position_rows)}
+<h2>Portfolio Construction</h2>
+<ul>
+<li>Account NAV: {_money(construction['nav'])}</li>
+<li>Capital deployed: {_money(construction['deployed'])} ({_percent(construction['utilization'])})</li>
+<li>Intentional cash: {_money(construction['cash'])} ({_percent(construction['cash_pct'])})</li>
+<li>Cash rationale: {escape(construction['cash_reason'])}</li>
+<li>Expected loss at stops: {_money(construction['stop_loss'])} ({_percent(construction['stop_loss_pct'])} of NAV)</li>
+<li>Open-position return on deployed capital: {_percent(construction['deployed_return'])}</li>
+<li>Open-position return on total NAV: {_percent(construction['nav_return'])}</li>
+<li>Capital recycled: {_money(construction['recycled'])}; turnover {_percent(construction['turnover'])}</li>
+<li>Actions: {int(construction['opened'])} opened/added ({_money(construction['value_opened'])}), {int(construction['closed'])} closed ({_money(construction['value_closed'])}), {int(construction['reduced'])} reduced</li>
+</ul>
 <h2>New Trades to Enter</h2>{_html_table(trade_headers, trade_rows)}
 <p><b>Shadow C/B/A is research-only.</b> Execute the production Qty until the
 shadow sizing profiles are validated.</p>

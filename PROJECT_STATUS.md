@@ -2,8 +2,10 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 40B complete — adaptive exit guidance in paper validation
+**Current Sprint:** Sprint 41A complete — portfolio capital arbitration in paper validation
 **Status:** ACTIVE DEVELOPMENT
+
+**Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
 
 ---
 
@@ -155,6 +157,9 @@ Every release should strengthen this feedback loop.
 - Portfolio Score
 - Position sizing
 - Automatic portfolio ranking
+- Daily holdings-versus-candidate capital competition
+- Auditable OPEN / ADD / HOLD / REDUCE / CLOSE / PASS actions
+- NAV utilization, intentional cash, stop-risk, recycling, and turnover reporting
 
 ## Learning
 
@@ -225,6 +230,106 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity (Next)
+
+### Objective
+
+Strengthen the state and risk inputs consumed by portfolio arbitration before
+real-money use, without changing candidate scoring or increasing risk limits.
+
+### Planned Scope
+
+- Replace incomplete hard-coded exposure coverage with a maintained full-
+  universe sector, industry, sub-industry, and multi-theme classification
+  dataset, including explicit data-quality status for unmapped securities
+- Define a broker account-state adapter for NAV, cash, buying power, current
+  positions, working orders, and capital reserved by unfilled orders; retain
+  configured paper NAV as a fallback
+- Establish an append-only transaction/capital-ledger schema covering fills,
+  partial fills, exits, fees, realized P/L, unrealized P/L, deposits,
+  withdrawals, reserved capital, and daily NAV reconciliation
+- Add measured rolling-return correlation and direction-aware exposure design,
+  while retaining sector/theme limits as structural safeguards
+- Extend reporting to distinguish total NAV, deployable NAV, available cash,
+  reserved-order capital, intentional cash, and unavailable capital
+
+### Required Validation
+
+- Full S&P 500 exposure-classification coverage report with explicit unknowns
+- Account-state fixtures for cash, positions, working orders, and stale or
+  unavailable broker data
+- Ledger identity tests proving beginning NAV plus flows and P/L reconciles to
+  ending NAV
+- Correlation fixtures for same-theme, cross-sector correlated, offsetting-
+  direction, and insufficient-history cases
+- No production scoring-weight, quality-threshold, liquidity, stop, position-
+  exposure, or aggregate-risk changes
+
+### Deferred Dependency
+
+Calibrated expected-forward-return estimates remain deferred until sufficient
+clean 3/5/7-day outcomes mature. Portfolio Score remains the approved
+production ranking signal until an evidence-backed model is explicitly
+reviewed and promoted.
+
+---
+
+## Sprint 41A — Portfolio Capital Arbitration
+
+### Objective
+
+Separate capital utilization from risk tolerance by making existing positions
+and new candidates compete daily for finite account NAV, without weakening
+position-level quality, liquidity, execution, exit, or concentration controls.
+
+### Architecture
+
+- Existing Institutional Trade Score, Portfolio Score, execution gates, Time
+  Edge, earnings guard, adaptive exits, and position sizing remain upstream
+- Existing positions are re-underwritten before final portfolio construction
+- A new portfolio arbitration layer ranks incumbents and candidates together,
+  gives incumbents a bounded anti-churn advantage, and selects the highest-
+  scored feasible portfolio
+- The legacy candidate allocator remains a scoring/ranking and bounded
+  expensive-enrichment pool; it is no longer the final capital decision
+- Approved Portfolio Score remains the production forward-ranking signal;
+  shadow Time Edge is preserved but is not silently promoted into weighting
+
+### Implemented
+
+- Explicit OPEN, ADD, HOLD, REDUCE, CLOSE, and PASS decisions with permanent
+  reasons and forward scores
+- A valid or profitable position can be closed when its forward score no
+  longer competes with superior qualified uses of capital
+- A temporarily losing position remains HOLD when its re-underwritten thesis
+  and forward score remain strong
+- Constraints cover account NAV, maximum single-position exposure, aggregate
+  expected loss at stops, sector exposure, and theme-based correlation proxy
+- Cash is reported as intentional with a specific qualification, capital,
+  stop-risk, or concentration rationale
+- Daily reporting distinguishes return on deployed capital, return on total
+  NAV, utilization, intentional cash, expected stop loss, recycled capital,
+  gross turnover, and opened/closed/reduced counts and values
+- Existing allocation and snapshot fields remain backward compatible while
+  arbitration fields flow into recommendations, journals, and immutable
+  snapshots
+
+### Validation and Limitations
+
+- Ten required arbitration scenarios are fixture-tested without production
+  data writes
+- Full regression suite passes
+- Account NAV is currently the configured paper NAV rather than a live broker
+  balance
+- Correlation control currently uses sector/theme classification as a bounded
+  proxy; historical-return correlation remains a future enhancement
+- Exposure classification is incomplete for unmapped tickers and should be
+  expanded before real-money use
+- Open-position NAV returns currently reflect unrealized P/L; realized cash
+  ledger integration remains a next iteration
+
+---
 
 ## Sprint 40B — Adaptive Entry-Anchored Exit Guidance
 
@@ -1364,7 +1469,7 @@ Multiple securities may produce effectively identical portfolio exposure.
 ## Existing Holdings Integration
 
 **Type:** Portfolio Decision Quality  
-**Status:** Backlog
+**Status:** Completed — Sprint 41A
 
 ### Objective
 

@@ -69,6 +69,16 @@ MIN_EXECUTABLE_CONTRACT_SCORE = 25
 # holdings, concentration, and correlation context.
 MAX_ALLOCATED_TRADES = 5
 
+# Portfolio-level capital arbitration. The candidate pool bounds expensive
+# earnings checks; it is not a trade-count or deployment target.
+PORTFOLIO_ARBITRATION_CANDIDATE_POOL = 30
+PORTFOLIO_MIN_FORWARD_SCORE = 70.0
+PORTFOLIO_INCUMBENT_ADVANTAGE = 5.0
+MAX_CAPITAL_UTILIZATION_PCT = 1.00
+MAX_AGGREGATE_STOP_LOSS_PCT = 0.10
+MAX_SECTOR_EXPOSURE_PCT = 0.35
+MAX_THEME_EXPOSURE_PCT = 0.25
+
 MIN_OPPORTUNITY_SCORE = 70
 
 # ---------------------------------------------------------------------

@@ -57,6 +57,23 @@ class ActionEmailReportTests(unittest.TestCase):
                 "shadow_conservative_contracts": 1,
                 "shadow_balanced_contracts": 2,
                 "shadow_aggressive_contracts": 3,
+                "portfolio_account_nav": 15000,
+                "portfolio_capital_deployed": 12000,
+                "portfolio_capital_utilization_pct": .80,
+                "portfolio_intentional_cash": 3000,
+                "portfolio_intentional_cash_pct": .20,
+                "portfolio_intentional_cash_reason": "remaining cash is intentional: risk limit",
+                "portfolio_expected_loss_at_stops": 900,
+                "portfolio_expected_loss_at_stops_pct": .06,
+                "portfolio_return_on_deployed_capital_pct": .08,
+                "portfolio_return_on_total_nav_pct": .064,
+                "portfolio_capital_recycled": 1000,
+                "portfolio_turnover_pct": .10,
+                "portfolio_positions_opened": 2,
+                "portfolio_value_opened": 1500,
+                "portfolio_positions_closed": 1,
+                "portfolio_value_closed": 1000,
+                "portfolio_positions_reduced": 0,
             },
             {
                 "ticker": "WATCH1", "opportunity_type": "Long Call Candidate",
@@ -121,6 +138,11 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("Allocated recommendations: 60.0% (5 evaluated; PRELIMINARY)", markdown)
         self.assertIn("Known unallocated recommendations: 54.0%", markdown)
         self.assertIn("Latest-version allocated: 75.0%", markdown)
+        self.assertIn("Capital deployed: $12,000.00 (80.0%)", markdown)
+        self.assertIn("Intentional cash: $3,000.00 (20.0%)", markdown)
+        self.assertIn("Expected loss at stops: $900.00 (6.0% of NAV)", markdown)
+        self.assertIn("Capital recycled: $1,000.00; turnover 10.0%", markdown)
+        self.assertIn("2 opened/added ($1,500.00), 1 closed ($1,000.00)", markdown)
         self.assertIn("PUT1", html)
 
 
