@@ -60,6 +60,14 @@ class ActionEmailReportTests(unittest.TestCase):
                 "portfolio_account_nav": 15000,
                 "portfolio_capital_deployed": 12000,
                 "portfolio_capital_utilization_pct": .80,
+                "portfolio_utilization_policy": "DYNAMIC_PAPER",
+                "portfolio_utilization_target_pct": .90,
+                "portfolio_utilization_target_dollars": 13500,
+                "portfolio_utilization_reason": "strong diversified opportunity set",
+                "portfolio_legacy_fixed_ceiling_pct": .50,
+                "portfolio_legacy_fixed_ceiling_dollars": 7500,
+                "portfolio_full_premium_stress_loss": 12000,
+                "portfolio_full_premium_stress_loss_pct": .80,
                 "portfolio_intentional_cash": 3000,
                 "portfolio_intentional_cash_pct": .20,
                 "portfolio_intentional_cash_reason": "remaining cash is intentional: risk limit",
@@ -143,6 +151,9 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("Known unallocated recommendations: 54.0%", markdown)
         self.assertIn("Latest-version allocated: 75.0%", markdown)
         self.assertIn("Capital deployed: $12,000.00 (80.0%)", markdown)
+        self.assertIn("Dynamic utilization ceiling: $13,500.00 (90.0%)", markdown)
+        self.assertIn("Legacy fixed-ceiling shadow: $7,500.00 (50.0%)", markdown)
+        self.assertIn("Full-premium stress loss: $12,000.00 (80.0% of NAV)", markdown)
         self.assertIn("Intentional cash: $3,000.00 (20.0%)", markdown)
         self.assertIn("Expected loss at stops: $900.00 (6.0% of NAV)", markdown)
         self.assertIn("Full long-premium exposure: $7,500.00 (50.0% of NAV)", markdown)

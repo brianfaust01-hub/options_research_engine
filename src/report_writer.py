@@ -253,6 +253,14 @@ def _portfolio_construction_summary(recommendations, positions):
         "reduced": _number(source.get("portfolio_positions_reduced"), 0),
         "active": _number(source.get("portfolio_active_positions"), 0),
         "active_limit": _number(source.get("portfolio_active_position_limit")),
+        "utilization_policy": str(source.get("portfolio_utilization_policy", "LEGACY_FIXED")),
+        "utilization_target": _number(source.get("portfolio_utilization_target_pct")),
+        "utilization_target_dollars": _number(source.get("portfolio_utilization_target_dollars")),
+        "utilization_reason": str(source.get("portfolio_utilization_reason", "Unavailable")),
+        "legacy_ceiling": _number(source.get("portfolio_legacy_fixed_ceiling_pct")),
+        "legacy_ceiling_dollars": _number(source.get("portfolio_legacy_fixed_ceiling_dollars")),
+        "stress_loss": _number(source.get("portfolio_full_premium_stress_loss")),
+        "stress_loss_pct": _number(source.get("portfolio_full_premium_stress_loss_pct")),
     }
 
 
@@ -354,6 +362,11 @@ def build_daily_report(
         f"- Account NAV: {_money(construction['nav'])}",
         f"- Capital deployed: {_money(construction['deployed'])} "
         f"({_percent(construction['utilization'])})",
+        f"- Dynamic utilization ceiling: {_money(construction['utilization_target_dollars'])} "
+        f"({_percent(construction['utilization_target'])}) — {construction['utilization_policy']}",
+        f"- Utilization basis: {construction['utilization_reason']}",
+        f"- Legacy fixed-ceiling shadow: {_money(construction['legacy_ceiling_dollars'])} "
+        f"({_percent(construction['legacy_ceiling'])})",
         f"- Intentional cash: {_money(construction['cash'])} "
         f"({_percent(construction['cash_pct'])})",
         f"- Cash rationale: {construction['cash_reason']}",
@@ -361,6 +374,8 @@ def build_daily_report(
         f"({_percent(construction['stop_loss_pct'])} of NAV)",
         f"- Full long-premium exposure: {_money(construction['premium_risk'])} "
         f"({_percent(construction['premium_risk_pct'])} of NAV)",
+        f"- Full-premium stress loss: {_money(construction['stress_loss'])} "
+        f"({_percent(construction['stress_loss_pct'])} of NAV)",
         f"- Active portfolio slots: {int(construction['active'])} / "
         f"{_whole(construction['active_limit'])}",
         f"- Open-position return on deployed capital: {_percent(construction['deployed_return'])}",
@@ -430,10 +445,14 @@ Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}
 <ul>
 <li>Account NAV: {_money(construction['nav'])}</li>
 <li>Capital deployed: {_money(construction['deployed'])} ({_percent(construction['utilization'])})</li>
+<li>Dynamic utilization ceiling: {_money(construction['utilization_target_dollars'])} ({_percent(construction['utilization_target'])}) — {escape(construction['utilization_policy'])}</li>
+<li>Utilization basis: {escape(construction['utilization_reason'])}</li>
+<li>Legacy fixed-ceiling shadow: {_money(construction['legacy_ceiling_dollars'])} ({_percent(construction['legacy_ceiling'])})</li>
 <li>Intentional cash: {_money(construction['cash'])} ({_percent(construction['cash_pct'])})</li>
 <li>Cash rationale: {escape(construction['cash_reason'])}</li>
 <li>Expected loss at stops: {_money(construction['stop_loss'])} ({_percent(construction['stop_loss_pct'])} of NAV)</li>
 <li>Full long-premium exposure: {_money(construction['premium_risk'])} ({_percent(construction['premium_risk_pct'])} of NAV)</li>
+<li>Full-premium stress loss: {_money(construction['stress_loss'])} ({_percent(construction['stress_loss_pct'])} of NAV)</li>
 <li>Active portfolio slots: {int(construction['active'])} / {_whole(construction['active_limit'])}</li>
 <li>Open-position return on deployed capital: {_percent(construction['deployed_return'])}</li>
 <li>Open-position return on total NAV: {_percent(construction['nav_return'])}</li>

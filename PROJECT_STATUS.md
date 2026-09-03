@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41A.1 complete — portfolio slot, materiality, and bounded multi-contract controls in paper validation
+**Current Sprint:** Sprint 41A.3 complete — dynamic paper capital utilization
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -231,6 +231,86 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## Sprint 41A.3 — Dynamic Paper Capital Utilization
+
+### Objective and Evidence
+
+- Replace the fixed 50% long-premium ceiling in paper trading with an auditable
+  opportunity-sensitive ceiling rather than pre-allocating identical capacity
+  to weak and strong candidate sets
+- Allow high-quality, executable, diversified opportunity sets to compete for
+  more capital while preserving portfolio risk and concentration constraints
+- Treat the calculated utilization as a ceiling, not a deployment mandate
+
+### Implemented
+
+- Paper-mode utilization now ranges from a configured 40% floor to a 100%
+  maximum using top-candidate quality, execution quality, eligible ticker
+  breadth, market regime, risk mode, and market breadth
+- The prior 50% premium ceiling remains visible as a shadow comparison and is
+  retained as the live ceiling outside paper mode
+- The existing 10% aggregate stop-loss budget, position-size limit, active-slot
+  limit, contract cap, liquidity gates, and exposure constraints remain binding
+- Daily Markdown and HTML reports now show the dynamic ceiling, calculation
+  basis, legacy-ceiling shadow, and full-premium stress loss
+- Trade-journal observations persist the utilization inputs and result so the
+  policy can be calibrated later from evidence
+
+### Validation and Limitations
+
+- 65 automated tests pass, including strong-opportunity utilization above 50%,
+  weak-breadth de-risking, legacy non-paper behavior, and stop-risk enforcement
+- The utilization formula is policy-configured, not a calibrated expected-
+  forward-return model; it must remain in paper mode until sufficient clean
+  outcomes support recalibration and promotion
+- Stops reduce intended loss but cannot guarantee fills, so a fully deployed
+  long-option portfolio retains a theoretical full-premium loss scenario
+- Portfolio Score remains a quality proxy; measured correlation, complete
+  exposure classification, and broker-derived capital state remain Sprint 41B
+  dependencies
+
+---
+
+## Sprint 41A.2 — Windows Scheduler Missed-Start Recovery
+
+### Root Cause Evidence
+
+- The August 31 10:30 scheduled trigger occurred while the laptop was in
+  Modern Standby with the lid closed
+- Task Scheduler event 153 at 10:50:25 reported that the task did not launch
+  because it missed its schedule
+- Windows Kernel-Power event 507 at 10:50:27 recorded exit from Modern Standby
+  with reason `Lid`
+- The task lacked `StartWhenAvailable`, so it remained Ready until the account
+  owner manually started it at 11:03:55
+- The manual run and subsequent production reruns completed with exit code zero
+  and successful email delivery, isolating the failure to scheduling rather
+  than Schwab authentication, research, reporting, or SMTP
+
+### Implemented
+
+- Scheduled-task setup now enables missed-start recovery with
+  `StartWhenAvailable`
+- Failed task actions retry up to three times at five-minute intervals
+- Existing wake-to-run, AC/battery, four-hour execution-limit, and duplicate-
+  instance protections remain active
+- Added `check_schedule.ps1` to display task state, last result in hexadecimal
+  and plain language, next run, missed runs, recovery settings, and log path
+- Setup output explicitly warns that exact-time execution still requires the
+  laptop to remain awake because Modern Standby with the lid closed did not
+  honor the scheduled wake on this hardware
+
+### Validation and Operating Requirement
+
+- Both PowerShell scripts pass parser validation
+- The task must be re-registered once under the account owner's Windows session
+  for the new settings to take effect
+- For an exact 10:30 run while the owner is away, the laptop must remain plugged
+  in, awake, and preferably open; otherwise the task will run after the machine
+  next becomes available rather than at the original wall-clock time
+
+---
+
 ## Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity (Next)
 
 ### Objective
@@ -253,6 +333,15 @@ real-money use, without changing candidate scoring or increasing risk limits.
   while retaining sector/theme limits as structural safeguards
 - Extend reporting to distinguish total NAV, deployable NAV, available cash,
   reserved-order capital, intentional cash, and unavailable capital
+- Document the evidence-gated configuration-recalibration protocol that will
+  be used after at least four additional weeks of clean recommendations and
+  broker outcomes mature; this is a design deliverable only and does not
+  authorize scoring or allocation changes in Sprint 41B
+- Design a compact hindsight-storage layer that preserves the full immutable
+  audit record while avoiding repeated wide, uncompressed CSV snapshots:
+  support a compressed canonical artifact, a slim analytics-ready projection,
+  and a manifest that records source, schema, row counts, checksums, and
+  generation status
 
 ### Required Validation
 
@@ -263,6 +352,18 @@ real-money use, without changing candidate scoring or increasing risk limits.
   ending NAV
 - Correlation fixtures for same-theme, cross-sector correlated, offsetting-
   direction, and insufficient-history cases
+- A written recalibration playbook that freezes a baseline configuration,
+  evaluates raw recommendations and deduplicated thesis episodes separately,
+  compares allocated and unallocated cohorts, and reports win rate, average
+  and median return, average and worst loss, payoff ratio, profit factor,
+  alpha, and tail-loss frequency
+- Recalibration promotion rules requiring a minimum credible sample, repeated
+  weekly-cohort support, an out-of-sample holdout, one bounded configuration
+  family per experiment, shadow evaluation before promotion, and explicit
+  human review; learning analytics must never update production automatically
+- Hindsight-format equivalence tests proving compressed/full and slim outputs
+  preserve row identity and reproduce the same analytics, plus backward-
+  compatible loading of existing CSV history and a no-deletion migration rule
 - No production scoring-weight, quality-threshold, liquidity, stop, position-
   exposure, or aggregate-risk changes
 
@@ -271,7 +372,10 @@ real-money use, without changing candidate scoring or increasing risk limits.
 Calibrated expected-forward-return estimates remain deferred until sufficient
 clean 3/5/7-day outcomes mature. Portfolio Score remains the approved
 production ranking signal until an evidence-backed model is explicitly
-reviewed and promoted.
+reviewed and promoted. The first recalibration review should occur only after
+four additional observation weeks have matured under the current architecture;
+the review will treat improved loss containment, predictive accuracy, payoff
+asymmetry, and stability across market regimes as separate acceptance tests.
 
 ---
 

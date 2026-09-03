@@ -13,6 +13,12 @@ from typing import Any
 import pandas as pd
 
 from config import (
+    DYNAMIC_CAPITAL_UTILIZATION_ENABLED,
+    DYNAMIC_UTILIZATION_DIVERSIFIED_TICKERS,
+    DYNAMIC_UTILIZATION_MAX_PCT,
+    DYNAMIC_UTILIZATION_MIN_PCT,
+    DYNAMIC_UTILIZATION_QUALITY_CEILING,
+    DYNAMIC_UTILIZATION_QUALITY_FLOOR,
     MAX_AGGREGATE_STOP_LOSS_PCT,
     MAX_ACTIVE_PORTFOLIO_POSITIONS,
     MAX_CAPITAL_UTILIZATION_PCT,
@@ -28,6 +34,7 @@ from config import (
     PORTFOLIO_NEW_POSITION_PENALTY,
     PORTFOLIO_SECTOR_REPEAT_PENALTY,
     PORTFOLIO_THEME_REPEAT_PENALTY,
+    PAPER_TRADING,
 )
 from portfolio_exposure import classify_ticker
 
@@ -63,6 +70,84 @@ def _boolean(value, default=False):
         return default if value is None or pd.isna(value) else bool(value)
     except (TypeError, ValueError):
         return default
+
+
+def _clamp(value, minimum=0.0, maximum=1.0):
+    return max(minimum, min(maximum, value))
+
+
+def _dynamic_utilization_policy(
+    assets, market_context=None, market_breadth=None, paper_trading=True,
+):
+    """Return an auditable premium ceiling earned by today's opportunity set."""
+    legacy = min(MAX_CAPITAL_UTILIZATION_PCT, MAX_LONG_PREMIUM_AT_RISK_PCT)
+    if not DYNAMIC_CAPITAL_UTILIZATION_ENABLED or not paper_trading:
+        return {
+            "policy": "LEGACY_FIXED",
+            "target_pct": legacy,
+            "quality_score": None,
+            "execution_score": None,
+            "opportunity_count": len({asset["ticker"] for asset in assets}),
+            "market_multiplier": 1.0,
+            "reason": "non-paper operation retains the legacy full-premium ceiling",
+        }
+
+    ranked = sorted(assets, key=lambda asset: asset["score"], reverse=True)[
+        :MAX_ACTIVE_PORTFOLIO_POSITIONS
+    ]
+    scores = [asset["score"] for asset in ranked]
+    executions = [
+        asset["execution"] for asset in ranked
+        if asset.get("execution") is not None
+    ]
+    quality_score = sum(scores) / len(scores) if scores else 0.0
+    execution_score = sum(executions) / len(executions) if executions else 70.0
+    quality_factor = _clamp(
+        (quality_score - DYNAMIC_UTILIZATION_QUALITY_FLOOR)
+        / (DYNAMIC_UTILIZATION_QUALITY_CEILING - DYNAMIC_UTILIZATION_QUALITY_FLOOR)
+    )
+    execution_factor = _clamp((execution_score - MIN_EXECUTION_SCORE) / 25.0)
+    opportunity_count = len({asset["ticker"] for asset in ranked})
+    diversification_factor = _clamp(
+        opportunity_count / DYNAMIC_UTILIZATION_DIVERSIFIED_TICKERS
+    )
+    evidence_factor = (
+        0.60 * quality_factor
+        + 0.25 * diversification_factor
+        + 0.15 * execution_factor
+    )
+
+    market_context = market_context or {}
+    market_breadth = market_breadth or {}
+    regime = _text(market_context.get("market_regime"), "Unknown")
+    risk_mode = _text(market_context.get("risk_mode"), "Unknown")
+    breadth = _text(market_breadth.get("breadth_regime"), "Unknown")
+    regime_multiplier = {"Bullish": 1.0, "Neutral": 0.95, "Bearish": 0.80}.get(regime, 1.0)
+    risk_multiplier = {"Normal": 1.0, "Selective": 0.90, "Defensive": 0.75}.get(risk_mode, 1.0)
+    breadth_multiplier = {
+        "Strong Breadth": 1.0,
+        "Healthy Breadth": 1.0,
+        "Neutral Breadth": 0.95,
+        "Weak Breadth": 0.85,
+        "Very Weak Breadth": 0.70,
+    }.get(breadth, 1.0)
+    market_multiplier = regime_multiplier * risk_multiplier * breadth_multiplier
+    earned_range = DYNAMIC_UTILIZATION_MAX_PCT - DYNAMIC_UTILIZATION_MIN_PCT
+    target_pct = DYNAMIC_UTILIZATION_MIN_PCT + earned_range * evidence_factor * market_multiplier
+    target_pct = min(MAX_CAPITAL_UTILIZATION_PCT, DYNAMIC_UTILIZATION_MAX_PCT, target_pct)
+    return {
+        "policy": "DYNAMIC_PAPER",
+        "target_pct": target_pct,
+        "quality_score": quality_score,
+        "execution_score": execution_score,
+        "opportunity_count": opportunity_count,
+        "market_multiplier": market_multiplier,
+        "reason": (
+            f"quality {quality_score:.1f}, execution {execution_score:.1f}, "
+            f"{opportunity_count} diversified opportunities; "
+            f"{regime}/{risk_mode}/{breadth} context"
+        ),
+    }
 
 
 def _candidate_asset(
@@ -130,6 +215,7 @@ def _candidate_asset(
         "sector": exposure["sector"], "theme": exposure["theme"],
         "eligible": not reasons, "base_reasons": reasons,
         "upstream_contracts": upstream_contracts,
+        "execution": execution,
     }
 
 
@@ -176,14 +262,14 @@ def _position_asset(index, row, nav):
 
 def _constraint_reason(
     asset, used, stop_risk, ticker_values, sector_values, theme_values,
-    selected_tickers, nav,
+    selected_tickers, nav, premium_ceiling_pct,
 ):
     if used + asset["value"] > nav * MAX_CAPITAL_UTILIZATION_PCT + 0.01:
         return "insufficient capital under utilization limit"
     if stop_risk + asset["expected_loss"] > nav * MAX_AGGREGATE_STOP_LOSS_PCT + 0.01:
         return "aggregate expected loss at stops would exceed limit"
-    if used + asset["value"] > nav * MAX_LONG_PREMIUM_AT_RISK_PCT + 0.01:
-        return "full-premium loss backstop would exceed limit"
+    if used + asset["value"] > nav * premium_ceiling_pct + 0.01:
+        return "dynamic full-premium utilization ceiling would exceed limit"
     is_new_slot = asset["ticker"] not in selected_tickers
     if is_new_slot and len(selected_tickers) >= MAX_ACTIVE_PORTFOLIO_POSITIONS:
         return "active-position limit reached"
@@ -212,6 +298,9 @@ def arbitrate_portfolio(
     candidates: pd.DataFrame,
     positions: pd.DataFrame,
     account_nav: float,
+    market_context: dict[str, Any] | None = None,
+    market_breadth: dict[str, Any] | None = None,
+    paper_trading: bool = PAPER_TRADING,
 ) -> ArbitrationResult:
     """Construct the highest-scored feasible portfolio from holdings and candidates."""
     if account_nav <= 0:
@@ -246,6 +335,13 @@ def arbitrate_portfolio(
     assets = [
         asset for asset in candidate_assets + position_assets if asset["eligible"]
     ]
+    utilization_policy = _dynamic_utilization_policy(
+        assets,
+        market_context=market_context,
+        market_breadth=market_breadth,
+        paper_trading=paper_trading,
+    )
+    premium_ceiling_pct = utilization_policy["target_pct"]
     selected = set()
     rejected = {}
     used = 0.0
@@ -271,7 +367,7 @@ def arbitrate_portfolio(
         )
         reason = _constraint_reason(
             asset, used, stop_risk, ticker_values, sector_values, theme_values,
-            selected_tickers, account_nav,
+            selected_tickers, account_nav, premium_ceiling_pct,
         )
         key = (asset["kind"], asset["index"])
         marginal_penalties[key] = correlation_penalty
@@ -414,6 +510,20 @@ def arbitrate_portfolio(
         "positions_reduced": reduced_count,
         "active_positions": len(selected_tickers),
         "active_position_limit": MAX_ACTIVE_PORTFOLIO_POSITIONS,
+        "utilization_policy": utilization_policy["policy"],
+        "utilization_target_pct": premium_ceiling_pct,
+        "utilization_target_dollars": round(account_nav * premium_ceiling_pct, 2),
+        "utilization_quality_score": utilization_policy["quality_score"],
+        "utilization_execution_score": utilization_policy["execution_score"],
+        "utilization_opportunity_count": utilization_policy["opportunity_count"],
+        "utilization_market_multiplier": utilization_policy["market_multiplier"],
+        "utilization_reason": utilization_policy["reason"],
+        "legacy_fixed_ceiling_pct": MAX_LONG_PREMIUM_AT_RISK_PCT,
+        "legacy_fixed_ceiling_dollars": round(
+            account_nav * MAX_LONG_PREMIUM_AT_RISK_PCT, 2
+        ),
+        "full_premium_stress_loss": round(used, 2),
+        "full_premium_stress_loss_pct": used / account_nav,
     }
     for key, value in summary.items():
         candidates[f"portfolio_{key}"] = value

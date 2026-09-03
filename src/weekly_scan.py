@@ -186,6 +186,8 @@ def main():
         candidates=trades_df,
         positions=positions_df,
         account_nav=PAPER_PORTFOLIO_VALUE,
+        market_context=market_context,
+        market_breadth=market_breadth,
     )
     trades_df = arbitration.candidates
     positions_df = arbitration.positions

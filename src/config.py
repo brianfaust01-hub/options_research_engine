@@ -86,8 +86,16 @@ MIN_POSITION_VALUE_PCT = 0.02
 MAX_CONTRACTS_PER_POSITION = 3
 
 # Long-premium stop orders are execution guidance, not guaranteed loss caps.
-# Bound total premium exposed even when modeled stop losses remain acceptable.
+# Preserve the former fixed ceiling as a shadow comparator. Paper allocation
+# earns a dynamic ceiling from portfolio-wide quality, executable breadth, and
+# market context; non-paper operation remains on the legacy ceiling.
 MAX_LONG_PREMIUM_AT_RISK_PCT = 0.50
+DYNAMIC_CAPITAL_UTILIZATION_ENABLED = True
+DYNAMIC_UTILIZATION_MIN_PCT = 0.40
+DYNAMIC_UTILIZATION_MAX_PCT = 1.00
+DYNAMIC_UTILIZATION_QUALITY_FLOOR = 70.0
+DYNAMIC_UTILIZATION_QUALITY_CEILING = 95.0
+DYNAMIC_UTILIZATION_DIVERSIFIED_TICKERS = 8
 
 # A new ticker must overcome a small operational hurdle. Repeated sector and
 # theme exposure receives an additional marginal ranking penalty while hard

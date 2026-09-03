@@ -89,9 +89,46 @@ class PortfolioArbitratorTests(unittest.TestCase):
     def test_independent_opportunities_deploy_more_than_old_three_trade_allocator(self):
         rows = [candidate(f"I{i}", score=99 - i) for i in range(8)]
         result = arbitrate_portfolio(pd.DataFrame(rows), pd.DataFrame(), 15000)
-        self.assertEqual(int(result.candidates["allocation_decision"].eq("Allocate").sum()), 7)
+        self.assertEqual(int(result.candidates["allocation_decision"].eq("Allocate").sum()), 8)
         self.assertGreater(result.summary["capital_deployed"], 3000)
+        self.assertGreater(result.summary["capital_utilization_pct"], .50)
+        self.assertEqual(result.summary["utilization_policy"], "DYNAMIC_PAPER")
+        self.assertEqual(result.summary["legacy_fixed_ceiling_pct"], .50)
+
+    def test_non_paper_mode_retains_legacy_fixed_ceiling(self):
+        rows = [candidate(f"L{i}", score=99 - i, price=10) for i in range(8)]
+        result = arbitrate_portfolio(
+            pd.DataFrame(rows), pd.DataFrame(), 15000, paper_trading=False
+        )
+        self.assertEqual(result.summary["utilization_policy"], "LEGACY_FIXED")
         self.assertLessEqual(result.summary["capital_utilization_pct"], .50)
+
+    def test_weak_breadth_reduces_dynamic_utilization_ceiling(self):
+        rows = [candidate(f"B{i}", score=95, price=2) for i in range(8)]
+        healthy = arbitrate_portfolio(
+            pd.DataFrame(rows), pd.DataFrame(), 15000,
+            market_context={"market_regime": "Bullish", "risk_mode": "Normal"},
+            market_breadth={"breadth_regime": "Healthy Breadth"},
+        )
+        weak = arbitrate_portfolio(
+            pd.DataFrame(rows), pd.DataFrame(), 15000,
+            market_context={"market_regime": "Bullish", "risk_mode": "Normal"},
+            market_breadth={"breadth_regime": "Weak Breadth"},
+        )
+        self.assertLess(
+            weak.summary["utilization_target_pct"],
+            healthy.summary["utilization_target_pct"],
+        )
+
+    def test_stop_risk_limit_remains_binding_under_dynamic_utilization(self):
+        rows = [candidate(f"S{i}", score=99, price=5, stop_pct=.20) for i in range(10)]
+        result = arbitrate_portfolio(pd.DataFrame(rows), pd.DataFrame(), 15000)
+        self.assertLessEqual(result.summary["expected_loss_at_stops_pct"], .10)
+        self.assertTrue(
+            result.candidates["portfolio_action_reason"].str.contains(
+                "aggregate expected loss"
+            ).any()
+        )
 
     def test_profitable_but_deteriorated_position_closes(self):
         result = arbitrate_portfolio(
