@@ -118,6 +118,12 @@ def _position_rows(positions):
             _percent(position.get("pnl_pct")),
             _money(position.get("profit_target")),
             _money(position.get("stop_loss")),
+            str(position.get("stop_action", "KEEP STOP")),
+            (
+                f"peak {_money(position.get('peak_premium'))}; "
+                f"locks {_percent(position.get('locked_profit_pct'))}; "
+                f"{position.get('profit_protection_reason', 'No ratchet rationale available')}"
+            ),
             _whole(position.get("dte")),
             (
                 f"Day {_whole(position.get('trading_days_in_position'))} / "
@@ -335,7 +341,8 @@ def build_daily_report(
 
     position_headers = [
         "Action", "Ticker", "Contract", "Current", "P/L",
-        "Target", "Stop", "DTE", "Thesis Clock", "Earnings", "Reason",
+        "Target", "Stop", "Stop Action", "Profit Protection", "DTE",
+        "Thesis Clock", "Earnings", "Reason",
     ]
     trade_headers = [
         "Rank", "Action", "Ticker", "Contract", "Qty", "Entry Limit",
@@ -378,7 +385,7 @@ def build_daily_report(
         f"({_percent(construction['stress_loss_pct'])} of NAV)",
         f"- Active portfolio slots: {int(construction['active'])} / "
         f"{_whole(construction['active_limit'])}",
-        f"- Open-position return on deployed capital: {_percent(construction['deployed_return'])}",
+        f"- Current open-position return on deployed premium: {_percent(construction['deployed_return'])}",
         f"- Open-position return on total NAV: {_percent(construction['nav_return'])}",
         f"- Capital recycled: {_money(construction['recycled'])}; "
         f"turnover {_percent(construction['turnover'])}",
@@ -454,7 +461,7 @@ Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}
 <li>Full long-premium exposure: {_money(construction['premium_risk'])} ({_percent(construction['premium_risk_pct'])} of NAV)</li>
 <li>Full-premium stress loss: {_money(construction['stress_loss'])} ({_percent(construction['stress_loss_pct'])} of NAV)</li>
 <li>Active portfolio slots: {int(construction['active'])} / {_whole(construction['active_limit'])}</li>
-<li>Open-position return on deployed capital: {_percent(construction['deployed_return'])}</li>
+<li>Current open-position return on deployed premium: {_percent(construction['deployed_return'])}</li>
 <li>Open-position return on total NAV: {_percent(construction['nav_return'])}</li>
 <li>Capital recycled: {_money(construction['recycled'])}; turnover {_percent(construction['turnover'])}</li>
 <li>Actions: {int(construction['opened'])} opened/added ({_money(construction['value_opened'])}), {int(construction['closed'])} closed ({_money(construction['value_closed'])}), {int(construction['reduced'])} reduced</li>

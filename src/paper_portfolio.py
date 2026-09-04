@@ -37,6 +37,12 @@ PORTFOLIO_COLUMNS = [
     "PnLPct",
     "AlphaVsSPY",
     "LastReviewed",
+    "PeakPremium",
+    "PeakPremiumDate",
+    "RecommendedStop",
+    "RecommendedStopDate",
+    "ProfitProtectionStatus",
+    "LockedProfitPct",
 ]
 
 
@@ -55,7 +61,11 @@ def load_portfolio() -> pd.DataFrame:
 
         return df
 
-    return pd.read_csv(PORTFOLIO_PATH)
+    portfolio = pd.read_csv(PORTFOLIO_PATH)
+    for column in PORTFOLIO_COLUMNS:
+        if column not in portfolio.columns:
+            portfolio[column] = None
+    return portfolio
 
 
 def save_portfolio(df: pd.DataFrame):
@@ -114,6 +124,12 @@ def allocate_position(
         "PnLPct": None,
         "AlphaVsSPY": None,
         "LastReviewed": None,
+        "PeakPremium": entry_premium,
+        "PeakPremiumDate": datetime.now().isoformat(timespec="seconds"),
+        "RecommendedStop": None,
+        "RecommendedStopDate": None,
+        "ProfitProtectionStatus": "INACTIVE",
+        "LockedProfitPct": None,
     }
 
     portfolio = pd.concat(

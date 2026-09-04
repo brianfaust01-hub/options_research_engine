@@ -97,6 +97,9 @@ class ActionEmailReportTests(unittest.TestCase):
             "option_strategy": "Long Call", "expiration": "2026-11-20",
             "strike": 100, "contracts": 1, "current_price": 4,
             "pnl_pct": .10, "profit_target": 7, "stop_loss": 2.6,
+            "stop_action": "RAISE STOP", "peak_premium": 4.5,
+            "locked_profit_pct": .05,
+            "profit_protection_reason": "Peak gain supports a tighter stop",
             "dte": 91, "position_reason": "No exit rule triggered",
             "trading_days_in_position": 2,
             "expected_move_window_days": 5,
@@ -139,6 +142,10 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertNotIn("WATCH1", markdown)
         self.assertIn("Long Put", markdown)
         self.assertIn("$3.58", markdown)
+        self.assertIn("RAISE STOP", markdown)
+        self.assertIn("locks 5.0%", markdown)
+        self.assertIn("Peak gain supports a tighter stop", markdown)
+        self.assertIn("Current open-position return on deployed premium", markdown)
         self.assertIn("$1.75", markdown)
         self.assertIn("HOLD", markdown)
         self.assertIn("5d / 88 A", markdown)

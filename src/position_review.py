@@ -23,9 +23,10 @@ from datetime import datetime
 
 import pandas as pd
 
-from paper_portfolio import get_open_positions
+from paper_portfolio import get_open_positions, load_portfolio, save_portfolio
 from schwab.market_data_client import get_normalized_option
 from decision_enrichment import get_next_earnings_date
+from exit_rules import build_profit_protection_stop
 
 
 DEFAULT_PROFIT_TARGET_PCT = 0.75
@@ -388,6 +389,8 @@ def _review_single_position(
     time_edge_score = None
     expected_move_window_days = None
     earnings_date = None
+    implied_volatility = None
+    spread_pct = None
 
     if latest_recommendation is not None:
 
@@ -427,6 +430,22 @@ def _review_single_position(
             latest_recommendation.get("expected_move_window_days")
         )
         earnings_date = latest_recommendation.get("earnings_date")
+        implied_volatility = _safe_float(
+            latest_recommendation.get("implied_volatility")
+        )
+        spread_pct = _safe_float(latest_recommendation.get("spread_pct"))
+
+    original_stop_loss = stop_loss
+    profit_protection = build_profit_protection_stop(
+        entry_price=entry_price,
+        current_price=current_price,
+        original_stop=original_stop_loss,
+        prior_recommended_stop=_safe_float(position.get("RecommendedStop")),
+        prior_peak_price=_safe_float(position.get("PeakPremium")),
+        implied_volatility=implied_volatility,
+        spread_pct=spread_pct,
+    )
+    stop_loss = profit_protection["recommended_stop"]
 
     if earnings_date is None or pd.isna(earnings_date):
         try:
@@ -574,6 +593,7 @@ def _review_single_position(
         )
 
     return {
+        "position_id": position.get("PositionID"),
         "ticker": ticker,
         "option_strategy": position.get(
             "OptionStrategy"
@@ -591,6 +611,12 @@ def _review_single_position(
         "pnl_dollars": pnl_dollars,
         "profit_target": profit_target,
         "stop_loss": stop_loss,
+        "stop_action": profit_protection["stop_action"],
+        "original_stop_loss": original_stop_loss,
+        "peak_premium": profit_protection["peak_price"],
+        "peak_gain_pct": profit_protection["peak_gain_pct"],
+        "locked_profit_pct": profit_protection["locked_profit_pct"],
+        "profit_protection_reason": profit_protection["reason"],
         "dte": dte,
         "time_stop_dte": time_stop_dte,
         "latest_action": latest_action,
@@ -643,6 +669,18 @@ def review_positions(
             )
         )
 
-    return pd.DataFrame(
-        results
-    )
+    reviewed = pd.DataFrame(results)
+    portfolio = load_portfolio()
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    for result in results:
+        mask = portfolio["PositionID"].astype(str) == str(result["position_id"])
+        if int(mask.sum()) != 1:
+            continue
+        portfolio.loc[mask, "PeakPremium"] = result["peak_premium"]
+        portfolio.loc[mask, "PeakPremiumDate"] = timestamp
+        portfolio.loc[mask, "RecommendedStop"] = result["stop_loss"]
+        portfolio.loc[mask, "RecommendedStopDate"] = timestamp
+        portfolio.loc[mask, "ProfitProtectionStatus"] = result["stop_action"]
+        portfolio.loc[mask, "LockedProfitPct"] = result["locked_profit_pct"]
+    save_portfolio(portfolio)
+    return reviewed

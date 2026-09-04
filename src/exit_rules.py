@@ -7,6 +7,82 @@ Adds predefined trade management rules for paper-trading recommendations.
 """
 
 
+def build_profit_protection_stop(
+    entry_price: float | None,
+    current_price: float | None,
+    original_stop: float | None,
+    prior_recommended_stop: float | None = None,
+    prior_peak_price: float | None = None,
+    implied_volatility: float | None = None,
+    spread_pct: float | None = None,
+):
+    """Build a one-way, volatility-aware stop ratchet for a long option."""
+    numeric = (entry_price, current_price, original_stop)
+    if any(value is None or value <= 0 for value in numeric):
+        return {
+            "stop_action": "KEEP STOP",
+            "recommended_stop": original_stop,
+            "peak_price": prior_peak_price,
+            "peak_gain_pct": None,
+            "locked_profit_pct": None,
+            "trail_width_pct": None,
+            "reason": "Profit protection unavailable because pricing is incomplete",
+        }
+
+    prior_stop = (
+        prior_recommended_stop
+        if prior_recommended_stop is not None and prior_recommended_stop > 0
+        else original_stop
+    )
+    peak_price = max(entry_price, current_price, prior_peak_price or 0.0)
+    peak_gain_pct = peak_price / entry_price - 1
+    if peak_gain_pct < 0.10:
+        return {
+            "stop_action": "KEEP STOP",
+            "recommended_stop": round(max(original_stop, prior_stop), 2),
+            "peak_price": round(peak_price, 2),
+            "peak_gain_pct": peak_gain_pct,
+            "locked_profit_pct": max(0.0, prior_stop / entry_price - 1),
+            "trail_width_pct": None,
+            "reason": "Peak gain has not reached the 10% profit-protection trigger",
+        }
+
+    lock_fraction = 0.20 if peak_gain_pct < 0.20 else 0.35 if peak_gain_pct < 0.35 else 0.50
+    profit_floor = entry_price * (1 + peak_gain_pct * lock_fraction)
+
+    trail_width_pct = 0.15
+    if implied_volatility is not None:
+        if implied_volatility >= 0.80:
+            trail_width_pct = 0.20
+        elif implied_volatility >= 0.60:
+            trail_width_pct = 0.18
+        elif implied_volatility <= 0.30:
+            trail_width_pct = 0.10
+    if spread_pct is not None and spread_pct > 0:
+        trail_width_pct = max(trail_width_pct, min(0.25, spread_pct * 2))
+    trailing_floor = peak_price * (1 - trail_width_pct)
+
+    uncapped_stop = max(original_stop, prior_stop, profit_floor, trailing_floor)
+    quote_buffer_pct = max(0.02, min(0.10, (spread_pct or 0.0) * 1.5))
+    current_price_cap = current_price * (1 - quote_buffer_pct)
+    recommended_stop = round(max(prior_stop, min(uncapped_stop, current_price_cap)), 2)
+    prior_stop_rounded = round(prior_stop, 2)
+    stop_action = "RAISE STOP" if recommended_stop > prior_stop_rounded else "KEEP STOP"
+    effective_locked_profit = recommended_stop / entry_price - 1
+    return {
+        "stop_action": stop_action,
+        "recommended_stop": recommended_stop,
+        "peak_price": round(peak_price, 2),
+        "peak_gain_pct": peak_gain_pct,
+        "locked_profit_pct": effective_locked_profit,
+        "trail_width_pct": trail_width_pct,
+        "reason": (
+            f"Peak gain {peak_gain_pct:.1%}; locks {effective_locked_profit:.1%} "
+            f"versus entry with a {trail_width_pct:.1%} volatility/spread trail"
+        ),
+    }
+
+
 def build_exit_plan(
     confidence: int,
     premium: float | None,

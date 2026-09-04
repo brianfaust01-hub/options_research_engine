@@ -302,6 +302,16 @@ def main():
 
             print(f"Profit Target: ${position['profit_target']:.2f}")
             print(f"Stop Loss: ${position['stop_loss']:.2f}")
+            print(f"Stop Action: {position['stop_action']}")
+            if pd.notna(position["peak_premium"]):
+                print(f"Peak Premium: ${position['peak_premium']:.2f}")
+            else:
+                print("Peak Premium: unavailable")
+            if pd.notna(position["locked_profit_pct"]):
+                print(f"Locked Profit: {position['locked_profit_pct'] * 100:.2f}%")
+            else:
+                print("Locked Profit: unavailable")
+            print(f"Profit Protection: {position['profit_protection_reason']}")
             print(f"DTE: {position['dte']}")
             print(f"Time Stop DTE: {position['time_stop_dte']}")
             print(f"Latest Action: {position['latest_action']}")

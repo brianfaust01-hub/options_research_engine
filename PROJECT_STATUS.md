@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41A.3 complete — dynamic paper capital utilization
+**Current Sprint:** Sprint 41A.4 complete — open-profit stop protection
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -230,6 +230,45 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 41A.4 — Open-Profit Stop Protection
+
+### Objective and Evidence
+
+- Prevent a profitable long-option position from retaining an original loss-
+  protection stop after a meaningful unrealized gain has developed
+- Preserve upside runway without allowing a later daily review to loosen a
+  previously recommended stop
+- Distinguish current open-position return on deployed premium from a future
+  weekly return on time-weighted deployed capital
+
+### Implemented
+
+- Added a one-way profit-protection stop ratchet that activates after a 10%
+  peak premium gain
+- The ratchet combines a progressively locked share of peak profit with an
+  implied-volatility and bid/ask-spread allowance, then keeps the highest of
+  the original stop, prior recommended stop, and new protected-profit floor
+- Paper portfolio state now supports peak premium, peak date, recommended
+  stop, recommendation date, profit-protection status, and locked-profit rate
+- Current-position reporting now explicitly shows `RAISE STOP` or `KEEP STOP`,
+  peak premium, locked profit, and the new stop recommendation
+- The portfolio-return label now states that the existing calculation is the
+  current open-position return on deployed premium
+
+### Validation and Limitations
+
+- Fixture tests cover activation, profitable stop tightening, quote breathing
+  room, and the invariant that a prior stop can never move downward
+- Stop guidance remains non-guaranteed because gaps and market-order slippage
+  can produce an execution below the trigger
+- Historical peak premiums cannot be reconstructed reliably unless captured;
+  the persistent high-water mark begins with available forward observations
+- Weekly net return on time-weighted deployed capital remains a Sprint 41B
+  broker-ledger deliverable because current portfolio snapshots do not yet
+  provide complete daily capital flows, realized P/L, and fee attribution
+
+---
 
 ## Sprint 41A.3 — Dynamic Paper Capital Utilization
 
