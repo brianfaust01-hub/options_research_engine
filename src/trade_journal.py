@@ -36,6 +36,8 @@ from data_quality import assess_observation
 from config import (
     VERSION,
     CONFIG_VERSION,
+    POLICY_ERA_ID,
+    POLICY_ERA_BASELINE_DATE,
     ENABLE_JOURNAL_WRITES,
 )
 
@@ -312,6 +314,9 @@ def _build_completed_observation(
     observation[
         "ConfigVersion"
     ] = CONFIG_VERSION
+
+    observation["PolicyEraID"] = POLICY_ERA_ID
+    observation["PolicyEraBaselineDate"] = POLICY_ERA_BASELINE_DATE
 
     #
     # Market context at decision time
@@ -596,6 +601,8 @@ def _order_observation(
 
         "ProjectVersion",
         "ConfigVersion",
+        "PolicyEraID",
+        "PolicyEraBaselineDate",
         "SnapshotPath",
         "SnapshotSchemaVersion",
     ]

@@ -15,6 +15,17 @@ from typing import Iterable
 
 import pandas as pd
 
+from config import (
+    POLICY_ERA_ID,
+    POLICY_ERA_BASELINE_DATE,
+    READINESS_CONFIG_REVIEW_EPISODES,
+    READINESS_CONFIG_REVIEW_WEEKS,
+    READINESS_EXECUTION_TARGET,
+    READINESS_SHADOW_MATCHED_TARGET,
+    READINESS_TARGET_EPISODES,
+    READINESS_TARGET_WEEKS,
+)
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
@@ -113,6 +124,13 @@ def _metrics(values: pd.Series, alpha_values: pd.Series | None = None) -> dict:
         if avg_win is not None and avg_loss not in (None, 0)
         else None
     )
+    gross_wins = winning.sum() if not winning.empty else None
+    gross_losses = abs(losing.sum()) if not losing.empty else None
+    profit_factor = (
+        gross_wins / gross_losses
+        if gross_wins is not None and gross_losses not in (None, 0)
+        else None
+    )
     alpha = pd.to_numeric(alpha_values, errors="coerce").dropna() \
         if alpha_values is not None else pd.Series(dtype=float)
     return {
@@ -127,7 +145,18 @@ def _metrics(values: pd.Series, alpha_values: pd.Series | None = None) -> dict:
         "median_return": numeric.median() if not numeric.empty else None,
         "average_winner": avg_win,
         "average_loser": avg_loss,
+        "median_winner": winning.median() if not winning.empty else None,
+        "median_loser": losing.median() if not losing.empty else None,
         "payoff_ratio": payoff,
+        "profit_factor": profit_factor,
+        "expected_return": numeric.mean() if not numeric.empty else None,
+        "meaningful_loss_rate": (
+            float((numeric <= -MEANINGFUL_RETURN_THRESHOLD).mean())
+            if not numeric.empty else None
+        ),
+        "tail_loss_rate": float((numeric <= -.05).mean()) if not numeric.empty else None,
+        "best_return": numeric.max() if not numeric.empty else None,
+        "worst_return": numeric.min() if not numeric.empty else None,
         "positive_alpha_rate": float((alpha > 0).mean()) if not alpha.empty else None,
         "average_alpha": alpha.mean() if not alpha.empty else None,
         "sample_status": "CREDIBLE" if evaluated >= MIN_CREDIBLE_SAMPLE else "PRELIMINARY",
@@ -236,6 +265,102 @@ def _allocation_breakdown(frame: pd.DataFrame, return_col: str) -> dict:
     }
 
 
+def _current_policy_summary(directional: pd.DataFrame, primary_col: str) -> dict:
+    """Build the forward-only evidence ledger for the active policy era."""
+    baseline = pd.Timestamp(POLICY_ERA_BASELINE_DATE)
+    dates = pd.to_datetime(
+        _column(directional, "RecommendationDate"), errors="coerce", format="mixed"
+    )
+    policy = _column(directional, "PolicyEraID").fillna("").astype(str).str.strip()
+    action = _column(directional, "Action", "action").fillna("").astype(str).str.casefold()
+    opportunity = _column(
+        directional, "OpportunityType", "opportunity_type"
+    ).fillna("").astype(str).str.casefold()
+    strategy = _column(
+        directional, "OptionStrategy", "option_strategy"
+    ).fillna("").astype(str).str.casefold()
+    executable = (
+        action.eq("evaluate options")
+        & opportunity.str.contains("candidate", regex=False)
+        & strategy.isin(["long call", "long put"])
+    )
+    current = directional[
+        policy.eq(POLICY_ERA_ID) & dates.ge(baseline) & executable
+    ].copy()
+    episodes = build_thesis_episodes(current) if not current.empty else current.copy()
+    if "ThesisEpisodeID" not in episodes:
+        episodes["ThesisEpisodeID"] = pd.Series(dtype="object")
+    representatives = (
+        _episode_representatives(episodes, primary_col)
+        if primary_col in episodes else episodes.iloc[0:0]
+    )
+    metrics = (
+        _metrics(representatives[primary_col])
+        if primary_col in representatives else _metrics(pd.Series(dtype=float))
+    )
+    allocation = (
+        _allocation_breakdown(representatives, primary_col)
+        if primary_col in representatives else {}
+    )
+    today = pd.Timestamp(datetime.now().date())
+    weeks = max(0.0, (today - baseline).days / 7)
+    matured = int(len(representatives))
+    week_progress = min(1.0, weeks / READINESS_TARGET_WEEKS)
+    episode_progress = min(1.0, matured / READINESS_TARGET_EPISODES)
+    evidence_progress = .4 * week_progress + .6 * episode_progress
+    regimes = sorted({
+        str(value).strip() for value in _column(current, "MarketRegime", "market_regime")
+        if str(value).strip().casefold() not in {"", "unknown", "nan"}
+    })
+    blockers = []
+    if weeks < READINESS_TARGET_WEEKS:
+        blockers.append(f"{weeks:.1f}/{READINESS_TARGET_WEEKS} clean simulation weeks")
+    if matured < READINESS_TARGET_EPISODES:
+        blockers.append(f"{matured}/{READINESS_TARGET_EPISODES} matured thesis episodes")
+    if len(regimes) < 3:
+        blockers.append(f"{len(regimes)}/3 observed market regimes")
+    if metrics["evaluated"] < MIN_CREDIBLE_SAMPLE:
+        blockers.append("predictive-quality sample is preliminary")
+    blockers.extend([
+        f"paper execution requires {READINESS_EXECUTION_TARGET} clean round trips",
+        "data-integrity and operational-reliability gates require sign-off",
+    ])
+    if weeks <= 0:
+        stage = "NOT_STARTED"
+    elif weeks < READINESS_CONFIG_REVIEW_WEEKS or matured < READINESS_CONFIG_REVIEW_EPISODES:
+        stage = "BASELINE_ACCUMULATION"
+    elif weeks < READINESS_TARGET_WEEKS:
+        stage = "MATCHED_SHADOW_CHALLENGER"
+    else:
+        stage = "FINAL_EVALUATION"
+    return {
+        "policy_era_id": POLICY_ERA_ID,
+        "baseline_date": POLICY_ERA_BASELINE_DATE,
+        "status": "NO-GO" if blockers else "ELIGIBLE_FOR_REVIEW",
+        "evidence_progress_pct": evidence_progress,
+        "weeks_elapsed": weeks,
+        "target_weeks": READINESS_TARGET_WEEKS,
+        "eligible_observations": int(len(current)),
+        "thesis_episodes": int(episodes["ThesisEpisodeID"].nunique()),
+        "matured_episodes": matured,
+        "target_episodes": READINESS_TARGET_EPISODES,
+        "metrics": metrics,
+        "allocation": allocation,
+        "regimes_observed": regimes,
+        "regime_target": 3,
+        "blockers": blockers,
+        "experiment": {
+            "stage": stage,
+            "baseline_weeks": weeks,
+            "baseline_week_target": READINESS_CONFIG_REVIEW_WEEKS,
+            "baseline_matured_episodes": matured,
+            "baseline_episode_target": READINESS_CONFIG_REVIEW_EPISODES,
+            "matched_shadow_observations": 0,
+            "matched_shadow_target": READINESS_SHADOW_MATCHED_TARGET,
+        },
+    }
+
+
 def analyze_hindsight(frame: pd.DataFrame) -> dict:
     directional = frame[_column(frame, "Direction").isin(["BULLISH", "BEARISH"])].copy()
     episodes = build_thesis_episodes(directional)
@@ -304,6 +429,13 @@ def analyze_hindsight(frame: pd.DataFrame) -> dict:
         format="mixed",
     )
     missing_rate = float(directional.isna().mean().mean()) if not directional.empty else 0.0
+    current_policy = _current_policy_summary(directional, primary_col)
+    legacy_episode_count = max(
+        0, int(episodes["ThesisEpisodeID"].nunique()) - current_policy["thesis_episodes"]
+    )
+    legacy_matured_count = max(
+        0, int(len(episode_view)) - current_policy["matured_episodes"]
+    )
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "primary_horizon": f"{primary_days}D" if primary_days else "CURRENT",
@@ -326,6 +458,16 @@ def analyze_hindsight(frame: pd.DataFrame) -> dict:
             "allocation": (
                 _allocation_breakdown(recent, primary_col)
                 if primary_col in recent else {}
+            ),
+        },
+        "current_policy": current_policy,
+        "legacy_archive": {
+            "thesis_episodes": legacy_episode_count,
+            "matured_episodes": legacy_matured_count,
+            "headline_eligible": False,
+            "reason": (
+                "Retained for historical context; excluded from current-policy "
+                "readiness and configuration decisions."
             ),
         },
         "calibration": calibration,
@@ -373,6 +515,69 @@ def _pct(value) -> str:
 
 
 def _markdown(summary: dict, source: Path) -> str:
+    current = summary.get("current_policy")
+    if current:
+        metrics = current["metrics"]
+        experiment = current["experiment"]
+        archive = summary.get("legacy_archive", {})
+        interval = (
+            f"{_pct(metrics.get('win_rate_ci_low'))}–"
+            f"{_pct(metrics.get('win_rate_ci_high'))}"
+        )
+        payoff = metrics.get("payoff_ratio")
+        profit_factor = metrics.get("profit_factor")
+        lines = [
+            "# Project Stonks — Current-Policy Evidence Review", "",
+            f"Generated: {summary['generated_at']}",
+            f"Source: `{source}`", "",
+            "## Real-Money Readiness", "",
+            f"**{current['status']} — evidence accumulation "
+            f"{current['evidence_progress_pct']:.1%}**", "",
+            f"- Policy era: `{current['policy_era_id']}`",
+            f"- Clean baseline begins: {current['baseline_date']}",
+            f"- Clean simulation: {current['weeks_elapsed']:.1f} / "
+            f"{current['target_weeks']} weeks",
+            f"- Matured deduplicated executable episodes: "
+            f"{current['matured_episodes']:,} / {current['target_episodes']:,}",
+            f"- Regimes observed: {len(current['regimes_observed'])} / "
+            f"{current['regime_target']}", "",
+            "Evidence progress measures accumulation, not the probability of success. "
+            "Every hard gate must pass before a go decision.", "",
+            "## Current-Policy 7-Day Outcomes", "",
+            f"- Win rate: {_pct(metrics.get('win_rate'))} "
+            f"({metrics['evaluated']:,} evaluated; 95% CI {interval})",
+            f"- Average / median return: {_pct(metrics.get('average_return'))} / "
+            f"{_pct(metrics.get('median_return'))}",
+            f"- Average winner / loser: {_pct(metrics.get('average_winner'))} / "
+            f"{_pct(metrics.get('average_loser'))}",
+            f"- Median winner / loser: {_pct(metrics.get('median_winner'))} / "
+            f"{_pct(metrics.get('median_loser'))}",
+            f"- Payoff ratio / profit factor: "
+            f"{'Unavailable' if payoff is None else f'{payoff:.2f}'} / "
+            f"{'Unavailable' if profit_factor is None else f'{profit_factor:.2f}'}",
+            f"- Meaningful-loss rate / 5% tail-loss rate: "
+            f"{_pct(metrics.get('meaningful_loss_rate'))} / "
+            f"{_pct(metrics.get('tail_loss_rate'))}", "",
+            "## Six-Week Configuration Checkpoint", "",
+            f"- Stage: **{experiment['stage']}**",
+            f"- Baseline evidence: {experiment['baseline_weeks']:.1f} / "
+            f"{experiment['baseline_week_target']} weeks and "
+            f"{experiment['baseline_matured_episodes']:,} / "
+            f"{experiment['baseline_episode_target']:,} matured episodes",
+            f"- Matched challenger evidence: "
+            f"{experiment['matched_shadow_observations']:,} / "
+            f"{experiment['matched_shadow_target']:,}",
+            "- At the checkpoint, freeze one bounded challenger and compare it "
+            "with the baseline on the same subsequent observations.", "",
+            "## Readiness Blockers", "",
+            *[f"- {blocker}" for blocker in current["blockers"]], "",
+            "## Legacy Archive", "",
+            f"{archive.get('thesis_episodes', 0):,} earlier thesis episodes "
+            f"({archive.get('matured_episodes', 0):,} matured) remain preserved, "
+            "but are excluded from the readiness headline and forward configuration decisions.", "",
+            "No production scoring, allocation, recommendations, or historical records were changed.", "",
+        ]
+        return "\n".join(lines)
     counts = summary["counts"]
     lines = [
         "# Project Stonks — Hindsight Analytics", "",

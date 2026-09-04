@@ -113,8 +113,42 @@ class CredibilityAnalyticsTests(unittest.TestCase):
             self.assertTrue(Path(result["json_path"]).exists())
             self.assertTrue(Path(result["report_path"]).exists())
             report = Path(result["report_path"]).read_text(encoding="utf-8")
-            self.assertIn("Raw vs Deduplicated", report)
+            self.assertIn("Current-Policy Evidence Review", report)
+            self.assertIn("Legacy Archive", report)
             self.assertIn("No production scoring", report)
+
+    def test_current_policy_counts_only_executable_deduplicated_episodes(self):
+        frame = pd.DataFrame([
+            {
+                "RecommendationID": "C1", "RecommendationDate": "2026-09-08",
+                "Ticker": "AAA", "Direction": "BULLISH",
+                "Action": "Evaluate Options", "OpportunityType": "Long Call Candidate",
+                "OptionStrategy": "Long Call", "PolicyEraID": "PE-2026-09-08",
+                "MarketRegime": "Bullish", "AllocationDecision": "Allocate",
+                "Horizon7DStatus": "COMPLETE", "Horizon7DDirectionalReturnPct": .04,
+            },
+            {
+                "RecommendationID": "C2", "RecommendationDate": "2026-09-09",
+                "Ticker": "AAA", "Direction": "BULLISH",
+                "Action": "Evaluate Options", "OpportunityType": "Long Call Candidate",
+                "OptionStrategy": "Long Call", "PolicyEraID": "PE-2026-09-08",
+                "MarketRegime": "Bullish", "AllocationDecision": "Watch",
+                "Horizon7DStatus": "COMPLETE", "Horizon7DDirectionalReturnPct": .05,
+            },
+            {
+                "RecommendationID": "C3", "RecommendationDate": "2026-09-08",
+                "Ticker": "BBB", "Direction": "BEARISH", "Action": "Watch",
+                "OpportunityType": "Watch", "OptionStrategy": "",
+                "PolicyEraID": "PE-2026-09-08", "MarketRegime": "Bearish",
+                "Horizon7DStatus": "COMPLETE", "Horizon7DDirectionalReturnPct": -.02,
+            },
+        ])
+        current = analyze_hindsight(frame)["current_policy"]
+        self.assertEqual(current["eligible_observations"], 2)
+        self.assertEqual(current["thesis_episodes"], 1)
+        self.assertEqual(current["matured_episodes"], 1)
+        self.assertEqual(current["metrics"]["win_rate"], 1.0)
+        self.assertEqual(current["status"], "NO-GO")
 
 
 if __name__ == "__main__":

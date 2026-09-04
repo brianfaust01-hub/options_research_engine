@@ -207,6 +207,12 @@ def _latest_hindsight_health(summary_path=None):
         payload = json.loads(candidates[0].read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+    if payload.get("current_policy"):
+        return {
+            "generated_at": payload.get("generated_at", "Unknown"),
+            "current_policy": payload["current_policy"],
+            "legacy_archive": payload.get("legacy_archive", {}),
+        }
     horizon = payload.get("horizons", {}).get("7D", {})
     allocation = payload.get("allocation_primary", {})
     recent = payload.get("recent_version", {})
@@ -230,6 +236,36 @@ def _health_line(label, metric):
         f"({int(metric.get('evaluated', 0)):,} evaluated; "
         f"{metric.get('sample_status', 'PRELIMINARY')})"
     )
+
+
+def _readiness_lines(health):
+    current = health["current_policy"]
+    metrics = current.get("metrics", {})
+    experiment = current.get("experiment", {})
+    archive = health.get("legacy_archive", {})
+    return [
+        f"REAL-MONEY READINESS: {current['status']} — evidence accumulation "
+        f"{current.get('evidence_progress_pct', 0):.1%}",
+        f"Policy era {current['policy_era_id']} begins {current['baseline_date']}.",
+        f"Clean simulation: {current.get('weeks_elapsed', 0):.1f} / "
+        f"{current.get('target_weeks', 12)} weeks.",
+        f"Matured deduplicated executable episodes: "
+        f"{current.get('matured_episodes', 0):,} / "
+        f"{current.get('target_episodes', 200):,}.",
+        _health_line("Current-policy 7-day episodes", metrics),
+        f"Average / median return: {_percent(metrics.get('average_return'))} / "
+        f"{_percent(metrics.get('median_return'))}; average winner / loser: "
+        f"{_percent(metrics.get('average_winner'))} / "
+        f"{_percent(metrics.get('average_loser'))}.",
+        f"Six-week config checkpoint: {experiment.get('stage', 'NOT_STARTED')} — "
+        f"{experiment.get('baseline_weeks', 0):.1f} / "
+        f"{experiment.get('baseline_week_target', 6)} weeks and "
+        f"{experiment.get('baseline_matured_episodes', 0):,} / "
+        f"{experiment.get('baseline_episode_target', 100):,} episodes.",
+        f"Legacy archive: {archive.get('thesis_episodes', 0):,} episodes retained; "
+        f"{archive.get('matured_episodes', 0):,} matured; excluded from readiness.",
+        "Evidence progress is not a probability of success; all hard gates must pass.",
+    ]
 
 
 def _portfolio_construction_summary(recommendations, positions):
@@ -403,9 +439,10 @@ def build_daily_report(
         "## Qualified but Unfunded", "",
         "These candidates remain research evidence but did not earn a funded portfolio slot.", "",
         *_markdown_table(unfunded_headers, unfunded_rows),
-        "## Research Health (Not Trading Guidance)", "",
+        "## Current-Policy Readiness (Not Trading Guidance)", "",
         *(
-            [
+            _readiness_lines(hindsight_health)
+            if hindsight_health and hindsight_health.get("current_policy") else [
                 "7-day directional outcomes:",
                 _health_line("All recommendations", hindsight_health["all_recommendations"]),
                 _health_line("Allocated recommendations", hindsight_health["allocated"]),
@@ -473,8 +510,10 @@ shadow sizing profiles are validated.</p>
 <h2>Qualified but Unfunded</h2>
 <p>These candidates remain research evidence but did not earn a funded portfolio slot.</p>
 {_html_table(unfunded_headers, unfunded_rows)}
-<h2>Research Health (Not Trading Guidance)</h2>
+<h2>Current-Policy Readiness (Not Trading Guidance)</h2>
 {
+    '<p>' + '<br>'.join(escape(line) for line in _readiness_lines(hindsight_health)) + '</p>'
+    if hindsight_health and hindsight_health.get('current_policy') else
     '<p><b>7-day directional outcomes</b><br>'
     + escape(_health_line('All recommendations', hindsight_health['all_recommendations']))
     + '<br>' + escape(_health_line('Allocated recommendations', hindsight_health['allocated']))

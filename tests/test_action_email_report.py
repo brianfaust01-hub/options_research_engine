@@ -152,7 +152,7 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("1/2/3", markdown)
         self.assertIn("Day 2 / 5", markdown)
         self.assertIn("research-only", markdown)
-        self.assertIn("Research Health (Not Trading Guidance)", markdown)
+        self.assertIn("Current-Policy Readiness (Not Trading Guidance)", markdown)
         self.assertIn("All recommendations: 56.0% (42 evaluated; CREDIBLE)", markdown)
         self.assertIn("Allocated recommendations: 60.0% (5 evaluated; PRELIMINARY)", markdown)
         self.assertIn("Known unallocated recommendations: 54.0%", markdown)

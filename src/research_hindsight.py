@@ -807,6 +807,8 @@ def _evaluate_recommendation(
         "ConfigVersion": row.get(
             "ConfigVersion"
         ),
+        "PolicyEraID": row.get("PolicyEraID"),
+        "PolicyEraBaselineDate": row.get("PolicyEraBaselineDate"),
     }
 
     for fixed_horizon in FIXED_HORIZON_TRADING_DAYS:

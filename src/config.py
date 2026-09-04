@@ -15,6 +15,17 @@ VERSION = "0.3.0-alpha"
 
 CONFIG_VERSION = "ResearchMode_v1"
 
+# Forward-looking experiment identity. Historical recommendations remain
+# immutable and are excluded from current-policy readiness.
+POLICY_ERA_ID = "PE-2026-09-08"
+POLICY_ERA_BASELINE_DATE = "2026-09-08"
+READINESS_TARGET_WEEKS = 12
+READINESS_CONFIG_REVIEW_WEEKS = 6
+READINESS_TARGET_EPISODES = 200
+READINESS_CONFIG_REVIEW_EPISODES = 100
+READINESS_EXECUTION_TARGET = 40
+READINESS_SHADOW_MATCHED_TARGET = 100
+
 # ---------------------------------------------------------------------
 # Operating Modes
 # ---------------------------------------------------------------------

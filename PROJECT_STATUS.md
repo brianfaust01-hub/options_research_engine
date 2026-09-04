@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41A.4 complete — open-profit stop protection
+**Current Sprint:** Sprint 41A.5 under review — current-policy readiness baseline
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -230,6 +230,43 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 41A.5 — Current-Policy Readiness Baseline (Under Review)
+
+### Objective and Evidence
+
+- Start a clean, forward-only simulation era on September 8, 2026 rather than
+  treating recommendations produced under materially different logic as
+  directly comparable evidence
+- Measure readiness using matured, deduplicated, executable directional thesis
+  episodes whether or not capital was allocated
+- Keep all earlier observations immutable and available for historical context
+  while removing them from the real-money readiness headline
+
+### Proposed Implementation
+
+- Stamp new journal and hindsight observations with policy era
+  `PE-2026-09-08` and its baseline date
+- Require at least 12 clean weeks and 200 matured seven-day thesis episodes;
+  retain separate paper-execution, regime, data-integrity, and operational gates
+- Add winner, loser, payoff, profit-factor, meaningful-loss, and tail-loss
+  diagnostics to the current-policy evidence view
+- Add a six-week/100-episode checkpoint that may freeze one bounded challenger,
+  followed by a matched-observation baseline-versus-challenger comparison
+- Replace the legacy-heavy human report with current-policy readiness and one
+  compact legacy archive line; retain detailed historical data in machine output
+
+### Validation and Limitations
+
+- All 69 fixture tests pass; no production recommendation, portfolio, journal,
+  hindsight, or report file was rewritten during validation
+- Evidence-progress percentage measures accumulation only and is not a modeled
+  probability of profitability or real-money success
+- Paper execution currently requires 40 clean round trips, and data-integrity
+  plus operational-reliability gates still require explicit sign-off
+- Changes remain uncommitted pending review
+
+---
 
 ## Sprint 41A.4 — Open-Profit Stop Protection
 
