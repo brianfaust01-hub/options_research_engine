@@ -105,26 +105,49 @@ def _allocated_rows(recommendations):
 def _position_rows(positions):
     rows = []
     for _, position in positions.iterrows():
+        action = str(position.get("position_recommendation", "REVIEW")).upper()
+        contracts = int(_number(position.get("contracts"), 0))
+        target_contracts = int(_number(
+            position.get("portfolio_target_contracts"), contracts
+        ))
+        stop = _money(position.get("stop_loss"))
+        target = _money(position.get("profit_target"))
+        if action == "CLOSE":
+            instruction = (
+                f"Sell {'all ' if contracts != 1 else ''}{contracts} "
+                f"contract{'s' if contracts != 1 else ''} now; "
+                "cancel remaining exit orders"
+            )
+            exit_plan = "Exit now — stop and target guidance no longer applies"
+        elif action == "REDUCE":
+            sell_contracts = max(0, contracts - target_contracts)
+            instruction = (
+                f"Sell {sell_contracts} contract{'s' if sell_contracts != 1 else ''} now; "
+                f"keep {target_contracts}"
+            )
+            exit_plan = f"Remaining contracts: target {target}; stop {stop}"
+        else:
+            stop_action = str(position.get("stop_action", "KEEP STOP")).upper()
+            locked = _percent(position.get("locked_profit_pct"))
+            instruction = (
+                f"Hold {contracts}; raise stop to {stop} (locks {locked})"
+                if stop_action == "RAISE STOP" else
+                f"Hold {contracts}; keep stop at {stop}"
+            )
+            exit_plan = f"Target {target}; stop {stop}"
         rows.append([
-            str(position.get("position_recommendation", "REVIEW")),
+            action,
             str(position.get("ticker", "")),
             (
                 f"{position.get('option_strategy', '')} "
                 f"{position.get('expiration', '')} "
                 f"{_money(position.get('strike'))} "
-                f"x{_whole(position.get('contracts'))}"
+                f"x{contracts}"
             ),
+            instruction,
             _money(position.get("current_price")),
             _percent(position.get("pnl_pct")),
-            _money(position.get("profit_target")),
-            _money(position.get("stop_loss")),
-            str(position.get("stop_action", "KEEP STOP")),
-            (
-                f"peak {_money(position.get('peak_premium'))}; "
-                f"locks {_percent(position.get('locked_profit_pct'))}; "
-                f"{position.get('profit_protection_reason', 'No ratchet rationale available')}"
-            ),
-            _whole(position.get("dte")),
+            exit_plan,
             (
                 f"Day {_whole(position.get('trading_days_in_position'))} / "
                 f"{_whole(position.get('expected_move_window_days'))}; "
@@ -137,7 +160,8 @@ def _position_rows(positions):
             ),
             str(position.get("position_reason", "Review required")),
         ])
-    return rows
+    priority = {"CLOSE": 0, "REDUCE": 1, "HOLD": 2}
+    return sorted(rows, key=lambda row: (priority.get(row[0], 3), row[1]))
 
 
 def _qualified_unfunded_rows(recommendations, limit=5):
@@ -347,7 +371,9 @@ def build_daily_report(
         warnings.append(
             "Position analysis unavailable — review open positions manually."
         )
-    missing_prices = sum(row[3] == "Unavailable" for row in position_rows)
+    missing_prices = int(pd.to_numeric(
+        positions.get("current_price", pd.Series(dtype=float)), errors="coerce"
+    ).isna().sum())
     if missing_prices:
         warnings.append(
             f"{missing_prices} open position(s) lack current option pricing."
@@ -376,9 +402,8 @@ def build_daily_report(
             )
 
     position_headers = [
-        "Action", "Ticker", "Contract", "Current", "P/L",
-        "Target", "Stop", "Stop Action", "Profit Protection", "DTE",
-        "Thesis Clock", "Earnings", "Reason",
+        "Action", "Ticker", "Position", "Do This", "Current", "P/L",
+        "Exit Plan", "Thesis Clock", "Earnings", "Why",
     ]
     trade_headers = [
         "Rank", "Action", "Ticker", "Contract", "Qty", "Entry Limit",

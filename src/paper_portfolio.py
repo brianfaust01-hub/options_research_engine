@@ -46,6 +46,26 @@ PORTFOLIO_COLUMNS = [
 ]
 
 
+# CSV readers infer an entirely empty column as float64. Pandas 3 rejects
+# assigning timestamps or status text into that dtype, so schema-owned text
+# fields must be restored to an assignment-safe dtype after every load.
+PORTFOLIO_TEXT_COLUMNS = [
+    "PositionID",
+    "RecommendationID",
+    "Ticker",
+    "OptionStrategy",
+    "Expiration",
+    "EntryDate",
+    "Status",
+    "ExitDate",
+    "ExitReason",
+    "LastReviewed",
+    "PeakPremiumDate",
+    "RecommendedStopDate",
+    "ProfitProtectionStatus",
+]
+
+
 def load_portfolio() -> pd.DataFrame:
 
     if not PORTFOLIO_PATH.exists():
@@ -65,6 +85,8 @@ def load_portfolio() -> pd.DataFrame:
     for column in PORTFOLIO_COLUMNS:
         if column not in portfolio.columns:
             portfolio[column] = None
+    for column in PORTFOLIO_TEXT_COLUMNS:
+        portfolio[column] = portfolio[column].astype("object")
     return portfolio
 
 

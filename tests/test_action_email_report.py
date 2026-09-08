@@ -14,7 +14,7 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from report_writer import build_daily_report  # noqa: E402
+from report_writer import _position_rows, build_daily_report  # noqa: E402
 
 
 class ActionEmailReportTests(unittest.TestCase):
@@ -142,9 +142,8 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertNotIn("WATCH1", markdown)
         self.assertIn("Long Put", markdown)
         self.assertIn("$3.58", markdown)
-        self.assertIn("RAISE STOP", markdown)
+        self.assertIn("raise stop to $2.60", markdown)
         self.assertIn("locks 5.0%", markdown)
-        self.assertIn("Peak gain supports a tighter stop", markdown)
         self.assertIn("Current open-position return on deployed premium", markdown)
         self.assertIn("$1.75", markdown)
         self.assertIn("HOLD", markdown)
@@ -168,6 +167,39 @@ class ActionEmailReportTests(unittest.TestCase):
         self.assertIn("Capital recycled: $1,000.00; turnover 10.0%", markdown)
         self.assertIn("2 opened/added ($1,500.00), 1 closed ($1,000.00)", markdown)
         self.assertIn("PUT1", html)
+
+    def test_close_and_reduce_rows_have_one_executable_instruction(self):
+        positions = pd.DataFrame([
+            {
+                "ticker": "CLOSE1", "position_recommendation": "CLOSE",
+                "option_strategy": "Long Call", "expiration": "2026-10-16",
+                "strike": 100, "contracts": 3, "current_price": 4,
+                "pnl_pct": .15, "profit_target": 7, "stop_loss": 2.6,
+                "stop_action": "RAISE STOP", "locked_profit_pct": .05,
+                "trading_days_in_position": 6, "expected_move_window_days": 7,
+                "thesis_deadline": "2026-09-09", "position_reason": "limit reached",
+            },
+            {
+                "ticker": "REDUCE1", "position_recommendation": "REDUCE",
+                "option_strategy": "Long Call", "expiration": "2026-11-20",
+                "strike": 75, "contracts": 2, "portfolio_target_contracts": 1,
+                "current_price": 9.15, "pnl_pct": .60, "profit_target": 9.97,
+                "stop_loss": 7.78, "stop_action": "RAISE STOP",
+                "trading_days_in_position": 3, "expected_move_window_days": 7,
+                "thesis_deadline": "2026-09-14", "position_reason": "exposure limit",
+            },
+        ])
+        close_row, reduce_row = _position_rows(positions)
+        self.assertEqual(close_row[0], "CLOSE")
+        self.assertEqual(close_row[3], "Sell all 3 contracts now; cancel remaining exit orders")
+        self.assertEqual(
+            close_row[6], "Exit now — stop and target guidance no longer applies"
+        )
+        self.assertNotIn("raise stop", " ".join(close_row).lower())
+        self.assertEqual(reduce_row[3], "Sell 1 contract now; keep 1")
+        self.assertEqual(
+            reduce_row[6], "Remaining contracts: target $9.97; stop $7.78"
+        )
 
 
 if __name__ == "__main__":
