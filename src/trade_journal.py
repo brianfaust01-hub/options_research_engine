@@ -503,6 +503,7 @@ def _order_observation(
         #
 
         "option_strategy",
+        "contract_symbol",
         "expiration",
         "strike",
         "premium",
@@ -529,6 +530,18 @@ def _order_observation(
         "vega_per_premium",
         "greeks_source",
         "iv_context_status",
+        "shadow_exit_policy_version",
+        "shadow_exit_policy_status",
+        "shadow_exit_sample_size",
+        "shadow_exit_match_level",
+        "shadow_stop_loss_pct",
+        "shadow_profit_target_pct",
+        "shadow_stop_loss_price",
+        "shadow_profit_target_price",
+        "shadow_expected_return_pct",
+        "shadow_target_first_rate",
+        "shadow_stop_first_rate",
+        "shadow_time_exit_rate",
 
         #
         # Institutional / portfolio decision

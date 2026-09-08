@@ -26,6 +26,18 @@ READINESS_CONFIG_REVIEW_EPISODES = 100
 READINESS_EXECUTION_TARGET = 40
 READINESS_SHADOW_MATCHED_TARGET = 100
 
+# Shadow-only empirical exit research. These controls cannot alter the
+# production stop/target instructions. The 20% stop cap is a hard risk-policy
+# boundary even when a calibrated shadow estimate would allow more room.
+SHADOW_EXIT_POLICY_ENABLED = True
+SHADOW_EXIT_POLICY_VERSION = "EMPIRICAL_PATH_V1"
+SHADOW_EXIT_MIN_SAMPLE_SIZE = 30
+SHADOW_EXIT_MAX_STOP_LOSS_PCT = 0.20
+SHADOW_EXIT_MIN_STOP_LOSS_PCT = 0.05
+SHADOW_EXIT_MIN_TARGET_PCT = 0.10
+SHADOW_EXIT_MAX_TARGET_PCT = 0.75
+SHADOW_EXIT_SLIPPAGE_PCT = 0.02
+
 # ---------------------------------------------------------------------
 # Operating Modes
 # ---------------------------------------------------------------------

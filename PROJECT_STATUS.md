@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41A.7 complete — action-first position reporting
+**Current Sprint:** Sprint 41A.8 complete — empirical exit policy shadow foundation
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -231,6 +231,62 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## Sprint 41A.8 — Empirical Exit Policy Shadow Foundation
+
+### Objective
+
+Begin evaluating mathematically calibrated stops and profit targets without
+changing the current paper-trading instructions or resetting the current
+12-week readiness era.
+
+### Implemented
+
+- Added a versioned, shadow-only exit policy that evaluates ordered option
+  return paths and distinguishes target-first, stop-first, and time-exit events
+- Candidate stop/target pairs are ranked by spread-adjusted expected return
+  with a downside-tail penalty
+- Comparable samples back off hierarchically from strategy, thesis horizon,
+  DTE, IV, and delta buckets as necessary
+- A minimum 30-path sample is required before an estimate is labeled
+  calibrated; sparse evidence is explicitly labeled
+  `INSUFFICIENT_OPTION_PATHS`
+- The configurable 20% maximum planned stop remains a hard boundary that the
+  empirical model cannot exceed
+- Shadow version, calibration status, sample size, match level, prices,
+  percentages, expectancy, and first-event rates flow through recommendations,
+  the journal, immutable snapshots, and research hindsight
+- Exact Schwab option contract symbols are now preserved for future quote-path
+  collection and contract-level outcome matching
+- The daily report shows only a compact shadow-research status section; shadow
+  prices are not mixed into executable order guidance
+
+### Data Integrity and Guardrails
+
+- Production stops, targets, allocations, and emailed order instructions are
+  unchanged
+- Underlying returns are never substituted for option-return paths
+- When the dedicated option-path dataset is absent or insufficient, shadow
+  values fall back to the production plan but remain labeled uncalibrated
+- Historical recommendations and snapshots are not rewritten
+- Promotion requires forward, path-dependent evidence and an explicit policy
+  decision; learning output cannot change production automatically
+
+### Validation
+
+- Sparse-sample fallback and production-plan immutability are regression tested
+- Ordered-path first-event evaluation and the 20% hard stop cap are regression
+  tested
+- Full regression suite: 73 tests passed
+
+### Next Evidence Dependency
+
+Populate `data/processed/option_exit_paths.csv` with executable-price option
+paths before empirical estimates can become calibrated. Collection must avoid
+material daily-run latency and must preserve unavailable or indeterminate paths
+rather than inventing outcomes.
+
+---
+
 ## Sprint 41A.7 — Action-First Position Reporting
 
 ### Objective and Implementation
@@ -443,6 +499,12 @@ real-money use, without changing candidate scoring or increasing risk limits.
 
 ### Planned Scope
 
+- Maintain `REAL_MONEY_OPERATING_MODEL.md` as the forward catalog for staged
+  promotion, human approval, broker order lifecycle, safety, and audit behavior;
+  the catalog is design-only and does not authorize live trading
+- Design quantity-aware multi-contract entry and exit tranches so each OCO
+  relationship protects only its intended contracts, including deterministic
+  `CLOSE`, `REDUCE`, partial-fill, and cancel/replace behavior
 - Replace incomplete hard-coded exposure coverage with a maintained full-
   universe sector, industry, sub-industry, and multi-theme classification
   dataset, including explicit data-quality status for unmapped securities

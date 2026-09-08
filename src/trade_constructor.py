@@ -18,6 +18,7 @@ from typing import Any
 import pandas as pd
 
 from exit_rules import build_exit_plan
+from empirical_exit_policy import build_shadow_exit_plan
 from models.trade_recommendation import TradeRecommendation
 from option_selector import select_best_contract
 from position_sizing import calculate_position_size
@@ -191,6 +192,7 @@ def construct_trade(
     row,
 ) -> TradeRecommendation:
     option_strategy = None
+    contract_symbol = None
     expiration = None
     strike = None
     premium = None
@@ -208,6 +210,7 @@ def construct_trade(
     exit_reference_price = None
     stop_loss_reason = None
     profit_target_reason = None
+    shadow_exit_plan = {}
 
     trade_quality_score = None
     trade_quality_grade = None
@@ -271,6 +274,7 @@ def construct_trade(
         )
 
         if best_contract is not None:
+            contract_symbol = _safe_text(best_contract.get("contractSymbol"))
             option_strategy = (
                 "Long Call"
                 if "Call" in row["OpportunityType"]
@@ -519,6 +523,18 @@ def construct_trade(
                 stop_loss_reason = exit_plan["stop_loss_reason"]
                 profit_target_reason = exit_plan["profit_target_reason"]
 
+                shadow_exit_plan = build_shadow_exit_plan(
+                    production_plan=exit_plan,
+                    entry_price=execution_entry_price,
+                    option_strategy=option_strategy,
+                    dte=dte,
+                    expected_move_window_days=_safe_int(
+                        row.get("expected_move_window_days")
+                    ),
+                    implied_volatility=implied_volatility,
+                    broker_delta=broker_delta,
+                )
+
                 notes.append(
                     f"Recommended premium: "
                     f"${premium:.2f}"
@@ -761,6 +777,7 @@ def construct_trade(
         ),
         option_strategy=option_strategy,
         option_type=option_strategy,
+        contract_symbol=contract_symbol,
         expiration=expiration,
         strike=strike,
         premium=premium,
@@ -776,6 +793,18 @@ def construct_trade(
         exit_reference_price=exit_reference_price,
         stop_loss_reason=stop_loss_reason,
         profit_target_reason=profit_target_reason,
+        shadow_exit_policy_version=shadow_exit_plan.get("shadow_exit_policy_version"),
+        shadow_exit_policy_status=shadow_exit_plan.get("shadow_exit_policy_status"),
+        shadow_exit_sample_size=shadow_exit_plan.get("shadow_exit_sample_size"),
+        shadow_exit_match_level=shadow_exit_plan.get("shadow_exit_match_level"),
+        shadow_stop_loss_pct=shadow_exit_plan.get("shadow_stop_loss_pct"),
+        shadow_profit_target_pct=shadow_exit_plan.get("shadow_profit_target_pct"),
+        shadow_stop_loss_price=shadow_exit_plan.get("shadow_stop_loss_price"),
+        shadow_profit_target_price=shadow_exit_plan.get("shadow_profit_target_price"),
+        shadow_expected_return_pct=shadow_exit_plan.get("shadow_expected_return_pct"),
+        shadow_target_first_rate=shadow_exit_plan.get("shadow_target_first_rate"),
+        shadow_stop_first_rate=shadow_exit_plan.get("shadow_stop_first_rate"),
+        shadow_time_exit_rate=shadow_exit_plan.get("shadow_time_exit_rate"),
         trade_quality_score=(
             trade_quality_score
         ),

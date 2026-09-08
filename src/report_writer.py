@@ -45,6 +45,29 @@ def _whole(value):
     return str(int(value)) if value is not None else "—"
 
 
+def _shadow_exit_lines(recommendations):
+    """Summarize shadow research without presenting it as order guidance."""
+    status_column = "shadow_exit_policy_status"
+    if recommendations.empty or status_column not in recommendations:
+        return ["Shadow exit research is not available in this run."]
+    eligible = recommendations[
+        recommendations.get("option_strategy", pd.Series(index=recommendations.index)).notna()
+    ]
+    statuses = eligible[status_column].fillna("NOT_APPLICABLE")
+    calibrated = int(statuses.eq("CALIBRATED_SHADOW_ONLY").sum())
+    collecting = int(statuses.eq("INSUFFICIENT_OPTION_PATHS").sum())
+    version_values = eligible.get(
+        "shadow_exit_policy_version", pd.Series(dtype=str)
+    ).dropna()
+    version = str(version_values.iloc[0]) if not version_values.empty else "Unavailable"
+    return [
+        f"Model: {version} (research only; production exits are unchanged)",
+        f"Eligible recommendations: {len(eligible)}; calibrated: {calibrated}; "
+        f"collecting option paths: {collecting}",
+        "The shadow policy is promoted only after forward, path-dependent validation.",
+    ]
+
+
 def _allocated_rows(recommendations):
     if recommendations.empty or "allocation_decision" not in recommendations:
         return []
@@ -353,6 +376,7 @@ def build_daily_report(
     position_rows = _position_rows(positions)
     unfunded_rows = _qualified_unfunded_rows(recommendations)
     hindsight_health = _latest_hindsight_health(hindsight_summary_path)
+    shadow_exit_lines = _shadow_exit_lines(recommendations)
     construction = _portfolio_construction_summary(recommendations, positions)
     first = recommendations.iloc[0] if not recommendations.empty else {}
     market = str(first.get("market_regime", "Unavailable"))
@@ -464,6 +488,8 @@ def build_daily_report(
         "## Qualified but Unfunded", "",
         "These candidates remain research evidence but did not earn a funded portfolio slot.", "",
         *_markdown_table(unfunded_headers, unfunded_rows),
+        "## Empirical Exit Shadow (Not Trading Guidance)", "",
+        *shadow_exit_lines, "",
         "## Current-Policy Readiness (Not Trading Guidance)", "",
         *(
             _readiness_lines(hindsight_health)
@@ -535,6 +561,8 @@ shadow sizing profiles are validated.</p>
 <h2>Qualified but Unfunded</h2>
 <p>These candidates remain research evidence but did not earn a funded portfolio slot.</p>
 {_html_table(unfunded_headers, unfunded_rows)}
+<h2>Empirical Exit Shadow (Not Trading Guidance)</h2>
+<p>{'<br>'.join(escape(line) for line in shadow_exit_lines)}</p>
 <h2>Current-Policy Readiness (Not Trading Guidance)</h2>
 {
     '<p>' + '<br>'.join(escape(line) for line in _readiness_lines(hindsight_health)) + '</p>'

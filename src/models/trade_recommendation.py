@@ -48,6 +48,8 @@ class TradeRecommendation:
 
     option_type: str | None
 
+    contract_symbol: str | None
+
     expiration: str | None
 
     strike: float | None
@@ -127,6 +129,20 @@ class TradeRecommendation:
     exit_reference_price: float | None = None
     stop_loss_reason: str | None = None
     profit_target_reason: str | None = None
+
+    # Empirical exit policy (shadow research only; never executable guidance)
+    shadow_exit_policy_version: str | None = None
+    shadow_exit_policy_status: str | None = None
+    shadow_exit_sample_size: int | None = None
+    shadow_exit_match_level: str | None = None
+    shadow_stop_loss_pct: float | None = None
+    shadow_profit_target_pct: float | None = None
+    shadow_stop_loss_price: float | None = None
+    shadow_profit_target_price: float | None = None
+    shadow_expected_return_pct: float | None = None
+    shadow_target_first_rate: float | None = None
+    shadow_stop_first_rate: float | None = None
+    shadow_time_exit_rate: float | None = None
 
     # Greek and volatility observations (shadow research only)
     broker_delta: float | None = None
