@@ -45,6 +45,9 @@ $trigger = New-ScheduledTaskTrigger `
 $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
     -ExecutionTimeLimit (New-TimeSpan -Hours 4) `
+    -StartWhenAvailable `
+    -RestartCount 3 `
+    -RestartInterval (New-TimeSpan -Minutes 5) `
     -WakeToRun `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries
@@ -76,3 +79,6 @@ Write-Host "User: $windowsUser"
 Write-Host "Schedule: Monday-Friday at $RunTime local time"
 Write-Host "Next run: $($nextRun.NextRunTime)"
 Write-Host "Log: $PSScriptRoot\logs\weekly_scan.log"
+Write-Host "Missed-start recovery: $($registered.Settings.StartWhenAvailable)"
+Write-Host "Failure retries: $($registered.Settings.RestartCount) every $($registered.Settings.RestartInterval)"
+Write-Host "Important: exact-time execution still requires Windows to be awake."
