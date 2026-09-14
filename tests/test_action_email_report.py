@@ -18,6 +18,35 @@ from report_writer import _position_rows, build_daily_report  # noqa: E402
 
 
 class ActionEmailReportTests(unittest.TestCase):
+    def test_broker_ledger_section_reports_week_and_coverage_warning(self):
+        recommendations = pd.DataFrame([{
+            "ticker": "WATCH1", "opportunity_type": "Watchlist",
+            "allocation_decision": "Watch", "allocation_rank": 1,
+            "market_regime": "Neutral",
+            "risk_mode": "Normal", "breadth_regime": "Neutral",
+        }])
+        snapshots = pd.DataFrame([
+            {"SnapshotID": "S1", "AsOfDate": "2026-09-07", "NetLiquidatingValue": 99497.23, "OptionMarketValue": 7874.50, "UnrealizedPnL": 210.50, "TotalFeesYTD": 115.27, "DataQualityStatus": "COMPLETE"},
+            {"SnapshotID": "S2", "AsOfDate": "2026-09-08", "NetLiquidatingValue": 199180.31, "OptionMarketValue": 3941.00, "UnrealizedPnL": -200.00, "TotalFeesYTD": 139.69, "DataQualityStatus": "QUARANTINED"},
+            {"SnapshotID": "S3", "AsOfDate": "2026-09-11", "NetLiquidatingValue": 98860.23, "OptionMarketValue": 6084.50, "UnrealizedPnL": 174.50, "TotalFeesYTD": 193.27, "DataQualityStatus": "COMPLETE"},
+        ])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rec_path = root / "recommendations.csv"
+            snapshot_path = root / "snapshots.csv"
+            recommendations.to_csv(rec_path, index=False)
+            snapshots.to_csv(snapshot_path, index=False)
+            report_path = build_daily_report(
+                rec_path, output_dir=root, capital_snapshot_path=snapshot_path
+            )
+            markdown = report_path.read_text(encoding="utf-8")
+            html = report_path.with_suffix(".html").read_text(encoding="utf-8")
+        self.assertIn("## Broker Performance Ledger", markdown)
+        self.assertIn("Week-to-date net change: -$637.00 (-4.2%", markdown)
+        self.assertIn("Return on time-weighted deployed capital: Unavailable", markdown)
+        self.assertIn("Quarantined broker snapshot date(s): 2026-09-08", markdown)
+        self.assertIn("Broker Performance Ledger", html)
+
     def test_flat_portfolio_empty_csv_builds_report_without_false_warning(self):
         recommendations = pd.DataFrame([{
             "ticker": "WATCH1", "opportunity_type": "Long Call Candidate",

@@ -2,14 +2,59 @@ from __future__ import annotations
 
 from datetime import datetime
 from html import escape
+import csv
 import json
 from pathlib import Path
 
 import pandas as pd
 
+from capital_ledger import assess_snapshot_sequence, weekly_performance
+from config import PAPER_PORTFOLIO_VALUE
+
 
 REPORTS_DIR = Path("reports")
 HINDSIGHT_DATA_DIR = Path("data") / "processed"
+
+
+def _broker_performance_summary(snapshot_path=None, experiment_base=PAPER_PORTFOLIO_VALUE):
+    if snapshot_path is None or not Path(snapshot_path).exists():
+        return {"available": False, "lines": ["Broker capital ledger is unavailable."], "warnings": ["Broker performance is unavailable — no account-state snapshot was supplied."]}
+    with Path(snapshot_path).open(encoding="utf-8-sig", newline="") as handle:
+        snapshots = list(csv.DictReader(handle))
+    if not snapshots:
+        return {"available": False, "lines": ["Broker capital ledger is empty."], "warnings": ["Broker performance is unavailable — the account-state ledger is empty."]}
+    assessed = assess_snapshot_sequence(snapshots)
+    usable = [row for row in assessed if row.get("DataQualityStatus") != "QUARANTINED"]
+    if not usable:
+        return {"available": False, "lines": ["No usable broker snapshots are available."], "warnings": ["Every broker account snapshot is quarantined."]}
+    latest = max(usable, key=lambda row: row["AsOfDate"])
+    latest_date = datetime.fromisoformat(latest["AsOfDate"]).date()
+    week_start = (latest_date - pd.Timedelta(days=latest_date.weekday())).isoformat()
+    entry_value = _number(latest.get("OptionMarketValue"), 0) - _number(latest.get("UnrealizedPnL"), 0)
+    open_return = _number(latest.get("UnrealizedPnL"), 0) / entry_value if entry_value else None
+    lines = [
+        f"Latest broker snapshot: {latest['AsOfDate']} ({latest.get('DataQualityStatus', 'UNKNOWN')})",
+        f"Broker paper-account NAV: {_money(latest.get('NetLiquidatingValue'))}",
+        f"Current option market value: {_money(latest.get('OptionMarketValue'))}; open P/L {_money(latest.get('UnrealizedPnL'))} ({_percent(open_return)})",
+        f"Fees YTD: {_money(latest.get('TotalFeesYTD'))}",
+    ]
+    warnings = []
+    try:
+        performance = weekly_performance(assessed, week_start, latest["AsOfDate"], experiment_base)
+        lines.append(f"Week-to-date net change: {_signed_money(performance['net_pnl'])} ({_percent(performance['return_on_experiment_base_pct'])} of the {_money(experiment_base)} experiment base)")
+        if performance["deployed_capital_status"] == "COMPLETE":
+            lines.append(f"Return on time-weighted deployed capital: {_percent(performance['return_on_time_weighted_deployed_capital_pct'])} on {_money(performance['time_weighted_deployed_capital'])}")
+        else:
+            unavailable = sorted(set(performance["required_trading_days"]) - set(performance["covered_trading_days"]))
+            lines.append(f"Return on time-weighted deployed capital: Unavailable ({performance['deployed_capital_status']}; unavailable: {', '.join(unavailable)})")
+            warnings.append("Time-weighted deployed-capital return is unavailable because daily broker snapshot coverage is incomplete or quarantined.")
+    except ValueError as error:
+        lines.append(f"Week-to-date performance: Unavailable ({error})")
+        warnings.append("Week-to-date broker performance lacks a usable beginning snapshot.")
+    quarantined = [row["AsOfDate"] for row in assessed if row.get("DataQualityStatus") == "QUARANTINED"]
+    if quarantined:
+        warnings.append("Quarantined broker snapshot date(s): " + ", ".join(sorted(set(quarantined))) + ".")
+    return {"available": True, "lines": lines, "warnings": warnings}
 
 
 def _safe_read_csv(path):
@@ -33,6 +78,13 @@ def _number(value, default=None):
 def _money(value):
     value = _number(value)
     return f"${value:,.2f}" if value is not None else "Unavailable"
+
+
+def _signed_money(value):
+    value = _number(value)
+    if value is None:
+        return "Unavailable"
+    return f"-${abs(value):,.2f}" if value < 0 else f"${value:,.2f}"
 
 
 def _percent(value):
@@ -358,6 +410,7 @@ def build_daily_report(
     positions_review_path=None,
     output_dir=REPORTS_DIR,
     hindsight_summary_path=None,
+    capital_snapshot_path=None,
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -378,6 +431,7 @@ def build_daily_report(
     hindsight_health = _latest_hindsight_health(hindsight_summary_path)
     shadow_exit_lines = _shadow_exit_lines(recommendations)
     construction = _portfolio_construction_summary(recommendations, positions)
+    broker_performance = _broker_performance_summary(capital_snapshot_path)
     first = recommendations.iloc[0] if not recommendations.empty else {}
     market = str(first.get("market_regime", "Unavailable"))
     risk = str(first.get("risk_mode", "Unavailable"))
@@ -388,7 +442,7 @@ def build_daily_report(
     call_count = int(opportunities.eq("Long Call Candidate").sum())
     put_count = int(opportunities.eq("Long Put Candidate").sum())
 
-    warnings = []
+    warnings = list(broker_performance["warnings"])
     if recommendations.empty:
         warnings.append("NO RECOMMENDATIONS — do not place new trades.")
     if positions.empty and not positions_source_exists:
@@ -478,6 +532,8 @@ def build_daily_report(
         f"({_money(construction['value_opened'])}), {int(construction['closed'])} closed "
         f"({_money(construction['value_closed'])}), {int(construction['reduced'])} reduced",
         "",
+        "## Broker Performance Ledger", "",
+        *[f"- {line}" for line in broker_performance["lines"]], "",
         "## New Trades to Enter", "",
         *_markdown_table(trade_headers, trade_rows),
         "Shadow C/B/A shows research-only Conservative, Balanced, and "
@@ -554,6 +610,8 @@ Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}
 <li>Capital recycled: {_money(construction['recycled'])}; turnover {_percent(construction['turnover'])}</li>
 <li>Actions: {int(construction['opened'])} opened/added ({_money(construction['value_opened'])}), {int(construction['closed'])} closed ({_money(construction['value_closed'])}), {int(construction['reduced'])} reduced</li>
 </ul>
+<h2>Broker Performance Ledger</h2>
+<ul>{''.join(f'<li>{escape(line)}</li>' for line in broker_performance['lines'])}</ul>
 <h2>New Trades to Enter</h2>{_html_table(trade_headers, trade_rows)}
 <p><b>Shadow C/B/A is research-only.</b> Execute the production Qty until the
 shadow sizing profiles are validated.</p>

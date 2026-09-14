@@ -13,6 +13,7 @@ SRC_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SRC_DIR.parent
 DATA_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 REPORTS_DIR = PROJECT_ROOT / "reports"
+CAPITAL_SNAPSHOTS_PATH = PROJECT_ROOT / "data" / "account_state_snapshots.csv"
 WEEKLY_SCAN_PATH = SRC_DIR / "weekly_scan.py"
 
 
@@ -63,6 +64,7 @@ def main() -> None:
         recommendations_path=recommendations_path,
         positions_review_path=positions_review_path,
         output_dir=REPORTS_DIR,
+        capital_snapshot_path=CAPITAL_SNAPSHOTS_PATH,
     )
 
     print(f"Report written to: {report_path}")

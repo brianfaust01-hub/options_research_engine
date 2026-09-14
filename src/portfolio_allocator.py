@@ -213,6 +213,19 @@ def _directional_alignment_multiplier(
     return 1.0
 
 
+def _score_penalty_from_multiplier(multiplier: float) -> float:
+    """Convert legacy risk multipliers into bounded ranking-point penalties.
+
+    Market context already controls the portfolio's dynamic capital ceiling.
+    Applying the same context as a percentage haircut to trade quality made a
+    Selective day function like an unintended all-cash mandate. Retaining the
+    configured multipliers as evidence while translating them into a maximum
+    20-point adjustment preserves caution without redefining trade quality.
+    """
+
+    return max(0.0, min(20.0, (1.0 - multiplier) * 20.0))
+
+
 def _calculate_portfolio_score(
     row: pd.Series,
     market_context: dict,
@@ -222,8 +235,8 @@ def _calculate_portfolio_score(
 
     Portfolio Score =
         Institutional Trade Score
-        x Market Risk Multiplier
-        x Directional Alignment Multiplier
+        - Market Risk Penalty
+        - Directional Alignment Penalty
     """
 
     if not _is_executable_trade(row):
@@ -247,11 +260,9 @@ def _calculate_portfolio_score(
         )
     )
 
-    portfolio_score = (
-        institutional_score
-        * market_multiplier
-        * directional_multiplier
-    )
+    portfolio_score = institutional_score - _score_penalty_from_multiplier(
+        market_multiplier
+    ) - _score_penalty_from_multiplier(directional_multiplier)
 
     return round(
         max(
@@ -308,19 +319,15 @@ def _build_portfolio_reason(
             f"Grade {institutional_grade}"
         )
 
-    parts.append(
-        (
-            f"Market mode {risk_mode} "
-            f"({market_multiplier:.2f}x)"
-        )
-    )
+    market_penalty = _score_penalty_from_multiplier(market_multiplier)
+    parts.append(f"Market mode {risk_mode} (-{market_penalty:.1f} points)")
 
     if directional_multiplier < 1.0:
+        directional_penalty = _score_penalty_from_multiplier(
+            directional_multiplier
+        )
         parts.append(
-            (
-                "Directional market adjustment "
-                f"({directional_multiplier:.2f}x)"
-            )
+            f"Directional market adjustment (-{directional_penalty:.1f} points)"
         )
 
     return "; ".join(parts)

@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41A.8 complete — empirical exit policy shadow foundation
+**Current Sprint:** Sprint 41B.1 complete — append-only broker capital-ledger foundation
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -230,6 +230,84 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 41B.1 — Append-Only Broker Capital-Ledger Foundation
+
+### Objective and Evidence
+
+- Begin Sprint 41B with the accounting foundation required to measure weekly
+  performance without confusing account NAV, deployed option capital, realized
+  P/L, unrealized P/L, or broker fees
+- Reconcile the first current-policy simulation week from supplied Thinkorswim
+  statements while preserving every source artifact and historical recommendation
+
+### Implemented
+
+- Added an append-only capital-ledger importer with deterministic event IDs,
+  source checksums, cash-posting evidence, and same-day fill evidence
+- Added daily account-state snapshots for NAV, derived cash, option market value,
+  unrealized/day/YTD P/L, fees, and buying power
+- Connected the snapshot ledger to daily Markdown and HTML reporting with broker
+  NAV, option value, open P/L, experiment-base return, fee totals, and explicit
+  incomplete-coverage or quarantine warnings
+- Added explicit accounting roles so broker fills and later cash postings cannot
+  be accidentally double counted
+- Added NAV-component and NAV-change reconciliation primitives
+- Added a weekly performance calculation that reports experiment-base return but
+  refuses to invent a time-weighted deployed-capital return when daily coverage
+  is incomplete or quarantined
+- Imported September 7, 8, 10, and 11 statements; the anomalous September 8
+  approximately 100% NAV jump is preserved and quarantined rather than repaired
+
+### Validation and Limitations
+
+- Append-only idempotency, anomaly quarantine, incomplete-coverage refusal, NAV
+  identity, broker reconciliation, report rendering, and portfolio schema
+  fixtures pass; the full regression suite is 81 tests
+- Week 1 account return remains measurable from usable beginning and ending NAV,
+  but exact time-weighted deployed-capital return is unavailable because the
+  September 8 snapshot is quarantined and no September 9 snapshot was supplied
+- Thinkorswim cash postings can lag same-day executions; separate fill evidence
+  preserves the current day while preventing it from being treated as posted cash
+- Broker API account state, working-order reserves, partial-fill lifecycle,
+  exposure classification, and correlation remain later Sprint 41B increments
+- No production scoring, allocation, liquidity, stop, target, or risk rule changed
+
+---
+
+## Sprint 41A.9 — Bounded Portfolio Score Context Penalties
+
+### Objective and Evidence
+
+- Prevent a Selective market classification from converting nearly every
+  otherwise strong trade into an automatic rejection
+- Remove duplicate market de-risking while retaining the dynamic utilization
+  ceiling, directional context, execution gates, and concentration controls
+- The September 11 run produced 87 executable candidates but allocated none;
+  its strongest 89.4 Institutional Trade Score became 67.1 after a 0.75x
+  multiplier and failed the fixed 70-point threshold
+
+### Implemented
+
+- Portfolio Score now subtracts bounded point penalties derived from the
+  existing market and directional multipliers instead of multiplying intrinsic
+  trade quality by them
+- Selective mode now applies a five-point ranking penalty; the existing 0.75
+  multiplier remains persisted for backward-compatible evidence
+- Market regime, risk mode, and breadth continue to constrain the dynamic
+  capital-utilization ceiling independently
+- Existing execution, earnings, liquidity, position-size, stop-risk,
+  concentration, and active-position limits remain unchanged
+
+### Validation and Guardrails
+
+- Regression coverage proves an 89.4 trade scores 84.4 in Selective mode and
+  remains eligible for allocation
+- Directional mismatch remains a separate bounded penalty
+- No Institutional Trade Score components, entry/exit calculations, or
+  historical recommendations were changed
+
+---
 
 ## Sprint 41A.8 — Empirical Exit Policy Shadow Foundation
 
