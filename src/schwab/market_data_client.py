@@ -187,6 +187,25 @@ def get_quote(
     )
 
 
+def get_option_quotes(symbols: list[str], timeout_seconds: float = 5) -> dict:
+    """Batched exact option symbols for research, without equity normalization.
+
+    Keep internal OCC padding intact. This read-only adapter does not log raw
+    error responses and gives the collector a bounded per-request timeout.
+    """
+    if not symbols:
+        return {}
+    response = requests.get(
+        f"{BASE_URL}/quotes",
+        headers={"Authorization": f"Bearer {get_access_token()}",
+                 "Accept": "application/json"},
+        params={"symbols": ",".join(symbols)},
+        timeout=timeout_seconds,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 def get_normalized_quote(
     ticker: str,
 ) -> dict:

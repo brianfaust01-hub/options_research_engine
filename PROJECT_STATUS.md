@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41B.1 complete — append-only broker capital-ledger foundation
+**Current Sprint:** Sprint 41B.2 complete — forward option quote and IV observation collection
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -230,6 +230,72 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 41B.2 — Forward Option Quote and IV Observation Collection
+
+### Evidence, Ownership, and Scope
+
+- Outcome Review / Learning owns this instrumentation extension to Sprint
+  41A.8. Underlying directional outcomes cannot substitute for option returns;
+  previously unavailable contract quote and IV history must begin accumulating
+  before empirical exit or volatility calibration can be evaluated.
+- Added exact-contract quote collection for all recent long-call and long-put
+  recommendations with preserved symbols, whether allocated, unallocated, or
+  Watch. Expired contracts and future-dated observations are excluded; missing
+  symbols are counted rather than synthesized.
+- The daily runner invokes collection after report/email delivery. Requests
+  are batched in groups of 50 with a 30-second soft budget, five-second request
+  timeout, and a 45-second parent-process hard limit. Incomplete batches remain
+  explicit, and previously saved batches survive timeout. Least-recently
+  successfully sampled contracts receive priority on subsequent runs.
+- Immutable JSON artifacts under `data/processed/option_observations/` preserve
+  receipt time, broker quote time, bid/ask, mark/last, broker Greeks, raw percent
+  and decimal IV, exact symbols, recommendation IDs, policy era, and allocation
+  lineage. `coverage.json` records collection start and series definition;
+  per-run manifests record completeness, failures, missing symbols, and budget
+  exclusions. Existing recommendations, journals, and snapshots are untouched.
+
+### Coverage Boundaries and Guardrails
+
+- Coverage begins with the first collector invocation, not a backdated policy
+  era. Pre-collection recommendations are explicitly labeled; missing entry-to-
+  exit observations are not reconstructed or called complete.
+- Only valid, recent, explicitly realtime quotes are eligible for sampled
+  returns. Stale, delayed/unknown-feed, crossed, missing, and timestamp-unknown
+  observations are retained but ineligible. Bid/ask observations are not fills.
+- Daily snapshots cannot establish intraday stop-first versus target-first
+  order. They remain `INSUFFICIENT_SAMPLING` and do not populate or promote the
+  empirical `option_exit_paths.csv` calibration dataset automatically.
+- IV history is exact-contract IV, not an annual constant-maturity underlying
+  IV benchmark. IV rank/percentile remain unavailable until sufficient history
+  and an explicitly reviewed benchmark definition exist. Contract roll and DTE
+  effects must not be silently pooled into a ticker-level percentile.
+- A standalone `python src/option_observation_collector.py` command supports
+  additional samples without research reruns, email, portfolio changes, or
+  trading. No new intraday scheduled task has been registered.
+- No production weights, ranking, allocation, stops, targets, or policy era
+  changed. The twelve-week baseline clock continues unchanged.
+
+### Validation and Remaining Evidence
+
+- Fixture tests cover allocated/unallocated lineage, exact padded symbols,
+  immutable coverage/artifacts, IV units/sentinels, freshness, missing quotes,
+  budget exclusions, fetch failures without secret disclosure, expired/future
+  exclusion, parent timeout isolation, and collection after email delivery.
+- Full regression suite: 90 tests passed; tests never fetch live Schwab quotes
+  or write production research/portfolio state.
+- First manual live collection began September 18 at 08:44 Eastern and sampled
+  506 exact contracts (240 calls, 266 puts) in approximately seven seconds.
+  All quotes had timestamps and IV but were stale premarket; all were correctly
+  retained as ineligible for sampled returns. Earlier observations lacking
+  exact symbols remain counted, not repaired.
+- First unattended market-hours collection remains an operational verification step. Quote
+  availability and IV coverage must be checked in the per-run manifest before
+  treating new observations as usable evidence. Dense intraday exit-path
+  sampling and constant-maturity underlying IV construction remain explicit
+  future work, not capabilities claimed by this daily snapshot collector.
+
+---
 
 ## Sprint 41B.1 — Append-Only Broker Capital-Ledger Foundation
 

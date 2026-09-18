@@ -15,6 +15,22 @@ DATA_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 CAPITAL_SNAPSHOTS_PATH = PROJECT_ROOT / "data" / "account_state_snapshots.csv"
 WEEKLY_SCAN_PATH = SRC_DIR / "weekly_scan.py"
+OPTION_COLLECTION_PATH = SRC_DIR / "option_observation_collector.py"
+
+
+def collect_research_observations() -> None:
+    """Collect after email; learning-data failures cannot block trading guidance."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-u", str(OPTION_COLLECTION_PATH)],
+            cwd=str(PROJECT_ROOT), timeout=45, check=False,
+        )
+        if result.returncode:
+            print("WARNING: option research collection incomplete; daily report unaffected.")
+    except subprocess.TimeoutExpired:
+        print("WARNING: option research collection exceeded 45 seconds; saved batches remain valid.")
+    except OSError:
+        print("WARNING: option research collector could not start; daily report unaffected.")
 
 
 def latest_file(pattern: str) -> Path | None:
@@ -88,6 +104,7 @@ def main() -> None:
         print("Email skipped.")
         print(e)
 
+    collect_research_observations()
     print()
     print("Project Stonks daily run completed successfully.")
 
