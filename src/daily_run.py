@@ -18,6 +18,20 @@ WEEKLY_SCAN_PATH = SRC_DIR / "weekly_scan.py"
 OPTION_COLLECTION_PATH = SRC_DIR / "option_observation_collector.py"
 
 
+def run_evidence_audit() -> None:
+    """Persist a read-only coverage checklist after email and quote collection."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-u", str(SRC_DIR / "config_evidence_audit.py"),
+             "--output-dir", str(REPORTS_DIR)],
+            cwd=str(PROJECT_ROOT), timeout=30, check=False,
+        )
+        if result.returncode:
+            print("WARNING: config evidence audit failed; daily report unaffected.")
+    except (subprocess.TimeoutExpired, OSError):
+        print("WARNING: config evidence audit unavailable; daily report unaffected.")
+
+
 def collect_research_observations() -> None:
     """Collect after email; learning-data failures cannot block trading guidance."""
     try:
@@ -105,6 +119,7 @@ def main() -> None:
         print(e)
 
     collect_research_observations()
+    run_evidence_audit()
     print()
     print("Project Stonks daily run completed successfully.")
 

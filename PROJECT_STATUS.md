@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41B.2 complete — forward option quote and IV observation collection
+**Current Sprint:** Sprint 41B.5 implemented — owner reports intraday task running; live coverage pending
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -175,6 +175,8 @@ Every release should strengthen this feedback loop.
 - Raw-observation and deduplicated thesis-episode analytics
 - Score, Time Edge, direction, allocation, regime, and earnings calibration
 - Confidence intervals, sample-size labels, and credibility warnings
+- Read-only config-to-evidence measurement inventory with real populated-field
+  coverage, source dates, unmapped-setting alerts, and explicit analysis gaps
 
 ## Automation
 
@@ -230,6 +232,196 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 41B.5 — Bounded Intraday Option Path Collection
+
+### Evidence, Ownership, and Scope
+
+- Outcome Review / Learning owns the highest non-recoverable evidence gap from
+  Sprint 41B.4: daily quotes cannot establish option exit paths. This sprint
+  captures forward one-minute bid/ask samples without changing trading policy.
+- Added an independent collector, Windows runner, and owner-account scheduler
+  setup. Exact selected calls and puts, allocated and unallocated, retain
+  recommendation IDs, era/fingerprint lineage, reference prices explicitly
+  labeled not fills, broker timestamps, bid/ask, IV, and Greeks.
+- Compact immutable gzip bundles are separated by session under ignored
+  `data/processed/intraday_option_paths/`. Holidays, DST, and early closes use
+  the NYSE regular equity-hours calendar; product-specific extended sessions
+  are intentionally not included. Calendar dependency is declared and installed
+  in the repository virtual environment.
+- Batches of 50 have five-second request timeouts, a 30-second soft budget,
+  rotated priority, and a 45-second wrapper deadline. Windows file locking and
+  scheduler IgnoreNew prevent duplicate collectors; scheduled daily scans pause
+  collection to avoid shared OAuth refresh contention. Raw history is retained
+  without automated purges; review disk usage and data health weekly.
+
+### Integrity and Regression Boundaries
+
+- Intraday usable quotes must be realtime, valid, and no more than 60 seconds
+  old. Invalid/future/stale timestamps, failures, missing quotes, and budget
+  exclusions remain explicit. Missing invocations are revealed by a read-only
+  expected-minute health audit, including partial slots and corrupt files.
+- A pure sampled-path helper preserves ordered bid returns, entry-alignment
+  gaps, and first observed hits. Between-sample crossings remain indeterminate;
+  these are neither guaranteed executions nor tick-complete first-event paths.
+  No automatic export/promotion into empirical option_exit_paths.csv occurs.
+- Entry times/fills must be separately attributed. Recommendations predating
+  coverage are not backfilled, alternative contracts still need separate
+  longitudinal capture, and dense polling alone does not certify complete
+  entry-to-exit or overnight paths.
+- No scoring, selection, allocation, exit policy, experiment era, readiness
+  thresholds, portfolio, journal, or historical recommendation changes.
+
+### Operating Handoff and Validation
+
+- Brian ran `setup_intraday_schedule.ps1` and reports the intraday task Running.
+  This confirms owner-reported launch, not usable quotes or unattended coverage;
+  the first regular-hours health check remains required. The existing daily
+  task is unchanged. No live collector or new task was launched from the
+  sandbox during implementation.
+- Operating instructions, health checks, and disable/enable commands are in
+  INTRADAY_OPTION_RESEARCH.md. Awake laptop, signed-in owner, network, and valid
+  Schwab OAuth remain prerequisites; missed minutes cannot be recovered later.
+- Fixture validation covers compressed immutable lineage, input preservation,
+  holiday/weekend/early-close/DST guards, freshness, off-hours refusal, secret-
+  safe failures, budget exclusions, gaps/corruption, and sampled-event ordering.
+  Full regression suite: 106 tests passed. Both PowerShell scripts passed
+  parser validation. Windows denied scheduler CIM access in the sandbox, so
+  registration/repeating-trigger runtime validation must occur in Brian's
+  account; live unattended coverage is
+  explicitly pending the first regular-hours health check.
+
+---
+
+## Sprint 41B.4 — Evidence Prioritization and Urgent Forward Capture
+
+### Evidence, Priority, and Scope
+
+- Learning / Outcome Review owns the audit triage. Prioritize data that cannot
+  be recovered later ahead of recoverable mappings or simply immature samples;
+  distinguish blockers for the six-week directional review from blockers for
+  option-exit and IV-rank challengers. No policy tuning is authorized.
+- The config audit now contains a machine-readable and human-readable action
+  plan: P0 intraday exit paths, structured contract/selection evidence, and exact
+  policy provenance; P1 underlying IV benchmark, earnings/exposure completeness,
+  and broker attribution; P2 accumulation of independent weekly cohorts.
+- Added forward raw Contract Score, Final Contract Score, and Horizon Fit Score
+  to trade models/construction and hindsight projection. Existing notes-based
+  Institutional Trade Score calculation remains untouched; scores are not
+  recovered into or rewritten over prior recommendations.
+- Added a thin JSON comparison set from the already-scored contract universe
+  to successful selections, preserving exact symbols, scores, DTE, bid/ask, IV,
+  delta, and rejection reasons where present. It flows through recommendations,
+  journals, and immutable snapshots without extra API calls or ranking changes.
+  This is metadata for reviewed expirations, not all possible contracts or
+  longitudinal alternative-contract outcomes. No-selection failures still
+  require separate future comparison-set capture.
+- Added once-per-scan immutable policy archives under
+  `data/processed/policy_evidence/`, with static scalar settings, approved rule
+  sources, source hashes, and per-observation fingerprint/path/status before
+  snapshot creation. Config source itself, OAuth files, environment values,
+  account data, and credential-named settings are not copied. Fingerprints
+  identify provenance and do not create a new policy era or restart the clock.
+- The audit now checks populated policy-lineage fields alongside other source
+  measurements. Existing observations remain unchanged; old-era notes and Git
+  history may be inspected separately for recoverable evidence.
+
+### Priority Decisions and Unresolved Work
+
+- Intraday bid/ask history is the highest non-recoverable gap. Daily snapshots
+  cannot establish stop-first/target-first ordering. Before exit challengers,
+  specify market-hours cadence, supervision/recovery, retention, entry alignment,
+  and gap/ambiguous-event handling. No new intraday job or background worker has
+  been registered by this sprint; this gap remains OPEN.
+- A constant-maturity/moneyness IV benchmark and roll policy remain OPEN.
+  Exact-contract IV must not be relabeled conventional underlying IV rank.
+- Earnings and exposure research completeness require forward enrichment or
+  separately attributed historical evidence, not rewriting the as-known record
+  or changing current earnings gates, concentration limits, or allocations.
+- Regular broker statement imports remain necessary. Ledger event presence is
+  not complete recommendation-to-order/cancel/fill attribution or a capital-
+  weighted performance calculation.
+- These gaps do not discard the directional baseline. At week six, evaluate
+  only config families whose required evidence is verified; do not promote a
+  challenger based on an unmeasured option counterfactual.
+
+### Validation and Regression Boundaries
+
+- Full fixture suite: 100 tests passed, including unchanged selector request
+  counts, selected-symbol comparison metadata, raw-score propagation, archive
+  immutability, source-change fingerprints, secret-named config exclusion,
+  partial source coverage, and lineage present before immutable snapshot writes.
+- Tests never run production research or rewrite portfolio, journal, quote,
+  ledger, or historical recommendation state. No live scan was launched.
+- Forward fields will populate at the next normal daily scan; historical gaps
+  remain visible. No selection weights, risk limits, entry/exit instructions,
+  policy era, readiness thresholds, or experiment dates changed.
+
+---
+
+## Sprint 41B.3 — Config-to-Evidence Coverage Audit
+
+### Objective, Evidence, and Ownership
+
+- Learning / Outcome Review owns the collection-readiness checklist supporting
+  the Sprint 41B recalibration playbook. More weeks cannot repair missing
+  measurements; identify those gaps before the six-week review, without tuning
+  policy or restarting the twelve-week baseline.
+- Added `src/config_evidence_audit.py` with an explicit family-to-config mapping
+  covering research, institutional scoring, Time Edge, contract selection,
+  execution/liquidity, allocation/capital, direction/regime, exits/profit
+  protection, Greeks/IV, and earnings. Code-defined rules and operational/
+  governance settings are identified separately. Future unknown settings are
+  reported `UNMAPPED`, never implicitly passed.
+- Checks actual populated values, numeric validity, aliases, joint completeness,
+  first/last available source dates, and distinct entry-date coverage. Selected
+  option populations are separate from all directional research observations;
+  unavailable fields on legitimate Pass/Watch observations are not counted as
+  missing selected-contract measurements.
+- Filters to the current era and baseline, deduplicates recommendation IDs,
+  reports missing/duplicate IDs, and joins latest fixed-horizon hindsight by
+  recommendation ID. In-progress observations are separate from COMPLETE
+  outcomes missing a numeric return; counts are not mislabeled thesis episodes.
+- Audits linked option observations and capital artifacts, excluding stale and
+  invalid quotes from usable coverage. Raw IV presence is not usable IV history,
+  and first usable quote dates are never backdated to the policy baseline.
+- The default command prints a read-only checklist. `--output-dir reports`
+  writes exclusive timestamped Markdown/JSON outputs with policy era, source
+  identity, and a config-source checksum. Daily execution runs this audit after
+  email and quote collection, isolated by a 30-second subprocess timeout.
+
+### Analysis Boundaries and Risks
+
+- `COLLECTION_PRESENT` only means the required structured fields are populated;
+  it does not prove statistical sufficiency, accurate fills, causal prediction,
+  replayability, operational sign-off, or permission to change configs.
+- Dense intraday option paths, alternative-contract ranking evidence, a defined
+  underlying IV benchmark, complete exposure/correlation data, and broker
+  order/fill/reserve linkage remain explicit gaps or manual verification items.
+- Some contract scores survive in notes/snapshots rather than structured fields;
+  missing columns do not establish that historical information is irretrievable.
+- All source portfolio, journal, recommendation, quote, ledger, and hindsight
+  artifacts remain unchanged. No scoring, allocation, exit, policy-era, or
+  readiness threshold changed. Audit failure cannot block the daily email.
+
+### Validation and First Review
+
+- Fixture tests cover populated values versus headers, valid zero, aliases,
+  policy/future filtering, duplicates, unmapped settings, immature versus broken
+  COMPLETE outcomes, stale quote/IV exclusion, measurement start dates,
+  corrupted quote artifacts, source immutability, and empty-source refusal.
+- Full regression suite: 96 tests passed; production-source audit completed in
+  approximately three seconds without fetching market data or rewriting inputs.
+- The first production-source audit found 4,508 unique current-era directional
+  observations across eight entry dates and 972 selected-contract observations.
+  No config.py settings are unmapped. Structured contract-score coverage,
+  exposure classification, and verified earnings coverage are incomplete;
+  premarket option samples are correctly unusable. These are measurement/
+  verification findings, not a recommendation to recalibrate early.
+- Success requires reviewing this checklist before every bounded configuration
+  experiment; newly introduced settings must receive a measurement mapping.
+
+---
 
 ## Sprint 41B.2 — Forward Option Quote and IV Observation Collection
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import json
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
@@ -123,6 +124,9 @@ class OptionSelectorLatencyTests(unittest.TestCase):
         self.assertEqual(normalized_quote.call_count, 1)
         self.assertEqual(normalized_chain.call_count, 1)
         self.assertEqual(score_contracts.call_count, 2)
+        evidence = json.loads(selected['selection_evidence_json'])
+        self.assertEqual({r['contractSymbol'] for r in evidence}, {'TEST_45', 'TEST_60'})
+        self.assertEqual(sum(r.get('RejectionReason') == 'SELECTED' for r in evidence), 1)
 
     @patch("option_selector.score_contracts")
     @patch("option_selector.get_option_chain_snapshot")

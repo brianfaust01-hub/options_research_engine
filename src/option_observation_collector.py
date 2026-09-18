@@ -65,6 +65,11 @@ def tracked_contracts(journal_path, now, lookback_days=60):
                 "recommendation_date": row.get("RecommendationDate"),
                 "policy_era_id": row.get("PolicyEraID"),
                 "allocation_decision": row.get("allocation_decision"),
+                "policy_evidence_fingerprint": row.get("PolicyEvidenceFingerprint"),
+                "entry_reference_price": row.get("execution_entry_price"),
+                "stop_reference_price": row.get("stop_loss_price"),
+                "target_reference_price": row.get("profit_target_price"),
+                "entry_definition": "RECOMMENDATION_REFERENCE_NOT_BROKER_FILL",
             })
     return contracts, missing
 

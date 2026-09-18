@@ -137,10 +137,11 @@ class OptionObservationTests(unittest.TestCase):
              patch("daily_run.build_daily_report", return_value=Path("fixture.md")), \
              patch("daily_run.send_email_report", side_effect=lambda *a, **k: events.append("email")), \
              patch("daily_run.collect_research_observations", side_effect=lambda: events.append("collect")), \
+             patch("daily_run.run_evidence_audit", side_effect=lambda: events.append("audit")), \
              patch("builtins.print"):
             scan.return_value.returncode = 0
             daily_run.main()
-            self.assertEqual(events, ["email", "collect"])
+            self.assertEqual(events, ["email", "collect", "audit"])
             self.assertEqual(scan.call_count, 1)
 
 

@@ -32,6 +32,7 @@ from typing import Any
 import pandas as pd
 
 from data_quality import assess_observation
+from policy_evidence import capture_policy_evidence
 
 from config import (
     VERSION,
@@ -726,6 +727,12 @@ def log_completed_observations(
     # the dataframe for every recommendation.
     #
 
+    try:
+        policy_evidence = capture_policy_evidence(PROJECT_ROOT)
+    except (OSError, ValueError, TypeError):
+        policy_evidence = {"PolicyEvidenceStatus": "CAPTURE_FAILED"}
+        print("WARNING: policy provenance capture failed; recommendations remain preserved.")
+
     research_lookup = {}
 
     for _, row in (
@@ -794,6 +801,7 @@ def log_completed_observations(
         # writing the journal row.
         #
 
+        observation.update(policy_evidence)
         snapshot_info = (
             write_observation_snapshot(
                 observation

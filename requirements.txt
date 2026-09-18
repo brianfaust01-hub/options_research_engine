@@ -6,3 +6,4 @@ ta
 openpyxl
 requests
 lxml
+pandas_market_calendars>=5,<6

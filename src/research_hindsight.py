@@ -787,6 +787,12 @@ def _evaluate_recommendation(
         "EarningsStatus": row.get("earnings_status"),
         "ContractOutcomeStatus": "UNAVAILABLE",
         "ContractSymbol": row.get("contract_symbol"),
+        "ContractScore": _safe_float(row.get("contract_score")),
+        "FinalContractScore": _safe_float(row.get("final_contract_score")),
+        "HorizonFitScore": _safe_float(row.get("horizon_fit_score")),
+        "PolicyEvidenceFingerprint": row.get("PolicyEvidenceFingerprint"),
+        "PolicyEvidencePath": row.get("PolicyEvidencePath"),
+        "PolicyEvidenceStatus": row.get("PolicyEvidenceStatus"),
         "ContractOutcomeReason": (
             "Historical option quotes are not available; underlying outcomes "
             "must not be presented as option returns."

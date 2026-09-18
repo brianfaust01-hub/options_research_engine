@@ -8,6 +8,7 @@ data/weekly_runs/
 data/cache/
 work_yf_cache/
 reports/
+logs/intraday_options_*.log
 .DS_Store
 # Schwab OAuth tokens
 data/schwab_tokens.json

@@ -573,6 +573,18 @@ def _select_best_contract(
         executable_contracts,
     )
 
+    # Preserve scored alternatives without another API call or changing rank.
+    selected = selected.copy()
+    evidence_fields = [field for field in (
+        "contractSymbol", "Expiration", "DTE", "strike", "bid", "ask",
+        "ContractScore", "FinalContractScore", "HorizonFitScore", "RejectionReason",
+        "implied_volatility", "broker_delta", "ExecutionScore",
+    ) if field in candidate_universe.columns]
+    try:
+        selected["selection_evidence_json"] = candidate_universe[evidence_fields].to_json(orient="records")
+    except (ValueError, TypeError):
+        selected["selection_evidence_json"] = None
+        print("WARNING: contract comparison evidence serialization failed; selection unchanged.")
     return selected
 
 

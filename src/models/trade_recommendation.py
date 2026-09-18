@@ -91,6 +91,11 @@ class TradeRecommendation:
     # ------------------------------------------------------------------
 
     execution_score: float | None = None
+    # Raw selector observations; production institutional scoring remains unchanged.
+    contract_score: float | None = None
+    final_contract_score: float | None = None
+    horizon_fit_score: float | None = None
+    selection_evidence_json: str | None = None
 
     execution_grade: str | None = None
 

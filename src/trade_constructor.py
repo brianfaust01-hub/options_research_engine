@@ -193,6 +193,8 @@ def construct_trade(
 ) -> TradeRecommendation:
     option_strategy = None
     contract_symbol = None
+    observed_contract_score = final_contract_score = horizon_fit_score = None
+    selection_evidence_json = None
     expiration = None
     strike = None
     premium = None
@@ -274,6 +276,10 @@ def construct_trade(
         )
 
         if best_contract is not None:
+            observed_contract_score = _safe_float(best_contract.get("ContractScore"))
+            final_contract_score = _safe_float(best_contract.get("FinalContractScore"))
+            horizon_fit_score = _safe_float(best_contract.get("HorizonFitScore"))
+            selection_evidence_json = _safe_text(best_contract.get("selection_evidence_json"))
             contract_symbol = _safe_text(best_contract.get("contractSymbol"))
             option_strategy = (
                 "Long Call"
@@ -778,6 +784,10 @@ def construct_trade(
         option_strategy=option_strategy,
         option_type=option_strategy,
         contract_symbol=contract_symbol,
+        contract_score=observed_contract_score,
+        final_contract_score=final_contract_score,
+        horizon_fit_score=horizon_fit_score,
+        selection_evidence_json=selection_evidence_json,
         expiration=expiration,
         strike=strike,
         premium=premium,
