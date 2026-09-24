@@ -21,6 +21,26 @@ def security(bid=1.2, ask=1.3, age=0, **extra):
 
 
 class OptionObservationTests(unittest.TestCase):
+    def test_large_serialized_journal_field_is_readable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "journal.csv"
+            row = {
+                "RecommendationID": "R-LARGE",
+                "RecommendationDate": "2026-09-17T14:00:00+00:00",
+                "Ticker": "AAPL", "option_strategy": "Long Call",
+                "contract_symbol": "AAPL  261120C00100000",
+                "expiration": "2026-11-20", "allocation_decision": "Allocate",
+                "PolicyEraID": "PE-2026-09-08", "research_payload": "x" * 200_000,
+            }
+            with path.open("w", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=row)
+                writer.writeheader()
+                writer.writerow(row)
+            csv.field_size_limit(131_072)
+            contracts, missing = tracked_contracts(path, NOW)
+            self.assertEqual(len(contracts), 1)
+            self.assertEqual(missing, 0)
+
     def journal(self, root):
         path = root / "journal.csv"
         rows = [{"RecommendationID": str(i), "RecommendationDate": "2026-09-17T14:00:00+00:00",
@@ -133,6 +153,7 @@ class OptionObservationTests(unittest.TestCase):
         import daily_run
         events = []
         with patch("daily_run.subprocess.run") as scan, \
+             patch("daily_run.validate_market_data"), \
              patch("daily_run.latest_file", return_value=Path("fixture.csv")), \
              patch("daily_run.build_daily_report", return_value=Path("fixture.md")), \
              patch("daily_run.send_email_report", side_effect=lambda *a, **k: events.append("email")), \
@@ -143,6 +164,27 @@ class OptionObservationTests(unittest.TestCase):
             daily_run.main()
             self.assertEqual(events, ["email", "collect", "audit"])
             self.assertEqual(scan.call_count, 1)
+
+    def test_market_data_failure_blocks_scan_report_and_email(self):
+        import daily_run
+        with patch("daily_run.validate_market_data", side_effect=RuntimeError("fixture outage")), \
+             patch("daily_run.subprocess.run") as scan, \
+             patch("daily_run.build_daily_report") as report, \
+             patch("daily_run.send_email_report") as email, \
+             patch("builtins.print"):
+            with self.assertRaisesRegex(RuntimeError, "fixture outage"):
+                daily_run.main()
+        scan.assert_not_called()
+        report.assert_not_called()
+        email.assert_not_called()
+
+    def test_market_data_preflight_requires_complete_history(self):
+        import daily_run
+        with patch("daily_run.get_normalized_price_history", return_value=[{"Close": 1}] * 199):
+            with self.assertRaisesRegex(RuntimeError, "insufficient SPY history"):
+                daily_run.validate_market_data()
+        with patch("daily_run.get_normalized_price_history", return_value=[{"Close": 1}] * 200):
+            daily_run.validate_market_data()
 
 
 if __name__ == "__main__":

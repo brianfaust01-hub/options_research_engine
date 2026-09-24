@@ -15,6 +15,15 @@ from uuid import uuid4
 from config import POLICY_ERA_ID, POLICY_ERA_BASELINE_DATE
 
 ROOT = Path(__file__).resolve().parent.parent
+MIN_CSV_FIELD_LIMIT = 10 * 1024 * 1024
+
+
+def _allow_large_research_fields():
+    """Raise the CSV ceiling for serialized research payloads."""
+    if csv.field_size_limit() < MIN_CSV_FIELD_LIMIT:
+        csv.field_size_limit(MIN_CSV_FIELD_LIMIT)
+
+
 RUNTIME = set("PROJECT_NAME VERSION CONFIG_VERSION POLICY_ERA_ID POLICY_ERA_BASELINE_DATE READINESS_TARGET_WEEKS READINESS_CONFIG_REVIEW_WEEKS READINESS_TARGET_EPISODES READINESS_CONFIG_REVIEW_EPISODES READINESS_EXECUTION_TARGET READINESS_SHADOW_MATCHED_TARGET PAPER_TRADING TEST_MODE ENABLE_JOURNAL_WRITES TEST_TICKERS LOOKBACK_PERIOD INTERVAL DEBUG_OPTION_SELECTOR OPEN_PAPER_POSITIONS BASE_DIR DATA_DIR RAW_DATA_DIR PROCESSED_DATA_DIR REPORTS_DIR JOURNAL_DIR EXECUTION_ENGINE_ENABLED EXECUTION_ENGINE_TEST_MODE SHADOW_EXIT_POLICY_ENABLED SHADOW_EXIT_POLICY_VERSION".split())
 
 # Explicit inventory: an unknown future setting stays UNMAPPED, not silently passed.
@@ -135,6 +144,7 @@ def valid(row, name):
 def rows(path):
     if path is None or not Path(path).exists():
         return []
+    _allow_large_research_fields()
     with Path(path).open(encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
 

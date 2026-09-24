@@ -181,7 +181,8 @@ class HindsightIntegrityTests(unittest.TestCase):
             row[key] = value
 
         trade = evaluate_opportunities(row)
-        self.assertEqual(trade.action, "Watch")
+        self.assertEqual(trade.action, "Evaluate Options")
+        self.assertEqual(trade.opportunity_type, "Long Put Candidate")
 
         observation = _build_completed_observation(
             trade_row=asdict(trade),

@@ -27,7 +27,8 @@ def _broker_performance_summary(snapshot_path=None, experiment_base=PAPER_PORTFO
     usable = [row for row in assessed if row.get("DataQualityStatus") != "QUARANTINED"]
     if not usable:
         return {"available": False, "lines": ["No usable broker snapshots are available."], "warnings": ["Every broker account snapshot is quarantined."]}
-    latest = max(usable, key=lambda row: row["AsOfDate"])
+    # The end-of-day import supersedes a same-date morning snapshot.
+    latest = max(usable, key=lambda row: (row["AsOfDate"], row.get("ImportedAt", "")))
     latest_date = datetime.fromisoformat(latest["AsOfDate"]).date()
     week_start = (latest_date - pd.Timedelta(days=latest_date.weekday())).isoformat()
     entry_value = _number(latest.get("OptionMarketValue"), 0) - _number(latest.get("UnrealizedPnL"), 0)

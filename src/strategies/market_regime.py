@@ -34,15 +34,20 @@ def evaluate_market_regime(row) -> ResearchResult:
 
     if score >= 70:
         signal = "Bullish"
+        directional_confidence = score
     elif score <= 35:
         signal = "Bearish"
+        # ``score`` measures bullish regime evidence. A zero is therefore
+        # maximum bearish evidence rather than zero bearish confidence.
+        directional_confidence = 100 - score
     else:
         signal = "Neutral"
+        directional_confidence = 100 - abs(score - 50) * 2
 
     return ResearchResult(
         module="Market Regime",
         signal=signal,
-        confidence=score,
+        confidence=directional_confidence,
         trend=0,
         momentum=0,
         risk=score,

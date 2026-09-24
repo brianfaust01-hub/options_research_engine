@@ -25,10 +25,20 @@ def evaluate_trend(row) -> ResearchResult:
 
     signal = "Bullish" if trend >= 50 else "Bearish"
 
+    # ``trend`` is a bullish-position score: a low value is strong evidence
+    # for the bearish signal, not low confidence in that signal. Keep the
+    # bullish-position score in ``trend`` for downstream directional scoring,
+    # while reporting confidence symmetrically in the direction selected.
+    directional_confidence = (
+        trend
+        if signal == "Bullish"
+        else 100 - trend
+    )
+
     return ResearchResult(
         module="Trend",
         signal=signal,
-        confidence=trend,
+        confidence=directional_confidence,
         trend=trend,
         momentum=0,
         risk=0,

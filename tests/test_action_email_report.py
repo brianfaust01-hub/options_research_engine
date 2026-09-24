@@ -14,10 +14,26 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from report_writer import _position_rows, build_daily_report  # noqa: E402
+from report_writer import _broker_performance_summary, _position_rows, build_daily_report  # noqa: E402
 
 
 class ActionEmailReportTests(unittest.TestCase):
+    def test_same_day_eod_snapshot_supersedes_morning_in_report(self):
+        snapshots = pd.DataFrame([
+            {"SnapshotID": "AM", "AsOfDate": "2026-09-21", "ImportedAt": "2026-09-21T08:22:40",
+             "NetLiquidatingValue": 97792.55, "OptionMarketValue": 6876.50,
+             "UnrealizedPnL": 208.50, "DataQualityStatus": "COMPLETE"},
+            {"SnapshotID": "EOD", "AsOfDate": "2026-09-21", "ImportedAt": "2026-09-21T16:05:00",
+             "NetLiquidatingValue": 98000, "OptionMarketValue": 7062.50,
+             "UnrealizedPnL": 500, "DataQualityStatus": "COMPLETE"},
+        ])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "snapshots.csv"
+            snapshots.to_csv(path, index=False)
+            result = _broker_performance_summary(path)
+        self.assertIn("Broker paper-account NAV: $98,000.00", result["lines"])
+        self.assertTrue(any("$7,062.50" in line for line in result["lines"]))
+
     def test_broker_ledger_section_reports_week_and_coverage_warning(self):
         recommendations = pd.DataFrame([{
             "ticker": "WATCH1", "opportunity_type": "Watchlist",

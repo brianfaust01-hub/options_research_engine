@@ -7,6 +7,7 @@ from pathlib import Path
 
 from report_writer import build_daily_report
 from email_reporter import send_email_report
+from schwab.market_data_client import get_normalized_price_history
 
 
 SRC_DIR = Path(__file__).resolve().parent
@@ -16,6 +17,30 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 CAPITAL_SNAPSHOTS_PATH = PROJECT_ROOT / "data" / "account_state_snapshots.csv"
 WEEKLY_SCAN_PATH = SRC_DIR / "weekly_scan.py"
 OPTION_COLLECTION_PATH = SRC_DIR / "option_observation_collector.py"
+
+
+def validate_market_data() -> None:
+    """Fail closed before producing guidance when Schwab data is unavailable."""
+    try:
+        candles = get_normalized_price_history(
+            ticker="SPY",
+            period_type="year",
+            period=1,
+            frequency_type="daily",
+            frequency=1,
+            need_extended_hours_data=False,
+        )
+    except Exception as error:
+        raise RuntimeError(
+            "Schwab market-data preflight failed. Daily guidance and email "
+            "were suppressed because prices and allocations would be invalid."
+        ) from error
+    valid_closes = [row.get("Close") for row in candles if row.get("Close") is not None]
+    if len(valid_closes) < 200:
+        raise RuntimeError(
+            "Schwab market-data preflight returned insufficient SPY history. "
+            "Daily guidance and email were suppressed."
+        )
 
 
 def run_evidence_audit() -> None:
@@ -64,6 +89,10 @@ def main() -> None:
         raise FileNotFoundError(
             f"Could not find weekly_scan.py at: {WEEKLY_SCAN_PATH}"
         )
+
+    print("Validating Schwab market data...")
+    validate_market_data()
+    print("Schwab market-data preflight passed.")
 
     result = subprocess.run(
         [sys.executable, str(WEEKLY_SCAN_PATH)],

@@ -13,6 +13,21 @@ NOW = datetime(2026, 9, 18, 15, tzinfo=timezone.utc)
 
 
 class ConfigEvidenceAuditTests(unittest.TestCase):
+    def test_large_serialized_research_field_is_readable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(root)
+            journal = root / 'data' / 'trade_journal.csv'
+            with journal.open(newline='') as handle:
+                journal_rows = list(csv.DictReader(handle))
+            journal_rows[0]['large_payload'] = 'x' * 200_000
+            for row in journal_rows[1:]:
+                row['large_payload'] = ''
+            self.write_csv(journal, journal_rows)
+            csv.field_size_limit(131_072)
+            result = audit(root, now=NOW)
+            self.assertEqual(result['population']['current_unique_recommendations'], 2)
+
     def fixture(self, root):
         (root / 'src').mkdir()
         (root / 'data' / 'processed' / 'option_observations').mkdir(parents=True)

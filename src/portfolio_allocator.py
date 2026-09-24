@@ -354,13 +354,28 @@ def allocate_portfolio(
 
     trades_df = trades_df.copy()
 
-    if trades_df.empty:
-        return trades_df
-
     if max_recommendations < 0:
         raise ValueError(
             "max_recommendations cannot be negative."
         )
+
+    if trades_df.empty:
+        # Preserve the normal output contract for downstream stages.
+        defaults = {
+            "market_regime": market_context.get("market_regime"),
+            "risk_mode": market_context.get("risk_mode"),
+            "allocation_bias": market_context.get("allocation_bias"),
+            "market_score": market_context.get("market_score"),
+            "portfolio_market_multiplier": _market_multiplier(market_context),
+            "portfolio_directional_multiplier": pd.NA,
+            "portfolio_score": pd.NA, "allocation_score": pd.NA,
+            "portfolio_score_reason": "", "allocation_rank": pd.NA,
+            "allocation_decision": "No Allocation",
+            "PortfolioStatus": "NOT_ALLOCATED",
+        }
+        for column in defaults:
+            trades_df[column] = pd.Series(index=trades_df.index, dtype="object")
+        return trades_df
 
     # ------------------------------------------------------------------
     # Market context

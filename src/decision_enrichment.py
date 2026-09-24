@@ -140,6 +140,18 @@ def enrich_decisions(
     result = trades_df.copy()
     as_of = as_of or date.today()
     earnings_provider = earnings_provider or _default_earnings_provider
+    if result.empty:
+        for column in (
+            "time_edge_score", "expected_move_window_days",
+            "shadow_conservative_contracts", "shadow_balanced_contracts",
+            "shadow_aggressive_contracts", "earnings_date", "days_to_earnings",
+            "trading_days_to_earnings", "earnings_status",
+            "earnings_within_thesis_window", "earnings_allocation_override",
+            "shadow_time_adjusted_score",
+        ):
+            if column not in result.columns:
+                result[column] = pd.Series(index=result.index, dtype="object")
+        return result
     research_lookup = {
         str(row.get("Ticker", row.get("ticker", ""))).upper(): row.to_dict()
         for _, row in research_df.iterrows()

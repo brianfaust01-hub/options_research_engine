@@ -86,6 +86,9 @@ def classify_ticker(ticker: str):
 def add_exposure_fields(trades_df):
     trades_df = trades_df.copy()
 
+    if "ticker" not in trades_df.columns:
+        trades_df["ticker"] = None
+
     trades_df["sector"] = trades_df["ticker"].apply(
         lambda ticker: classify_ticker(ticker)["sector"]
     )
@@ -102,6 +105,11 @@ def add_exposure_fields(trades_df):
 
 
 def summarize_allocated_exposure(trades_df):
+    if "allocation_decision" not in trades_df.columns:
+        return {
+            "sector_exposure": {}, "industry_exposure": {},
+            "theme_exposure": {}, "warnings": [],
+        }
     allocated = trades_df[
         trades_df["allocation_decision"] == "Allocate"
     ].copy()

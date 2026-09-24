@@ -17,6 +17,13 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT = ROOT / "data" / "processed" / "option_observations"
 SCHEMA_VERSION = 1
+MIN_CSV_FIELD_LIMIT = 10 * 1024 * 1024
+
+
+def _allow_large_journal_fields():
+    """Raise the CSV ceiling for serialized research payloads."""
+    if csv.field_size_limit() < MIN_CSV_FIELD_LIMIT:
+        csv.field_size_limit(MIN_CSV_FIELD_LIMIT)
 
 
 def number(value):
@@ -39,6 +46,7 @@ def timestamp(value):
 
 def tracked_contracts(journal_path, now, lookback_days=60):
     """Preserve allocated AND unallocated exact symbols; never synthesize one."""
+    _allow_large_journal_fields()
     contracts = {}
     missing = 0
     with Path(journal_path).open(encoding="utf-8-sig", newline="") as handle:

@@ -14,6 +14,7 @@ import os
 from collections import defaultdict, deque
 from dataclasses import asdict, dataclass
 from datetime import datetime
+import hashlib
 from pathlib import Path
 
 import pandas as pd
@@ -47,7 +48,8 @@ def _expiration(value: str) -> str:
 
 def load_thinkorswim_trades(path: str | Path) -> list[BrokerTrade]:
     """Load only the Account Trade History section from a statement export."""
-    rows = list(csv.reader(Path(path).open(encoding="utf-8-sig", newline="")))
+    with Path(path).open(encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.reader(handle))
     start = next(
         index for index, row in enumerate(rows)
         if row and row[0].strip() == "Account Trade History"
@@ -71,6 +73,149 @@ def load_thinkorswim_trades(path: str | Path) -> list[BrokerTrade]:
             order_type=row[13].strip().upper(),
         ))
     return sorted(trades, key=lambda trade: trade.executed_at)
+
+
+def load_current_option_positions(path: str | Path) -> list[dict]:
+    """Parse the statement's authoritative current option-position section."""
+    payload = Path(path).read_bytes()
+    rows = list(csv.reader(payload.decode("utf-8-sig").splitlines()))
+    start = next(i for i, row in enumerate(rows) if row and row[0].strip() == "Options")
+    result = []
+    for row in rows[start + 2:]:
+        if not row or not any(cell.strip() for cell in row):
+            break
+        if "OVERALL TOTALS" in {cell.strip() for cell in row[:2]}:
+            continue
+        if len(row) < 9 or not row[0].strip():
+            continue
+        result.append({
+            "ticker": row[0].strip().upper(), "option_code": row[1].strip(),
+            "expiration": _expiration(row[2]), "strike": float(row[3]),
+            "option_type": row[4].strip().upper(),
+            "quantity": abs(int(row[5].replace("+", ""))),
+            "entry_price": float(row[6]), "mark": float(row[7]),
+            "mark_value": float(row[8].replace("$", "").replace(",", "")),
+        })
+    return result
+
+
+def _contract_key(row: dict) -> tuple[str, str, float, str]:
+    strategy = str(row.get("OptionStrategy") or row.get("option_strategy") or "").upper()
+    return (str(row.get("Ticker") or row.get("ticker") or "").upper(),
+            str(row.get("Expiration") or row.get("expiration") or "")[:10],
+            float(row.get("Strike") or row.get("strike")),
+            "PUT" if "PUT" in strategy else "CALL")
+
+
+def sync_current_positions(statement_path: str | Path, portfolio_path: str | Path,
+                           journal_path: str | Path) -> dict:
+    """Atomically align mutable paper state to broker positions and fills.
+
+    Recommendation history is read only. An absent current position is closed
+    only when the same statement contains an exact-contract closing fill.
+    """
+    statement = Path(statement_path)
+    portfolio_path = Path(portfolio_path)
+    journal_path = Path(journal_path)
+    source_hash = hashlib.sha256(statement.read_bytes()).hexdigest()
+    positions = load_current_option_positions(statement)
+    current = {_contract_key({"Ticker": row["ticker"], "Expiration": row["expiration"],
+        "Strike": row["strike"], "OptionStrategy": row["option_type"]}): row for row in positions}
+    trades = load_thinkorswim_trades(statement)
+    closes: dict[tuple, list[BrokerTrade]] = defaultdict(list)
+    opens: dict[tuple, list[BrokerTrade]] = defaultdict(list)
+    for trade in trades:
+        (opens if trade.position_effect == "TO OPEN" else closes)[trade.contract_key].append(trade)
+
+    portfolio = pd.read_csv(portfolio_path, dtype={"PositionID": "string", "RecommendationID": "string"})
+    updated = portfolio.copy(deep=True)
+    for column in updated.columns:
+        if column in {"Status", "ExitDate", "ExitReason", "LastReviewed", "PeakPremiumDate",
+                      "RecommendedStopDate", "ProfitProtectionStatus", "RecommendationID"}:
+            updated[column] = updated[column].astype("object")
+    closed, refreshed, created = [], [], []
+    open_indices = list(updated.index[updated["Status"].astype(str).str.upper() == "OPEN"])
+    existing_keys = {}
+    for index in open_indices:
+        row = updated.loc[index].to_dict()
+        key = _contract_key(row)
+        existing_keys[key] = index
+        broker = current.get(key)
+        if broker:
+            updated.loc[index, "Contracts"] = broker["quantity"]
+            updated.loc[index, "CurrentPremium"] = broker["mark"]
+            updated.loc[index, "PnLPct"] = broker["mark"] / float(row["EntryPremium"]) - 1
+            updated.loc[index, "LastReviewed"] = datetime.now().isoformat(timespec="seconds")
+            refreshed.append(str(row["PositionID"]))
+            continue
+        exact_closes = closes.get(key, [])
+        if not exact_closes:
+            raise ValueError(f"Open system position absent from broker without closing fill: {row['PositionID']}")
+        closing = exact_closes[-1]
+        updated.loc[index, "Status"] = "CLOSED"
+        updated.loc[index, "ExitDate"] = closing.executed_at
+        updated.loc[index, "ExitReason"] = "BROKER_RECONCILED_CLOSE"
+        updated.loc[index, "ExitPremium"] = closing.price
+        updated.loc[index, "CurrentPremium"] = closing.price
+        updated.loc[index, "PnLPct"] = closing.price / float(row["EntryPremium"]) - 1
+        updated.loc[index, "LastReviewed"] = closing.executed_at
+        closed.append(str(row["PositionID"]))
+
+    csv.field_size_limit(10_000_000)
+    with journal_path.open(encoding="utf-8-sig", newline="") as handle:
+        journal = list(csv.DictReader(handle))
+    allocated = [row for row in journal if str(row.get("allocation_decision", "")).casefold() == "allocate"]
+    numeric_ids = [int(str(value)[1:]) for value in updated["PositionID"] if str(value).startswith("P")]
+    next_id = max(numeric_ids, default=0) + 1
+    for key, broker in current.items():
+        if key in existing_keys:
+            continue
+        opening = opens.get(key, [])[-1] if opens.get(key) else None
+        if opening is None:
+            raise ValueError(f"Broker position has no opening fill in statement and no system row: {key}")
+        matches = [row for row in allocated if _contract_key(row) == key
+                   and str(row.get("RecommendationDate", "")) <= opening.executed_at]
+        recommendation = matches[-1] if matches else {}
+        if not recommendation:
+            raise ValueError(f"Broker position has no allocated recommendation: {key}")
+        base = {column: None for column in updated.columns}
+        entry = opening.price
+        now = datetime.now().isoformat(timespec="seconds")
+        base.update({
+            "PositionID": f"P{next_id:06d}",
+            "RecommendationID": recommendation.get("RecommendationID"),
+            "Ticker": key[0], "OptionStrategy": "Long Put" if key[3] == "PUT" else "Long Call",
+            "Expiration": key[1], "Strike": key[2], "Contracts": broker["quantity"],
+            "EntryPremium": entry, "EntryDate": opening.executed_at, "Status": "OPEN",
+            "CurrentPremium": broker["mark"], "PnLPct": broker["mark"] / entry - 1,
+            "LastReviewed": now,
+            "CurrentDTE": (datetime.fromisoformat(key[1]).date() - datetime.now().date()).days,
+            "PeakPremium": max(entry, broker["mark"]), "PeakPremiumDate": now,
+            "RecommendedStop": recommendation.get("stop_loss_price") or None,
+            "RecommendedStopDate": recommendation.get("RecommendationDate") or None,
+            "ProfitProtectionStatus": "KEEP STOP", "LockedProfitPct": 0.0,
+        })
+        updated = pd.concat([updated, pd.DataFrame([base], columns=updated.columns)], ignore_index=True)
+        created.append(base["PositionID"])
+        next_id += 1
+
+    open_after = updated[updated["Status"].astype(str).str.upper() == "OPEN"]
+    final = {_contract_key(row): int(float(row["Contracts"])) for row in open_after.to_dict("records")}
+    expected = {key: value["quantity"] for key, value in current.items()}
+    if final != expected:
+        raise ValueError("Post-sync position contract/quantity reconciliation failed")
+    temporary = portfolio_path.with_suffix(".syncing.csv")
+    try:
+        updated.to_csv(temporary, index=False)
+        pd.read_csv(temporary)
+        os.replace(temporary, portfolio_path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+    return {"source": statement.name, "source_sha256": source_hash,
+            "closed_position_ids": closed, "refreshed_position_ids": refreshed,
+            "created_position_ids": created, "open_positions": len(final),
+            "open_contracts": sum(final.values()), "status": "RECONCILED"}
 
 
 def pair_round_trips(trades: list[BrokerTrade]) -> list[dict]:
@@ -254,17 +399,25 @@ def main() -> None:
     parser.add_argument("--portfolio", default="data/paper_portfolio.csv")
     parser.add_argument("--output", help="Optional new JSON report path")
     parser.add_argument("--apply-confirmed-closures", action="store_true")
+    parser.add_argument("--sync-current", action="store_true",
+                        help="Reconcile exact current positions and broker-confirmed closes")
+    parser.add_argument("--journal", default="data/trade_journal.csv")
     parser.add_argument("--review", help="Optional reviewed attribution JSON")
     args = parser.parse_args()
     report = build_report(args.statement, args.portfolio)
     if args.review:
         review = json.loads(Path(args.review).read_text(encoding="utf-8"))
         report = build_attribution_report(report, review)
+    if args.apply_confirmed_closures and args.sync_current:
+        raise ValueError("Choose one state-application mode")
+    if args.output and Path(args.output).exists():
+        raise FileExistsError(f"Refusing to overwrite {args.output}")
+    if args.sync_current:
+        report["current_state_sync"] = sync_current_positions(
+            args.statement, args.portfolio, args.journal)
     rendered = json.dumps(report, indent=2)
     if args.output:
         output = Path(args.output)
-        if output.exists():
-            raise FileExistsError(f"Refusing to overwrite {output}")
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(rendered + "\n", encoding="utf-8")
     else:

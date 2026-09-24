@@ -2,7 +2,7 @@
 
 **Version:** v0.3.0-alpha  
 **Current Milestone:** Institutional Research Platform  
-**Current Sprint:** Sprint 41B.5 implemented — owner reports intraday task running; live coverage pending
+**Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
@@ -232,6 +232,171 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## Sprint 41B.6 — Symmetric Directional Confidence
+
+- Corrected a directional-confidence asymmetry in the Trend and ticker-level
+  Market Regime modules. Their component scores measure bullish evidence, so a
+  low score paired with a bearish signal is now converted to high bearish
+  confidence instead of being mislabeled low confidence. Bullish confidence
+  retains the existing score. Opportunity thresholds, liquidity gates, broad-
+  market directional penalties, allocation constraints, stops, and targets are
+  unchanged.
+- The defect did not prevent put construction: the September 8 policy era
+  produced 815 priced long-put contracts and 670 priced long-call contracts.
+  It did suppress puts downstream because bearish Strategy Score averaged
+  roughly 26 while comparable bullish Strategy Score averaged roughly 87;
+  puts usually missed the 15-point strategy-quality bonus and clustered at the
+  minimum qualifying Opportunity Score. Re-evaluating the preserved component
+  evidence raises qualifying put Strategy Score to roughly 89 while leaving
+  qualifying call Strategy Score roughly 87.
+- Independently spot-checked representative winning and losing put and call
+  episodes against fresh Schwab September 17 closing history. Recalculation
+  from each immutable intraday recommendation price reproduced the stored
+  directional result. The reported 7-day put rate of 46/48 is arithmetically
+  valid, but all 48 episodes originated in the September 8 cohort and therefore
+  represent one correlated market window rather than 48 independent trials.
+- Production behavior changes beginning with the September 24 run, but the
+  twelve-week experiment remains anchored to policy era `PE-2026-09-08` and its
+  original baseline. The correction is identifiable through immutable policy-
+  evidence fingerprints and its effective date, so pre-fix and post-fix results
+  can be compared without restarting the readiness clock or rewriting history.
+- Added symmetric bullish/bearish confidence regression coverage and updated
+  the controlled bearish end-to-end fixture to require an executable long-put
+  candidate.
+
+---
+
+## September 23 End-of-Day Broker-State Update
+
+- Imported the September 23 Thinkorswim statement into the append-only capital
+  ledger: 25 new events and one complete account snapshot. Re-import added zero
+  events and zero snapshots.
+- Exact broker fills closed GOOGL and opened AAPL, FCX, MRK, NVDA, and PG.
+  GILD remains open. Same-day BBY, ABBV, and GOOG round trips were preserved in
+  the ledger but are not treated as current holdings.
+- The mutable paper portfolio now matches the broker exactly: six open
+  positions, eight contracts, and $5,350.00 option market value. The account
+  snapshot records $97,155.80 NAV, $91,805.80 cash, -$115.00 unrealized option
+  P/L, and -$785.00 daily P/L. Historical recommendations were not changed.
+- No scoring, allocation, exit, policy-era, or readiness rule changed.
+
+## September 22 End-of-Day Broker-State Update
+
+- Imported the September 22 Thinkorswim statement into the append-only capital
+  ledger: 11 new events and one complete account snapshot. Re-import added zero
+  events and zero snapshots.
+- Exact broker fills closed AAPL, CVX, PLTR, GOOG, and APA. GOOGL and GILD
+  remain open, one contract each, and the mutable paper portfolio now matches
+  the broker's two contracts and $2,100.00 option market value exactly.
+- The statement contained no September 22 opening fills, so none of the later
+  corrected-report recommendations were treated as holdings. Historical
+  recommendations were not changed. No trading-policy logic changed.
+
+---
+
+## September 22 Market-Data Fail-Closed Recovery
+
+- The 10:30 scheduled run encountered `401 invalid_client` on every Schwab
+  refresh request. It incorrectly continued with no underlying or option data,
+  emailed unavailable prices, produced zero allocations, and emitted invalid
+  zero-score closure guidance. The 10:32 report is operationally invalid and
+  must not be used as trading guidance.
+- Added a live SPY-history preflight before position review, research, journal
+  writes, report generation, or email. Authentication failure or fewer than
+  200 valid daily closes now terminates the run with a nonzero exit and
+  suppresses all guidance rather than interpreting missing data as no edge.
+- Regression coverage proves a failed preflight cannot launch the scan, build
+  a report, or send email, and proves incomplete history is rejected. The full
+  fixture suite passes (113 tests). No scoring, allocation, exit, policy-era,
+  or readiness rule changed.
+- The 20:02 recovery run passed the live preflight, produced valid prices and
+  five allocations, emailed the corrected report, and completed with exit code
+  zero. Its latest recommendation artifact contains 501 research rows, 131
+  priced option candidates, and five allocated trades.
+- The valid client credentials are present in the interactive Codex process but
+  absent from the persistent Windows User environment used by a fresh scheduled
+  task. Scheduled refreshes last succeeded September 16–17; September 21 was
+  the first scheduled `invalid_client` failure and was masked by a successful
+  manual rerun. Credential persistence remains a required owner action because
+  the sandbox cannot write the Windows user registry and secrets must not be
+  stored in the repository.
+
+---
+
+## September 21 End-of-Day Broker-State Update
+
+- Imported the end-of-day Thinkorswim statement as a distinct, immutable
+  same-date account snapshot and 21 new append-only ledger events. A second
+  import added zero events and zero snapshots.
+- Reconciled the mutable paper portfolio to the statement's exact open
+  contracts: seven positions and nine contracts, with $7,062.50 option market
+  value. Broker fills closed ABBV, XOM, NOW, NVDA, and DVN; AAPL and PLTR
+  remain open; GOOGL, GOOG, CVX, GILD, and APA were added from exact fills
+  matched to allocated recommendations. Unfilled orders were not treated as
+  positions. Historical recommendations were not changed.
+- Fixed same-date snapshot selection so daily reporting uses the latest
+  imported end-of-day statement rather than the earlier morning import.
+  Verified the report reads $98,061.59 NAV, $7,062.50 option value, and
+  $382.50 unrealized profit from the EOD source. Added a regression test.
+- No scoring, allocation, exit, policy-era, or readiness rule changed.
+
+---
+
+## September 21 Zero-Candidate Daily-Run Recovery
+
+- The scheduled daily run completed research normally but produced zero valid
+  option candidates. Converting that legitimate empty result to a DataFrame
+  discarded the recommendation schema, and exposure enrichment then failed on
+  the missing `ticker` column before the report or email could be produced.
+- Empty recommendation sets now retain the canonical `TradeRecommendation`
+  schema. Allocation, exposure, and decision-enrichment stages also preserve
+  their normal output contracts when no candidate survives, allowing existing
+  positions to be reviewed and a valid no-new-trades report to be delivered.
+- Added an end-to-end zero-candidate regression through allocation, exposure,
+  decision enrichment, and portfolio arbitration. The full fixture-only suite
+  passes (110 tests). No recommendation was manufactured and no scoring,
+  allocation, stop, target, policy-era, or readiness rule changed.
+- The recovery run also exposed Python's default 128 KiB CSV field ceiling in
+  the post-email option-observation collector and evidence audit. Both readers
+  now accept bounded research payloads up to 10 MiB, with large-field regression
+  coverage, so serialized journal evidence is no longer silently skipped.
+
+---
+
+## September 21 Broker-State Reconciliation and Weekly Review
+
+- Imported the September 21 Thinkorswim statement into the append-only capital
+  ledger and account snapshot history: 28 new ledger events and one complete
+  snapshot. Source identity and checksum remain attached to every new record.
+- Reconciled the mutable paper portfolio to exact broker contract, expiration,
+  strike, direction, quantity, entry fill, and current mark. Broker evidence
+  closed CF, MO, APA, HPQ, CVX, PSKY, and INTC. It retained ABBV and added the
+  six September 18 allocated fills for AAPL, XOM, NOW, PLTR, NVDA, and DVN.
+- The resulting seven open positions contain 10 contracts and reconcile exactly
+  to the broker's $6,876.50 option market value and $208.50 open profit. New
+  positions retain their source recommendation IDs. Historical recommendations
+  and snapshots were not rewritten.
+- Added a reusable exact-current-state reconciliation path. It refuses to close
+  a missing system position without an exact closing fill, refuses an unmatched
+  new broker position without an allocated recommendation and opening fill,
+  atomically validates the resulting contract/quantity set, and preserves an
+  exclusive reconciliation report before future review.
+- The September 14–18 week, measured from the September 11 close through the
+  September 21 weekend carry-forward of Friday's close, changed NAV by
+  -$1,067.68: -1.08% of total beginning NAV and -7.12% of the $15,000 experiment
+  base. Thirty-three internally attributed positions closed for -$1,145 gross:
+  six winners and 27 losers, with $252.17 average winner and -$98.44 average
+  loser. The ending open book carried $208.50 unrealized profit.
+- Exact return on time-weighted deployed capital remains unavailable because no
+  September 17 account snapshot exists. September 21 is used only as a supported
+  weekend carry-forward of Friday's ending account state; the statement shows
+  unchanged weekend cash and no weekend executions. These limitations remain
+  explicit rather than estimating the missing daily capital exposure.
+- Focused broker/capital tests and the full fixture suite passed (107 tests).
+  No scoring, allocation, stop, target, policy-era, or readiness rule changed.
+
+---
 
 ## Sprint 41B.5 — Bounded Intraday Option Path Collection
 

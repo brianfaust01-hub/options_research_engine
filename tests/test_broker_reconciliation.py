@@ -12,7 +12,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from broker_reconciliation import (  # noqa: E402
     BrokerTrade, apply_confirmed_closures, build_attribution_report,
-    pair_round_trips, reconcile_portfolio,
+    load_current_option_positions, pair_round_trips, reconcile_portfolio,
+    sync_current_positions,
 )
 
 
@@ -72,6 +73,52 @@ class BrokerReconciliationTests(unittest.TestCase):
         self.assertEqual(result["trades"][0]["trade_source"], "PROJECT_STONKS_ALLOCATED")
         self.assertEqual(result["trades"][0]["outcome_attribution"], "USER_REVIEWED_EXECUTION_PROCESS_ERROR")
         self.assertEqual(result["execution_error_count"], 1)
+
+    def test_current_position_sync_closes_refreshes_and_creates_exact_contracts(self):
+        statement_text = """Account Statement for X since 9/17/26 through 9/21/26
+
+Account Trade History
+,Exec Time,Spread,Side,Qty,Total Cost,Pos Effect,Symbol,Exp,Strike,Type,Price,Net Price,Order Type
+,9/18/26 09:30:00,SINGLE,SELL,-1,0,TO CLOSE,OLD,20 NOV 26,100,CALL,1.50,1.50,STP
+,9/18/26 10:30:00,SINGLE,BUY,+2,0,TO OPEN,NEW,20 NOV 26,50,CALL,2.00,2.00,LMT
+
+Options
+Symbol,Option Code,Exp,Strike,Type,Qty,Trade Price,Mark,Mark Value
+KEEP,KEEP261120C100,20 NOV 26,100,CALL,+1,3.00,3.50,$350.00
+NEW,NEW261120C50,20 NOV 26,50,CALL,+2,2.00,2.25,$450.00
+,OVERALL TOTALS,,,,,,,$800.00
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            statement = root / "statement.csv"
+            statement.write_text(statement_text, encoding="utf-8")
+            portfolio = root / "portfolio.csv"
+            columns = ["PositionID", "RecommendationID", "BrokerPositionID", "Ticker",
+                "OptionStrategy", "Expiration", "Strike", "Contracts", "EntryPremium",
+                "EntryDate", "Status", "ExitDate", "ExitReason", "ExitPremium",
+                "CurrentUnderlying", "CurrentPremium", "PnLPct", "AlphaVsSPY",
+                "LastReviewed", "CurrentDTE", "UnderlyingReturnPct", "SPYReturnPct",
+                "PeakPremium", "PeakPremiumDate", "RecommendedStop", "RecommendedStopDate",
+                "ProfitProtectionStatus", "LockedProfitPct"]
+            pd.DataFrame([
+                dict.fromkeys(columns) | {"PositionID": "P000001", "Ticker": "OLD", "OptionStrategy": "Long Call", "Expiration": "2026-11-20", "Strike": 100, "Contracts": 1, "EntryPremium": 2, "Status": "OPEN"},
+                dict.fromkeys(columns) | {"PositionID": "P000002", "Ticker": "KEEP", "OptionStrategy": "Long Call", "Expiration": "2026-11-20", "Strike": 100, "Contracts": 1, "EntryPremium": 3, "Status": "OPEN"},
+            ], columns=columns).to_csv(portfolio, index=False)
+            journal = root / "journal.csv"
+            pd.DataFrame([{"RecommendationID": "r-new", "RecommendationDate": "2026-09-18T10:00:00",
+                "Ticker": "NEW", "option_strategy": "Long Call", "expiration": "2026-11-20",
+                "strike": 50, "allocation_decision": "Allocate", "stop_loss_price": 1.6}]).to_csv(journal, index=False)
+            before_statement = statement.read_bytes()
+            result = sync_current_positions(statement, portfolio, journal)
+            actual = pd.read_csv(portfolio)
+            after_statement = statement.read_bytes()
+        self.assertEqual(result["closed_position_ids"], ["P000001"])
+        self.assertEqual(result["created_position_ids"], ["P000003"])
+        self.assertEqual(result["open_positions"], 2)
+        self.assertEqual(int(actual.loc[actual.Ticker == "NEW", "Contracts"].iloc[0]), 2)
+        self.assertEqual(float(actual.loc[actual.Ticker == "KEEP", "CurrentPremium"].iloc[0]), 3.5)
+        self.assertEqual(actual.loc[actual.Ticker == "OLD", "ExitReason"].iloc[0], "BROKER_RECONCILED_CLOSE")
+        self.assertEqual(after_statement, before_statement)
 
 
 if __name__ == "__main__":

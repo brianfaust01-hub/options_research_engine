@@ -3,7 +3,7 @@ Project Stonks
 Weekly Scan Runner
 """
 
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import datetime
 from time import perf_counter
 
@@ -39,6 +39,13 @@ from opportunity_engine import evaluate_opportunities
 from pipeline_metrics import get_pipeline_metrics, reset_pipeline_metrics
 from trade_journal import log_completed_observations
 from decision_enrichment import enrich_decisions
+from models.trade_recommendation import TradeRecommendation
+
+
+def build_trade_frame(recommendations) -> pd.DataFrame:
+    """Keep the recommendation schema even when the opportunity set is empty."""
+    columns = [field.name for field in fields(TradeRecommendation)]
+    return pd.DataFrame([asdict(trade) for trade in recommendations], columns=columns)
 
 def _has_valid_option_trade(trade) -> bool:
     return (
@@ -132,9 +139,7 @@ def main():
         axis=1,
     )
 
-    trades_df = pd.DataFrame(
-        [asdict(trade) for trade in trade_recommendations]
-    )
+    trades_df = build_trade_frame(trade_recommendations)
 
     opportunity_seconds = perf_counter() - opportunity_started
     pipeline_metrics = get_pipeline_metrics()
