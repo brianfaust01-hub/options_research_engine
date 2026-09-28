@@ -233,6 +233,77 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## September 28 Broker-State Update
+
+- Imported the September 28 Thinkorswim statement into the append-only capital
+  ledger: 19 new events and one complete account snapshot. A repeat import
+  added zero events and zero snapshots.
+- Confirmed that the accidental short NOW November 20 $145 call was closed.
+  Exact current-state reconciliation then completed successfully, closing the
+  ten stale September 25 morning-state rows and creating seven broker-backed
+  current positions: PFE, HOOD, MRK, UBER, NFLX, NVDA, and DIS.
+- The mutable paper portfolio now matches the broker exactly at seven open
+  positions, 13 contracts, and $6,675.00 option market value. The account
+  snapshot records $96,815.68 NAV, $90,140.68 cash, $260.00 unrealized option
+  P/L, and $641.00 daily P/L.
+- Historical recommendations were unchanged. No scoring, allocation, exit,
+  policy-era, or readiness rule changed. Focused broker-reconciliation and
+  capital-ledger tests passed (9 tests).
+
+## September 25 End-of-Day Week Closeout
+
+- Imported the September 25 end-of-day Thinkorswim statement into the
+  append-only capital ledger: 30 new events and one complete account snapshot.
+  A repeat import added zero events and zero snapshots.
+- The ending broker snapshot records $96,182.61 NAV, $92,007.61 cash,
+  $4,175.00 net option market value, $240.00 net open P/L, -$551.50 daily P/L,
+  and -$3,491.00 YTD P/L. From the September 18 close, weekly NAV declined
+  $1,985.34, equal to -2.02% of beginning NAV and -13.24% of the $15,000
+  experiment base. Exact time-weighted deployed-capital return remains
+  unavailable because no September 24 account snapshot exists.
+- Current-state synchronization stopped without modifying the paper portfolio
+  because the broker statement contains a short NOW November 20 $145 call.
+  The original long call closed at $9.70, then a second sell-to-close fill at
+  $9.10 created the one-contract short position. Project Stonks currently
+  supports long calls and long puts only, so silently representing or omitting
+  that exposure would violate broker-state integrity. The short position must
+  be closed or short-option support must be explicitly designed before exact
+  current-state reconciliation can complete.
+- Historical recommendations were unchanged. No scoring, allocation, exit,
+  policy-era, or readiness rule changed.
+
+## September 25 Broker-State and Weekly Hindsight Refresh
+
+- Imported the September 25 Thinkorswim statement into the append-only capital
+  ledger: 30 new events and one complete account snapshot. Re-import added zero
+  events and zero snapshots.
+- Exact broker evidence closed FCX, MRK, NVDA, and PG; retained GILD and AAPL;
+  and added ABBV, NOW, HPE, BA, GOOG, APH, FAST, and PM. The mutable paper
+  portfolio matches the broker at 10 open positions, 12 contracts, $8,567.50
+  option market value, and -$274.50 unrealized P/L. BA and GOOG are the first
+  currently open long-put positions. Historical recommendations were unchanged.
+- Refreshed weekly research hindsight through the latest completed market
+  session: 28,794 observations evaluated, with 239 matured deduplicated current-
+  policy thesis episodes. Current-policy episode win rate is 55.2%, expected
+  directional return is +0.52%, and unallocated episodes continue to outperform
+  allocated episodes (57.0% versus 18.2%, with only 11 matured allocated
+  episodes). This is observational evidence, not an automatic config change.
+- Current-policy direction cuts remain materially asymmetric: long-put win
+  rates are 65.8% / 76.3% / 85.0% at 3/5/7 trading days versus 30.1% / 35.3% /
+  28.6% for long calls. The corrected directional-confidence logic begins with
+  forward recommendations and does not rewrite these historical outcomes.
+- Generated new fixed-horizon analytics and weekly-learning artifacts. Declared
+  the previously implicit `tabulate` Markdown dependency after the weekly report
+  exposed the missing package.
+- Audited intraday option collection. September 23 and 24 captured usable quotes
+  in 378/390 and 382/390 expected minute slots respectively, with no corrupt
+  artifacts. Every session remains `GAPPED_OR_PARTIAL` and ineligible for
+  empirical calibration because rotating batches do not fully observe every
+  tracked contract in every minute; sampled paths are useful evidence but not
+  tick-complete stop/target ordering.
+
+---
+
 ## Sprint 41B.6 — Symmetric Directional Confidence
 
 - Corrected a directional-confidence asymmetry in the Trend and ticker-level
