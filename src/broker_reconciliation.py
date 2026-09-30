@@ -143,8 +143,9 @@ def sync_current_positions(statement_path: str | Path, portfolio_path: str | Pat
         broker = current.get(key)
         if broker:
             updated.loc[index, "Contracts"] = broker["quantity"]
+            updated.loc[index, "EntryPremium"] = broker["entry_price"]
             updated.loc[index, "CurrentPremium"] = broker["mark"]
-            updated.loc[index, "PnLPct"] = broker["mark"] / float(row["EntryPremium"]) - 1
+            updated.loc[index, "PnLPct"] = broker["mark"] / broker["entry_price"] - 1
             updated.loc[index, "LastReviewed"] = datetime.now().isoformat(timespec="seconds")
             refreshed.append(str(row["PositionID"]))
             continue
@@ -179,7 +180,10 @@ def sync_current_positions(statement_path: str | Path, portfolio_path: str | Pat
         if not recommendation:
             raise ValueError(f"Broker position has no allocated recommendation: {key}")
         base = {column: None for column in updated.columns}
-        entry = opening.price
+        # The current-position section reports Thinkorswim's authoritative
+        # weighted-average cost. A position may contain multiple opening fills,
+        # so using only the latest fill would corrupt its cost basis and P/L.
+        entry = broker["entry_price"]
         now = datetime.now().isoformat(timespec="seconds")
         base.update({
             "PositionID": f"P{next_id:06d}",

@@ -120,6 +120,41 @@ NEW,NEW261120C50,20 NOV 26,50,CALL,+2,2.00,2.25,$450.00
         self.assertEqual(actual.loc[actual.Ticker == "OLD", "ExitReason"].iloc[0], "BROKER_RECONCILED_CLOSE")
         self.assertEqual(after_statement, before_statement)
 
+    def test_current_position_sync_uses_broker_weighted_average_entry(self):
+        statement_text = """Account Statement for X since 9/28/26 through 9/29/26
+
+Account Trade History
+,Exec Time,Spread,Side,Qty,Total Cost,Pos Effect,Symbol,Exp,Strike,Type,Price,Net Price,Order Type
+,9/28/26 10:00:00,SINGLE,BUY,+2,0,TO OPEN,MRK,20 NOV 26,155,CALL,5.10,5.10,LMT
+,9/29/26 10:00:00,SINGLE,BUY,+1,0,TO OPEN,MRK,20 NOV 26,155,CALL,4.40,4.40,LMT
+
+Options
+Symbol,Option Code,Exp,Strike,Type,Qty,Trade Price,Mark,Mark Value
+MRK,MRK261120C155,20 NOV 26,155,CALL,+3,4.8667,5.475,$1642.50
+,OVERALL TOTALS,,,,,,,$1642.50
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            statement = root / "statement.csv"
+            statement.write_text(statement_text, encoding="utf-8")
+            portfolio = root / "portfolio.csv"
+            columns = ["PositionID", "RecommendationID", "BrokerPositionID", "Ticker",
+                "OptionStrategy", "Expiration", "Strike", "Contracts", "EntryPremium",
+                "EntryDate", "Status", "ExitDate", "ExitReason", "ExitPremium",
+                "CurrentUnderlying", "CurrentPremium", "PnLPct", "AlphaVsSPY",
+                "LastReviewed", "CurrentDTE", "UnderlyingReturnPct", "SPYReturnPct",
+                "PeakPremium", "PeakPremiumDate", "RecommendedStop", "RecommendedStopDate",
+                "ProfitProtectionStatus", "LockedProfitPct"]
+            pd.DataFrame(columns=columns).to_csv(portfolio, index=False)
+            journal = root / "journal.csv"
+            pd.DataFrame([{"RecommendationID": "r-mrk", "RecommendationDate": "2026-09-28T09:00:00",
+                "Ticker": "MRK", "option_strategy": "Long Call", "expiration": "2026-11-20",
+                "strike": 155, "allocation_decision": "Allocate", "stop_loss_price": 4.0}]).to_csv(journal, index=False)
+            sync_current_positions(statement, portfolio, journal)
+            actual = pd.read_csv(portfolio).iloc[0]
+        self.assertAlmostEqual(float(actual["EntryPremium"]), 4.8667)
+        self.assertAlmostEqual(float(actual["PnLPct"]), 5.475 / 4.8667 - 1)
+
 
 if __name__ == "__main__":
     unittest.main()

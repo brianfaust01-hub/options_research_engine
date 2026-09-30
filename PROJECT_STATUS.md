@@ -233,6 +233,25 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## September 29 Broker-State Update
+
+- Imported the September 29 Thinkorswim statement into the append-only capital
+  ledger: 19 new events and one complete account snapshot. A repeat import
+  added zero events and zero snapshots.
+- Exact current-state reconciliation closed NVDA November 20 $235 and DIS
+  November 20 $105, refreshed PFE, HOOD, MRK $150, UBER, and NFLX, and added
+  AAPL, JNJ, MRK $155, and PG. The mutable paper portfolio now matches the
+  broker at nine positions, 16 contracts, and $8,402.50 option market value.
+- Corrected broker reconciliation to use Thinkorswim's authoritative weighted-
+  average position cost rather than the latest individual opening fill. The
+  three-contract MRK November 20 $155 position now retains its correct $4.8667
+  average cost and 12.50% open return instead of a false $4.40 basis. Added a
+  multiple-fill regression test.
+- The account snapshot records $96,440.88 NAV, $88,038.38 cash, $172.50
+  unrealized option P/L, and -$367.50 daily P/L. Historical recommendations
+  were unchanged. No scoring, allocation, exit, policy-era, or readiness rule
+  changed. Focused broker and capital tests passed (10 tests).
+
 ## September 28 Broker-State Update
 
 - Imported the September 28 Thinkorswim statement into the append-only capital
