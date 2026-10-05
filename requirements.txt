@@ -7,3 +7,4 @@ openpyxl
 requests
 lxml
 pandas_market_calendars>=5,<6
+tabulate>=0.9,<1

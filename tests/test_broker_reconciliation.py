@@ -13,11 +13,30 @@ sys.path.insert(0, str(ROOT / "src"))
 from broker_reconciliation import (  # noqa: E402
     BrokerTrade, apply_confirmed_closures, build_attribution_report,
     load_current_option_positions, pair_round_trips, reconcile_portfolio,
-    sync_current_positions,
+    load_thinkorswim_trades_many, sync_current_positions,
 )
 
 
 class BrokerReconciliationTests(unittest.TestCase):
+    def test_overlapping_evidence_statements_deduplicate_fills(self):
+        statement_text = """Account Statement for X since 10/1/26 through 10/2/26
+
+Account Trade History
+,Exec Time,Spread,Side,Qty,Total Cost,Pos Effect,Symbol,Exp,Strike,Type,Price,Net Price,Order Type
+,10/1/26 10:00:00,SINGLE,SELL,-1,0,TO CLOSE,OLD,20 NOV 26,100,CALL,1.50,1.50,STP
+
+Options
+Symbol,Option Code,Exp,Strike,Type,Qty,Trade Price,Mark,Mark Value
+,OVERALL TOTALS,,,,,,,$0.00
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            first = Path(directory) / "first.csv"
+            second = Path(directory) / "second.csv"
+            first.write_text(statement_text, encoding="utf-8")
+            second.write_text(statement_text, encoding="utf-8")
+            trades = load_thinkorswim_trades_many([first, second])
+        self.assertEqual(len(trades), 1)
+
     def test_fifo_round_trip_preserves_broker_prices(self):
         common = dict(ticker="ABC", expiration="2026-09-18", strike=100.0, option_type="CALL", quantity=1)
         trades = [

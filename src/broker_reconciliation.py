@@ -75,6 +75,12 @@ def load_thinkorswim_trades(path: str | Path) -> list[BrokerTrade]:
     return sorted(trades, key=lambda trade: trade.executed_at)
 
 
+def load_thinkorswim_trades_many(paths: list[str | Path]) -> list[BrokerTrade]:
+    """Load and deduplicate fills from overlapping statement exports."""
+    trades = {trade for path in paths for trade in load_thinkorswim_trades(path)}
+    return sorted(trades, key=lambda trade: trade.executed_at)
+
+
 def load_current_option_positions(path: str | Path) -> list[dict]:
     """Parse the statement's authoritative current option-position section."""
     payload = Path(path).read_bytes()
@@ -108,11 +114,14 @@ def _contract_key(row: dict) -> tuple[str, str, float, str]:
 
 
 def sync_current_positions(statement_path: str | Path, portfolio_path: str | Path,
-                           journal_path: str | Path) -> dict:
+                           journal_path: str | Path,
+                           evidence_statement_paths: list[str | Path] | None = None) -> dict:
     """Atomically align mutable paper state to broker positions and fills.
 
     Recommendation history is read only. An absent current position is closed
-    only when the same statement contains an exact-contract closing fill.
+    only when the authoritative statement or an explicitly supplied evidence
+    statement contains an exact-contract closing fill. Supplemental statements
+    contribute fills only; current positions always come from statement_path.
     """
     statement = Path(statement_path)
     portfolio_path = Path(portfolio_path)
@@ -121,7 +130,8 @@ def sync_current_positions(statement_path: str | Path, portfolio_path: str | Pat
     positions = load_current_option_positions(statement)
     current = {_contract_key({"Ticker": row["ticker"], "Expiration": row["expiration"],
         "Strike": row["strike"], "OptionStrategy": row["option_type"]}): row for row in positions}
-    trades = load_thinkorswim_trades(statement)
+    evidence_statements = [Path(path) for path in (evidence_statement_paths or [])]
+    trades = load_thinkorswim_trades_many([*evidence_statements, statement])
     closes: dict[tuple, list[BrokerTrade]] = defaultdict(list)
     opens: dict[tuple, list[BrokerTrade]] = defaultdict(list)
     for trade in trades:
@@ -405,6 +415,8 @@ def main() -> None:
     parser.add_argument("--apply-confirmed-closures", action="store_true")
     parser.add_argument("--sync-current", action="store_true",
                         help="Reconcile exact current positions and broker-confirmed closes")
+    parser.add_argument("--evidence-statement", action="append", default=[],
+                        help="Supplemental statement providing fills absent from the current export")
     parser.add_argument("--journal", default="data/trade_journal.csv")
     parser.add_argument("--review", help="Optional reviewed attribution JSON")
     args = parser.parse_args()
@@ -418,7 +430,7 @@ def main() -> None:
         raise FileExistsError(f"Refusing to overwrite {args.output}")
     if args.sync_current:
         report["current_state_sync"] = sync_current_positions(
-            args.statement, args.portfolio, args.journal)
+            args.statement, args.portfolio, args.journal, args.evidence_statement)
     rendered = json.dumps(report, indent=2)
     if args.output:
         output = Path(args.output)

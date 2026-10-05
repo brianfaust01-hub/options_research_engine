@@ -233,6 +233,67 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## October 5 Broker-State Update
+
+- Imported the October 5 Thinkorswim statement into the append-only capital
+  ledger: 19 new events and one complete account snapshot. A repeat import
+  added zero events and zero snapshots.
+- Exact broker reconciliation closed UBER, MSFT, GOOG, and NOW; refreshed WMT,
+  SBUX, XOM, and VZ; and added GLW, CSCO, PLTR, NVDA, and APH. The mutable
+  paper portfolio now matches the broker at nine open long-option positions,
+  13 contracts, and $7,096.50 option market value.
+- The account snapshot records $96,516.38 NAV, $89,419.88 cash, -$37.50
+  unrealized option P/L, and +$136.50 daily P/L. Historical recommendations
+  were unchanged. No scoring, allocation, exit, policy-era, or readiness rule
+  changed. Broker, capital-ledger, portfolio-schema, portfolio-arbitration,
+  score-aggregation, and position-time-edge regression tests passed.
+
+## October 2 Broker Snapshot and Hindsight Refresh
+
+- Imported both October 2 Thinkorswim snapshots into the append-only capital
+  ledger. The authoritative end-of-day snapshot records $96,387.19 NAV,
+  $90,092.19 cash, $6,295.00 option market value, -$89.00 net open P/L, and
+  +$22.50 daily P/L.
+- Confirmed that the accidental short JNJ November 20 $270 call and two short
+  MRK November 20 $155 calls were closed. Exact current-state reconciliation
+  used the September 28-October 2 statement for prior closing-fill evidence and
+  the end-of-day statement as the authoritative current state. The mutable
+  portfolio now matches the broker at eight long-option positions, 12
+  contracts, and $6,295.00 option market value: UBER, WMT, SBUX, XOM, NOW, VZ,
+  MSFT, and GOOG.
+- Broker reconciliation now accepts explicit supplemental statement evidence
+  for overlapping/truncated exports, deduplicates identical fills, and still
+  derives current positions solely from the authoritative statement. It does
+  not weaken the exact-fill guard or alter immutable recommendation history.
+- Refreshed research hindsight through the latest available session: 31,291
+  recommendation observations, 7,130 complete outcomes, and 346 matured
+  deduplicated current-policy 7-day episodes. Current-policy win rate is 57.5%
+  (95% CI 52.3%-62.6%), average directional return is +0.60%, and profit factor
+  is 1.30. Allocated episodes remain preliminary and materially weaker at 4/15
+  wins (26.7%, -1.93% average return) versus 195/331 unallocated wins (58.9%,
+  +0.71% average return).
+- Readiness remains NO-GO at 3.4/12 clean simulation weeks and two of three
+  observed regimes. The six-week checkpoint remains in baseline accumulation;
+  no production weights, scoring, allocation, exits, or historical records
+  changed. Broker, capital-ledger, portfolio-schema, portfolio-arbitration,
+  score-aggregation, and position-time-edge regression tests passed (36 tests).
+
+## September 30 Broker-State Update
+
+- Imported the September 30 Thinkorswim statement into the append-only capital
+  ledger: 33 new events and one complete account snapshot. A repeat import
+  added zero events and zero snapshots.
+- Exact current-state reconciliation closed HOOD, MRK $150, NFLX, AAPL, JNJ,
+  MRK $155, and PG; refreshed PFE and UBER; and added HPE, WMT, PLTR, NVDA,
+  and SMCI. The mutable paper portfolio now matches the broker at seven open
+  positions, 13 contracts, and $6,118.50 option market value.
+- The account snapshot records $96,211.59 NAV, $90,093.09 cash, $78.50
+  unrealized option P/L, and -$214.00 daily P/L. Weighted-average broker entry
+  costs reconciled without exception.
+- Historical recommendations were unchanged. No scoring, allocation, exit,
+  policy-era, or readiness rule changed. Focused broker and capital tests
+  passed (10 tests).
+
 ## September 29 Broker-State Update
 
 - Imported the September 29 Thinkorswim statement into the append-only capital
