@@ -233,6 +233,41 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## October 7 Broker-State Update
+
+- Imported the October 7 Thinkorswim statement into the append-only capital
+  ledger: 19 new events and one complete account snapshot. A repeat import
+  added zero events and zero snapshots.
+- Exact broker reconciliation closed APH, XOM November $170, and MCHP;
+  refreshed XOM November $165, GOOGL, AAPL, NOW, and GOOG; and added KMI,
+  ABBV, CSCO January $120, and APA. The mutable paper portfolio now matches the
+  broker at nine open long-call positions, 14 contracts, and $8,874.50 option
+  market value.
+- PG completed a same-day three-contract round trip, opening at $3.00 and
+  stopping at $2.55, so it remains preserved in the append-only execution
+  evidence but is not an ending open position. The account snapshot records
+  $97,705.86 NAV, $88,831.36 cash, +$554.50 unrealized option P/L, and -$25.50
+  daily P/L. Historical recommendations were unchanged; no scoring,
+  allocation, exit, policy-era, or readiness rule changed.
+
+## October 6 Broker-State and Performance Update
+
+- Imported the October 6 Thinkorswim statement into the append-only capital
+  ledger: 33 new events and one complete account snapshot. A repeat import
+  added zero events and zero snapshots.
+- Exact broker reconciliation closed WMT, SBUX, VZ, GLW, CSCO, PLTR, and NVDA;
+  refreshed XOM November $165 and APH; and added GOOGL, AAPL, XOM November
+  $170, NOW, MCHP, and GOOG. The mutable paper portfolio now matches the broker
+  at eight open long-call positions across seven unique tickers, 10 contracts,
+  and $7,370.00 option market value. XOM is intentionally represented as two
+  distinct strikes, and the broker-provided $6.025 weighted-average entry cost
+  is preserved for the two-contract $165 position.
+- ABBV completed a same-day round trip and remains captured in the append-only
+  capital ledger even though it is not an ending open position. The account
+  snapshot records $97,743.23 NAV, $90,373.23 cash, +$170.00 unrealized option
+  P/L, and +$1,239.50 daily P/L. Historical recommendations were unchanged;
+  no scoring, allocation, exit, policy-era, or readiness rule changed.
+
 ## October 5 Broker-State Update
 
 - Imported the October 5 Thinkorswim statement into the append-only capital
