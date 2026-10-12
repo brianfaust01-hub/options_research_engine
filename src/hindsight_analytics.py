@@ -16,6 +16,7 @@ from typing import Iterable
 import pandas as pd
 
 from config import (
+    DIRECTIONAL_CONFIDENCE_FIX_EFFECTIVE_DATE,
     POLICY_ERA_ID,
     POLICY_ERA_BASELINE_DATE,
     READINESS_CONFIG_REVIEW_EPISODES,
@@ -265,6 +266,107 @@ def _allocation_breakdown(frame: pd.DataFrame, return_col: str) -> dict:
     }
 
 
+def _policy_cohort_direction_breakdown(
+    representatives: pd.DataFrame,
+    return_col: str,
+) -> list[dict]:
+    """Keep pre/post directional-fix evidence separate and auditable."""
+    if representatives.empty or return_col not in representatives:
+        return []
+    dates = pd.to_datetime(
+        _column(representatives, "RecommendationDate"),
+        errors="coerce",
+        format="mixed",
+    )
+    cohorts = dates.ge(pd.Timestamp(DIRECTIONAL_CONFIDENCE_FIX_EFFECTIVE_DATE)).map(
+        {True: "POST_FIX", False: "PRE_FIX"}
+    )
+    working = representatives.assign(
+        _PolicyCohort=cohorts,
+        _Direction=_column(representatives, "Direction").fillna("UNKNOWN"),
+    )
+    rows = []
+    for (cohort, direction), subset in working.groupby(
+        ["_PolicyCohort", "_Direction"], dropna=False
+    ):
+        rows.append({
+            "cohort": str(cohort),
+            "direction": str(direction),
+            **_metrics(subset[return_col]),
+        })
+    return sorted(rows, key=lambda row: (row["cohort"], row["direction"]))
+
+
+def _post_fix_config_calibration(
+    representatives: pd.DataFrame,
+    return_col: str,
+) -> dict:
+    """Measure trade configurations after subtracting direction-level returns."""
+    if representatives.empty or return_col not in representatives:
+        return {}
+    dates = pd.to_datetime(
+        _column(representatives, "RecommendationDate"),
+        errors="coerce",
+        format="mixed",
+    )
+    post_fix = representatives[
+        dates.ge(pd.Timestamp(DIRECTIONAL_CONFIDENCE_FIX_EFFECTIVE_DATE))
+    ].copy()
+    directions = _column(post_fix, "Direction").fillna("UNKNOWN")
+    returns = pd.to_numeric(post_fix[return_col], errors="coerce")
+    direction_baseline = returns.groupby(directions).transform("mean")
+    post_fix["_DirectionAdjustedReturn"] = returns - direction_baseline
+    fields = {
+        "research_score": _column(post_fix, "ResearchScore", "research_score").map(_bucket_score),
+        "time_edge": _column(post_fix, "TimeEdgeScore", "time_edge_score").map(_bucket_score),
+        "execution_score": _column(post_fix, "ExecutionScore", "execution_score").map(_bucket_score),
+        "contract_score": _column(post_fix, "ContractScore", "contract_score").map(_bucket_score),
+        "horizon_fit_score": _column(post_fix, "HorizonFitScore", "horizon_fit_score").map(_bucket_score),
+        "absolute_delta": _numeric_bands(
+            pd.to_numeric(_column(post_fix, "BrokerDelta", "broker_delta"), errors="coerce").abs(),
+            [-math.inf, .25, .35, .50, .60, math.inf],
+            ["<0.25", "0.25-0.35", "0.35-0.50", "0.50-0.60", ">0.60"],
+        ),
+        "implied_volatility": _numeric_bands(
+            _column(post_fix, "ImpliedVolatility", "implied_volatility"),
+            [-math.inf, .20, .40, .60, .80, 1.20, math.inf],
+            ["<20%", "20-40%", "40-60%", "60-80%", "80-120%", ">120%"],
+        ),
+        "theta_drag_pct_per_day": _numeric_bands(
+            _column(post_fix, "ThetaDragPctPerDay", "theta_drag_pct_per_day"),
+            [-math.inf, .01, .02, .03, .05, math.inf],
+            ["<1%", "1-2%", "2-3%", "3-5%", ">5%"],
+        ),
+        "gamma_per_premium": _numeric_bands(
+            _column(post_fix, "GammaPerPremium", "gamma_per_premium"),
+            [-math.inf, .005, .01, .02, .04, math.inf],
+            ["<0.005", "0.005-0.01", "0.01-0.02", "0.02-0.04", ">0.04"],
+        ),
+        "vega_per_premium": _numeric_bands(
+            _column(post_fix, "VegaPerPremium", "vega_per_premium"),
+            [-math.inf, .02, .05, .10, .20, math.inf],
+            ["<0.02", "0.02-0.05", "0.05-0.10", "0.10-0.20", ">0.20"],
+        ),
+    }
+    result = {}
+    for field, groups in fields.items():
+        working = post_fix.assign(_Group=groups, _Direction=directions)
+        rows = []
+        for label, subset in working.groupby("_Group", dropna=False):
+            row = _metrics(subset[return_col])
+            row.update({
+                "group": "Unknown" if pd.isna(label) else str(label),
+                "direction_adjusted_average_return": pd.to_numeric(
+                    subset["_DirectionAdjustedReturn"], errors="coerce"
+                ).mean(),
+                "bullish_count": int(subset["_Direction"].eq("BULLISH").sum()),
+                "bearish_count": int(subset["_Direction"].eq("BEARISH").sum()),
+            })
+            rows.append(row)
+        result[field] = sorted(rows, key=lambda row: row["group"])
+    return result
+
+
 def _current_policy_summary(directional: pd.DataFrame, primary_col: str) -> dict:
     """Build the forward-only evidence ledger for the active policy era."""
     baseline = pd.Timestamp(POLICY_ERA_BASELINE_DATE)
@@ -301,6 +403,12 @@ def _current_policy_summary(directional: pd.DataFrame, primary_col: str) -> dict
     allocation = (
         _allocation_breakdown(representatives, primary_col)
         if primary_col in representatives else {}
+    )
+    cohort_direction = _policy_cohort_direction_breakdown(
+        representatives, primary_col
+    )
+    post_fix_calibration = _post_fix_config_calibration(
+        representatives, primary_col
     )
     today = pd.Timestamp(datetime.now().date())
     weeks = max(0.0, (today - baseline).days / 7)
@@ -346,6 +454,9 @@ def _current_policy_summary(directional: pd.DataFrame, primary_col: str) -> dict
         "target_episodes": READINESS_TARGET_EPISODES,
         "metrics": metrics,
         "allocation": allocation,
+        "directional_fix_effective_date": DIRECTIONAL_CONFIDENCE_FIX_EFFECTIVE_DATE,
+        "cohort_direction": cohort_direction,
+        "post_fix_config_calibration": post_fix_calibration,
         "regimes_observed": regimes,
         "regime_target": 3,
         "blockers": blockers,
@@ -361,8 +472,27 @@ def _current_policy_summary(directional: pd.DataFrame, primary_col: str) -> dict
     }
 
 
+def _short_position_mask(frame: pd.DataFrame) -> pd.Series:
+    """Identify unsupported short-option evidence without excluding long puts."""
+    strategy = _column(frame, "OptionStrategy", "option_strategy").fillna("").astype(str).str.casefold()
+    position_side = _column(frame, "PositionSide", "position_side").fillna("").astype(str).str.casefold()
+    signed_quantity = pd.to_numeric(
+        _column(frame, "SignedQuantity", "signed_quantity", "BrokerQuantity", "broker_quantity"),
+        errors="coerce",
+    )
+    return (
+        strategy.str.startswith("short ")
+        | position_side.isin(["short", "short option", "short_option"])
+        | signed_quantity.lt(0)
+    )
+
+
 def analyze_hindsight(frame: pd.DataFrame) -> dict:
-    directional = frame[_column(frame, "Direction").isin(["BULLISH", "BEARISH"])].copy()
+    short_mask = _short_position_mask(frame)
+    eligible_frame = frame[~short_mask].copy()
+    directional = eligible_frame[
+        _column(eligible_frame, "Direction").isin(["BULLISH", "BEARISH"])
+    ].copy()
     episodes = build_thesis_episodes(directional)
     horizon_summary = summarize_horizons(directional)
     primary_days = 7 if "Horizon7DDirectionalReturnPct" in directional else None
@@ -441,13 +571,14 @@ def analyze_hindsight(frame: pd.DataFrame) -> dict:
         "primary_horizon": f"{primary_days}D" if primary_days else "CURRENT",
         "counts": {
             "total_records": int(len(frame)),
+            "excluded_short_position_records": int(short_mask.sum()),
             "directional_records": int(len(directional)),
-            "unique_recommendations": int(_column(frame, "RecommendationID").nunique()),
+            "unique_recommendations": int(_column(eligible_frame, "RecommendationID").nunique()),
             "unique_tickers": int(_column(directional, "Ticker", "ticker").nunique()),
             "recommendation_date_cohorts": int(dates.dt.date.nunique()),
             "thesis_episodes": int(episodes["ThesisEpisodeID"].nunique()),
             "episode_results_available": int(len(episode_view)),
-            "no_direction_records": int(len(frame) - len(directional)),
+            "no_direction_records": int(len(eligible_frame) - len(directional)),
         },
         "horizons": horizon_summary,
         "raw_primary": _metrics(directional[primary_col]) if primary_col in directional else _metrics(pd.Series(dtype=float)),
@@ -558,6 +689,38 @@ def _markdown(summary: dict, source: Path) -> str:
             f"- Meaningful-loss rate / 5% tail-loss rate: "
             f"{_pct(metrics.get('meaningful_loss_rate'))} / "
             f"{_pct(metrics.get('tail_loss_rate'))}", "",
+            "## Configuration Comparability Boundary", "",
+            f"Configuration calibration uses only recommendations generated on "
+            f"or after {current.get('directional_fix_effective_date')}. Direction "
+            "is retained only as a statistical control so differences in market "
+            "direction do not masquerade as configuration quality.", "",
+            "Direction is treated as a control variable, not the optimization "
+            "target. Post-fix configuration tables subtract each direction's "
+            "average return before comparing score, Greeks, IV, theta drag, "
+            "contract quality, and execution bands. A pooled global score ranking "
+            "is not treated as actionable evidence.", "",
+            "## Post-Fix Direction-Adjusted Configuration Evidence", "",
+            "Positive adjusted return means the configuration band outperformed "
+            "the average result for its own bullish/bearish mix. Bands with only "
+            "one direction remain composition-limited evidence.", "",
+        ]
+        for field, rows in current.get("post_fix_config_calibration", {}).items():
+            lines.extend([
+                f"### {field.replace('_', ' ').title()}", "",
+                "| Band | Evaluated | Win Rate | Raw Avg | Direction-Adjusted Avg | Bull/Bear | Sample |",
+                "| --- | ---: | ---: | ---: | ---: | ---: | --- |",
+            ])
+            for row in rows:
+                lines.append(
+                    f"| {row['group']} | {row['evaluated']:,} | "
+                    f"{_pct(row.get('win_rate'))} | "
+                    f"{_pct(row.get('average_return'))} | "
+                    f"{_pct(row.get('direction_adjusted_average_return'))} | "
+                    f"{row.get('bullish_count', 0)}/{row.get('bearish_count', 0)} | "
+                    f"{row['sample_status']} |"
+                )
+            lines.append("")
+        lines.extend([
             "## Six-Week Configuration Checkpoint", "",
             f"- Stage: **{experiment['stage']}**",
             f"- Baseline evidence: {experiment['baseline_weeks']:.1f} / "
@@ -576,7 +739,7 @@ def _markdown(summary: dict, source: Path) -> str:
             f"({archive.get('matured_episodes', 0):,} matured) remain preserved, "
             "but are excluded from the readiness headline and forward configuration decisions.", "",
             "No production scoring, allocation, recommendations, or historical records were changed.", "",
-        ]
+        ])
         return "\n".join(lines)
     counts = summary["counts"]
     lines = [

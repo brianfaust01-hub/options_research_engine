@@ -174,6 +174,47 @@ MRK,MRK261120C155,20 NOV 26,155,CALL,+3,4.8667,5.475,$1642.50
         self.assertAlmostEqual(float(actual["EntryPremium"]), 4.8667)
         self.assertAlmostEqual(float(actual["PnLPct"]), 5.475 / 4.8667 - 1)
 
+    def test_short_position_is_quarantined_while_supported_longs_sync(self):
+        statement_text = """Account Statement for X since 10/9/26 through 10/9/26
+
+Account Trade History
+,Exec Time,Spread,Side,Qty,Total Cost,Pos Effect,Symbol,Exp,Strike,Type,Price,Net Price,Order Type
+,10/9/26 10:00:00,SINGLE,SELL,-1,0,TO CLOSE,NOW,20 NOV 26,140,CALL,11.40,11.40,STP
+
+Options
+Symbol,Option Code,Exp,Strike,Type,Qty,Trade Price,Mark,Mark Value
+NOW,NOW261120C140,20 NOV 26,140,CALL,-1,11.40,11.45,"($1,145.00)"
+KMI,KMI261218C32,18 DEC 26,32,CALL,+1,1.30,1.50,$150.00
+,OVERALL TOTALS,,,,,,,"($995.00)"
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            statement = root / "statement.csv"
+            statement.write_text(statement_text, encoding="utf-8")
+            portfolio = root / "portfolio.csv"
+            columns = ["PositionID", "RecommendationID", "Ticker", "OptionStrategy",
+                "Expiration", "Strike", "Contracts", "EntryPremium", "EntryDate", "Status",
+                "ExitDate", "ExitReason", "ExitPremium", "CurrentPremium", "PnLPct",
+                "LastReviewed", "CurrentDTE", "PeakPremium", "PeakPremiumDate",
+                "RecommendedStop", "RecommendedStopDate", "ProfitProtectionStatus",
+                "LockedProfitPct"]
+            pd.DataFrame([dict.fromkeys(columns) | {
+                "PositionID": "P000001", "RecommendationID": "r-kmi", "Ticker": "KMI",
+                "OptionStrategy": "Long Call", "Expiration": "2026-12-18", "Strike": 32,
+                "Contracts": 1, "EntryPremium": 1.3, "Status": "OPEN",
+            }], columns=columns).to_csv(portfolio, index=False)
+            journal = root / "journal.csv"
+            pd.DataFrame(columns=["RecommendationID"]).to_csv(journal, index=False)
+            positions = load_current_option_positions(statement)
+            self.assertEqual(positions[0]["quantity"], -1)
+            self.assertEqual(positions[0]["mark_value"], -1145.0)
+            result = sync_current_positions(statement, portfolio, journal)
+            actual = pd.read_csv(portfolio)
+        self.assertEqual(result["status"], "RECONCILED_WITH_QUARANTINE")
+        self.assertEqual(result["open_positions"], 1)
+        self.assertEqual(result["quarantined_short_positions"][0]["ticker"], "NOW")
+        self.assertEqual(actual.loc[actual.Status == "OPEN", "Ticker"].tolist(), ["KMI"])
+
 
 if __name__ == "__main__":
     unittest.main()

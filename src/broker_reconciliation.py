@@ -46,6 +46,14 @@ def _expiration(value: str) -> str:
     return datetime.strptime(value.strip(), "%d %b %y").date().isoformat()
 
 
+def _accounting_number(value: str) -> float:
+    """Parse Thinkorswim currency values, including parenthesized negatives."""
+    cleaned = value.strip().replace("$", "").replace(",", "")
+    if cleaned.startswith("(") and cleaned.endswith(")"):
+        return -float(cleaned[1:-1])
+    return float(cleaned)
+
+
 def load_thinkorswim_trades(path: str | Path) -> list[BrokerTrade]:
     """Load only the Account Trade History section from a statement export."""
     with Path(path).open(encoding="utf-8-sig", newline="") as handle:
@@ -98,9 +106,9 @@ def load_current_option_positions(path: str | Path) -> list[dict]:
             "ticker": row[0].strip().upper(), "option_code": row[1].strip(),
             "expiration": _expiration(row[2]), "strike": float(row[3]),
             "option_type": row[4].strip().upper(),
-            "quantity": abs(int(row[5].replace("+", ""))),
+            "quantity": int(row[5].replace("+", "")),
             "entry_price": float(row[6]), "mark": float(row[7]),
-            "mark_value": float(row[8].replace("$", "").replace(",", "")),
+            "mark_value": _accounting_number(row[8]),
         })
     return result
 
@@ -128,8 +136,18 @@ def sync_current_positions(statement_path: str | Path, portfolio_path: str | Pat
     journal_path = Path(journal_path)
     source_hash = hashlib.sha256(statement.read_bytes()).hexdigest()
     positions = load_current_option_positions(statement)
-    current = {_contract_key({"Ticker": row["ticker"], "Expiration": row["expiration"],
-        "Strike": row["strike"], "OptionStrategy": row["option_type"]}): row for row in positions}
+    short_positions = [row for row in positions if row["quantity"] < 0]
+    # Short options are outside the supported strategy set. Preserve them in
+    # broker evidence and surface them as quarantined, but do not let an
+    # accidental oversell prevent authoritative long holdings from syncing.
+    supported_positions = [row for row in positions if row["quantity"] > 0]
+    current = {
+        _contract_key({
+            "Ticker": row["ticker"], "Expiration": row["expiration"],
+            "Strike": row["strike"], "OptionStrategy": row["option_type"],
+        }): row
+        for row in supported_positions
+    }
     evidence_statements = [Path(path) for path in (evidence_statement_paths or [])]
     trades = load_thinkorswim_trades_many([*evidence_statements, statement])
     closes: dict[tuple, list[BrokerTrade]] = defaultdict(list)
@@ -226,10 +244,19 @@ def sync_current_positions(statement_path: str | Path, portfolio_path: str | Pat
     finally:
         if temporary.exists():
             temporary.unlink()
+    quarantined = [{
+        "ticker": row["ticker"], "expiration": row["expiration"],
+        "strike": row["strike"], "option_type": row["option_type"],
+        "quantity": row["quantity"], "mark": row["mark"],
+        "mark_value": row["mark_value"],
+        "reason": "UNSUPPORTED_SHORT_OPTION",
+    } for row in short_positions]
     return {"source": statement.name, "source_sha256": source_hash,
             "closed_position_ids": closed, "refreshed_position_ids": refreshed,
             "created_position_ids": created, "open_positions": len(final),
-            "open_contracts": sum(final.values()), "status": "RECONCILED"}
+            "open_contracts": sum(final.values()),
+            "quarantined_short_positions": quarantined,
+            "status": "RECONCILED_WITH_QUARANTINE" if quarantined else "RECONCILED"}
 
 
 def pair_round_trips(trades: list[BrokerTrade]) -> list[dict]:

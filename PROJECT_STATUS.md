@@ -233,6 +233,169 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## October 12 Short-Position Quarantine and Snapshot Repair
+
+- Corrected broker current-state reconciliation so unsupported short options no
+  longer abort synchronization of valid long holdings. Short positions remain
+  preserved in broker evidence and are returned with an explicit
+  `UNSUPPORTED_SHORT_OPTION` quarantine reason; they are never converted into
+  long positions or included in the mutable paper portfolio.
+- Reconciled the October 9 final statement to four supported long-call
+  positions (KMI, CVX, NVDA, and DIS; seven contracts). The accidental NOW and
+  APA short calls remain quarantined and will not appear in the next current-
+  position email snapshot.
+- Added an explicit hindsight eligibility boundary that excludes records
+  identified as short calls, short puts, short position-side observations, or
+  negative signed broker quantities. Long puts remain eligible. Raw evidence is
+  preserved, and the analytics output now reports the number of excluded short
+  records.
+- Broker reconciliation, hindsight analytics, and email-report regression tests
+  passed. No production research score, allocation, long-call/long-put strategy,
+  or immutable recommendation history changed.
+
+## October 10 Six-Week Checkpoint Preparation
+
+- Added `SIX_WEEK_CHECKPOINT_PREP.md` to define the baseline freeze, required
+  cohort separation, checkpoint analyses, bounded challenger rules, matched
+  weeks 7-12 evaluation, acceptance criteria, and freeze checklist. This is a
+  research plan, not a production configuration change.
+- Established September 24 as the effective date for evaluating the symmetric
+  directional-confidence correction. Of 474 matured current-policy seven-day
+  episodes, 104 are post-fix: 84 bearish episodes at 53.6% wins and +0.68%
+  average return, and 20 bullish episodes at 40.0% wins and +0.08% average
+  return. The bullish post-fix sample remains preliminary.
+- Identified direction-confounding in pooled Research Score and Time Edge bands,
+  making global threshold tuning invalid. Direction will be treated as a
+  control variable rather than the optimization target: checkpoint analysis
+  will subtract direction-level average returns before comparing actual trade
+  configurations such as Greeks, IV, theta drag, horizon fit, contract quality,
+  and execution. The preferred challenger is a bounded direction-decoupled
+  configuration comparison that preserves existing research, liquidity,
+  execution, exit, risk, and capital guardrails.
+  The exact challenger formula will be frozen only after the full six-week
+  baseline dataset is locked and reviewed.
+- Added a read-only pairwise configuration-profile analysis for the checkpoint.
+  It evaluates observed intersections of Greeks, IV, theta drag, horizon fit,
+  contract quality, execution, and research/time scores after controlling for
+  direction. Candidate profiles must remain positive in both chronological
+  halves, meet minimum sample sizes, and avoid single-date concentration.
+  Three-way profiles are excluded from strict confirmation at the current
+  104-episode post-fix sample to limit overfitting. No production rule changed.
+- Expanded the read-only checkpoint analysis to bounded three-field discovery
+  profiles, chronological early/late checks, winsorized adjusted returns,
+  profit factor, date-concentration controls, and direct comparison with the
+  matured allocated cohort. The leading interpretable hypotheses combine high
+  Research Score with low theta drag, or moderate absolute delta with moderate
+  IV. Narrower three-field profiles remain exploratory and composition-limited;
+  no production scoring or allocation rule changed.
+- Added a read-only Research Score calibration audit using the exact immutable
+  research components joined by Recommendation ID. Across 104 corrected
+  post-fix episodes, Research Score showed effectively zero rank correlation
+  with seven-day return and 0.519 win/loss AUC; score bands and within-date
+  quartiles were non-monotonic. The evidence supports its current use as a
+  candidate gate but not as a calibrated probability or primary allocator
+  ranking. Research-layer reconstruction is therefore the first checkpoint
+  analysis, before Greeks/IV contract-expression optimization. No production
+  score, candidate threshold, allocation rule, or history changed.
+- Added versioned `RRS-SHADOW-2026-10-10-v1` research-ranking evidence. The
+  transparent research-only candidate tests consensus confidence plus remaining
+  directional trend and momentum headroom. It achieved 0.616 historical AUC
+  versus 0.519 for legacy Research Score, including positive early/late and
+  call/put results. Directional conviction, Time Edge, market, and breadth are
+  still preserved as zero-weight shadow components because forcing every
+  intuitive positive input into the first candidate made ranking worse.
+  Historical values are written only to a derived
+  ledger, while new completed recommendations capture the score and component
+  lineage before immutable persistence. The field is not consumed by scoring,
+  allocation, reports, or trading guidance.
+- Completed an equal-count, within-date retrospective replay. Shadow ranking
+  improved the daily top-ten pool from -0.63% to +1.67% average return and
+  profit factor from 0.71 to 1.94, with a modest top-five improvement. It did
+  not improve the top-three replay (50.0% wins and +0.12% versus legacy 58.3%
+  and +0.52%). The candidate is therefore a promising broad research-shortlist
+  hypothesis, not a production capital-selection rule.
+- Tested regularized linear, interaction, and win-probability research models
+  with leave-one-recommendation-date-out predictions. No continuous model
+  dominated legacy and shadow v1 across top-three, top-five, and broad ranking.
+  A coherent two-stage candidate was stronger: shortlist each day's top eight
+  by shadow v1, then rank that shortlist by legacy consensus confidence. Its
+  retrospective top three produced 75.0% wins and +5.95% average return, but
+  was outlier-sensitive and 11/12 selections were puts. Daily shortlist rank,
+  two-stage rank, and counterfactual top-three/top-five flags are now persisted
+  in the derived shadow ledger for prospective validation only.
+- Stress-tested two-stage selection breadth and time concentration. Expanding
+  from three to eight retained names per corrected recommendation date reduced
+  win rate from 75.0% to 62.5% but remained positive at +2.41% average return
+  and 2.32 profit factor. Results were uneven across the four dates and
+  September 29 contributed disproportionate return. The clean population is
+  itself 84 puts versus 20 calls; top-three selection modestly increased that
+  concentration to 11/12 puts. A pre-fix sensitivity replay failed and selected
+  almost exclusively calls, confirming that defective pre-fix directional
+  inputs cannot validate the candidate. Forward evidence is required.
+- Restricted the intraday option-research scheduler definition to repeat only
+  Monday-Friday from 09:30 through 16:00 Eastern instead of invoking every
+  minute around the clock. The runner now enforces an exact 09:30 boundary in
+  addition to its NYSE calendar check. This changes collection scheduling only;
+  it does not change trading or recommendation behavior.
+
+## October 9 Broker Snapshot and Hindsight Refresh
+
+- Imported the final September 30-October 9 Thinkorswim statement into the
+  append-only capital ledger. It contributed 40 previously absent broker events
+  plus the authoritative end-of-day snapshot; a repeat import added zero events
+  and zero snapshots. The final snapshot records $99,007.88 NAV, $97,881.38
+  cash, $1,126.50 net option market value, +$116.50 unrealized option P/L,
+  +$225.00 daily P/L, and -$551.50 YTD P/L.
+- Week-over-week NAV increased $2,620.69 from the October 2 close, equal to
+  +2.72% of beginning NAV and +17.47% of the $15,000 experiment base. Exact
+  return on time-weighted deployed capital remains unavailable because there is
+  no October 8 account snapshot.
+- The final broker state contains four supported long-call positions—KMI
+  December $32 x3, CVX December $210 x1, NVDA December $240 x1, and DIS
+  December $110 x2—but also unsupported short calls in NOW November $140 x1
+  and APA December $45 x3. Exact mutable-portfolio reconciliation therefore
+  stopped without modifying the paper portfolio. The short positions appear to
+  have resulted from additional sell-to-close fills after the original long
+  positions were already closed. They must be closed, or short-option support
+  must be deliberately designed, before broker-exact holdings synchronization
+  can complete.
+- Corrected the broker current-position parser to preserve signed quantities
+  and parse parenthesized accounting values. Current-state synchronization now
+  fails explicitly and atomically when a statement contains short options,
+  preventing negative exposure from being silently represented as long.
+- Refreshed research hindsight through the latest available session: 33,763
+  recommendation observations, 8,199 complete outcomes, and 474 matured
+  deduplicated current-policy 7-day episodes. Current-policy win rate is 55.9%
+  (95% CI 51.4%-60.3%), average directional return is +0.63%, and profit factor
+  is 1.32. Average winners and losers are +4.59% and -4.40%, respectively.
+- Allocated evidence remains preliminary and materially weaker at 5/19 wins
+  (26.3%, -1.84% average return, 0.37 profit factor) versus 260/455 unallocated
+  wins (57.1%, +0.73% average return, 1.39 profit factor). Readiness remains
+  NO-GO at 4.4/12 clean simulation weeks and two of three observed regimes.
+  No production scoring, allocation, exit, policy-era, or historical record
+  changed.
+
+## October 7 External Review Intake
+
+- Preserved an independent architecture critique in
+  `EXTERNAL_REVIEW_2026-10-07.md` as non-binding six-week hypothesis evidence.
+  No production rule, configuration, policy era, historical recommendation,
+  portfolio record, or readiness clock changed.
+- Accepted as genuine research risks: divergence between underlying direction
+  and option financial return; missing historical IV Rank/Percentile context;
+  live-execution uncertainty; integer-contract affordability at a $15,000 NAV;
+  and potential over-compression from the broad directional regime multiplier.
+- Corrected two review assumptions for future analysis: the system already
+  distinguishes mid-based research price from ask-entry/bid-exit execution
+  guidance, and exact-contract IV/Greeks are captured even though approved
+  historical IV Rank/Percentile are not yet available.
+- Added explicit checkpoint analyses covering Greeks/IV/DTE decomposition,
+  broker-fill slippage, alternative-NAV shadow allocation, affordability versus
+  quality rejection, regime-component ablation, relative strength, cohort
+  stability, and outlier sensitivity. These are analyses to run, not authorized
+  configuration changes or commitments to spreads, delta hedging, or a larger
+  production capital base.
+
 ## October 7 Broker-State Update
 
 - Imported the October 7 Thinkorswim statement into the append-only capital

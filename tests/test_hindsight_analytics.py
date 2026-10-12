@@ -150,6 +150,69 @@ class CredibilityAnalyticsTests(unittest.TestCase):
         self.assertEqual(current["metrics"]["win_rate"], 1.0)
         self.assertEqual(current["status"], "NO-GO")
 
+    def test_current_policy_separates_directional_fix_cohorts(self):
+        rows = []
+        for recommendation_id, date, ticker, direction, score, result in [
+            ("PRE-PUT", "2026-09-10", "AAA", "BEARISH", 25, .04),
+            ("POST-PUT", "2026-09-24", "BBB", "BEARISH", 88, .02),
+            ("POST-CALL", "2026-09-24", "CCC", "BULLISH", 90, -.01),
+        ]:
+            rows.append({
+                "RecommendationID": recommendation_id,
+                "RecommendationDate": date,
+                "Ticker": ticker,
+                "Direction": direction,
+                "Action": "Evaluate Options",
+                "OpportunityType": "Long Option Candidate",
+                "OptionStrategy": "Long Put" if direction == "BEARISH" else "Long Call",
+                "PolicyEraID": "PE-2026-09-08",
+                "ResearchScore": score,
+                "TimeEdgeScore": score,
+                "ExecutionScore": 80,
+                "AllocationDecision": "No Allocation",
+                "Horizon7DStatus": "COMPLETE",
+                "Horizon7DDirectionalReturnPct": result,
+            })
+        current = analyze_hindsight(pd.DataFrame(rows))["current_policy"]
+        cohorts = {
+            (row["cohort"], row["direction"]): row
+            for row in current["cohort_direction"]
+        }
+        self.assertEqual(cohorts[("PRE_FIX", "BEARISH")]["evaluated"], 1)
+        self.assertEqual(cohorts[("POST_FIX", "BEARISH")]["evaluated"], 1)
+        self.assertEqual(cohorts[("POST_FIX", "BULLISH")]["evaluated"], 1)
+        calibration = current["post_fix_config_calibration"]["research_score"]
+        bands = {row["group"]: row for row in calibration}
+        self.assertEqual(bands["80-89"]["bearish_count"], 1)
+        self.assertEqual(bands["90-99"]["bullish_count"], 1)
+        self.assertIn("direction_adjusted_average_return", bands["80-89"])
+
+    def test_short_positions_are_excluded_without_excluding_long_puts(self):
+        rows = []
+        for recommendation_id, strategy, quantity, result in [
+            ("CALL", "Long Call", 1, .02),
+            ("PUT", "Long Put", 1, .03),
+            ("SHORT-CALL", "Short Call", -1, -.80),
+            ("SHORT-PUT", "Short Put", -1, -.60),
+        ]:
+            rows.append({
+                "RecommendationID": recommendation_id,
+                "RecommendationDate": "2026-09-24",
+                "Ticker": recommendation_id,
+                "Direction": "BEARISH" if "PUT" in recommendation_id else "BULLISH",
+                "Action": "Evaluate Options",
+                "OpportunityType": "Long Option Candidate",
+                "OptionStrategy": strategy,
+                "SignedQuantity": quantity,
+                "PolicyEraID": "PE-2026-09-08",
+                "Horizon7DStatus": "COMPLETE",
+                "Horizon7DDirectionalReturnPct": result,
+            })
+        result = analyze_hindsight(pd.DataFrame(rows))
+        self.assertEqual(result["counts"]["excluded_short_position_records"], 2)
+        self.assertEqual(result["raw_primary"]["evaluated"], 2)
+        self.assertAlmostEqual(result["raw_primary"]["average_return"], .025)
+
 
 if __name__ == "__main__":
     unittest.main()
