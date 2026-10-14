@@ -1,0 +1,2 @@
+AdjustmentID,EffectiveDate,AdjustmentAmount,Category,Tickers,Reason,SourcePath
+PA-2026-10-12-SHORTS,2026-10-12,365.00,EXECUTION_ERROR_SHORT,NOW;APA,Accidental oversells created unsupported short calls; exclude their realized losses from Project Stonks research performance while preserving broker truth,2026-10-12-AccountStatement.csv

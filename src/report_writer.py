@@ -16,6 +16,37 @@ REPORTS_DIR = Path("reports")
 HINDSIGHT_DATA_DIR = Path("data") / "processed"
 
 
+def _apply_performance_exclusions(snapshots: list[dict], adjustment_path: Path) -> tuple[list[dict], float]:
+    """Return a research-adjusted view while preserving broker truth on disk."""
+    if not adjustment_path.exists():
+        return snapshots, 0.0
+    with adjustment_path.open(encoding="utf-8-sig", newline="") as handle:
+        adjustments = list(csv.DictReader(handle))
+    adjusted = []
+    total = 0.0
+    for snapshot in snapshots:
+        row = dict(snapshot)
+        as_of = str(row.get("AsOfDate", ""))
+        cumulative = sum(
+            _number(item.get("AdjustmentAmount"), 0.0)
+            for item in adjustments
+            if str(item.get("EffectiveDate", "")) <= as_of
+        )
+        same_day = sum(
+            _number(item.get("AdjustmentAmount"), 0.0)
+            for item in adjustments
+            if str(item.get("EffectiveDate", "")) == as_of
+        )
+        if cumulative:
+            row["NetLiquidatingValue"] = _number(row.get("NetLiquidatingValue"), 0.0) + cumulative
+            row["YtdPnL"] = _number(row.get("YtdPnL"), 0.0) + cumulative
+        if same_day:
+            row["DayPnL"] = _number(row.get("DayPnL"), 0.0) + same_day
+        adjusted.append(row)
+        total = max(total, cumulative)
+    return adjusted, total
+
+
 def _broker_performance_summary(snapshot_path=None, experiment_base=PAPER_PORTFOLIO_VALUE):
     if snapshot_path is None or not Path(snapshot_path).exists():
         return {"available": False, "lines": ["Broker capital ledger is unavailable."], "warnings": ["Broker performance is unavailable — no account-state snapshot was supplied."]}
@@ -23,6 +54,8 @@ def _broker_performance_summary(snapshot_path=None, experiment_base=PAPER_PORTFO
         snapshots = list(csv.DictReader(handle))
     if not snapshots:
         return {"available": False, "lines": ["Broker capital ledger is empty."], "warnings": ["Broker performance is unavailable — the account-state ledger is empty."]}
+    adjustment_path = Path(snapshot_path).with_name("performance_adjustments.csv")
+    snapshots, excluded_loss = _apply_performance_exclusions(snapshots, adjustment_path)
     assessed = assess_snapshot_sequence(snapshots)
     usable = [row for row in assessed if row.get("DataQualityStatus") != "QUARANTINED"]
     if not usable:
@@ -35,11 +68,17 @@ def _broker_performance_summary(snapshot_path=None, experiment_base=PAPER_PORTFO
     open_return = _number(latest.get("UnrealizedPnL"), 0) / entry_value if entry_value else None
     lines = [
         f"Latest broker snapshot: {latest['AsOfDate']} ({latest.get('DataQualityStatus', 'UNKNOWN')})",
-        f"Broker paper-account NAV: {_money(latest.get('NetLiquidatingValue'))}",
+        f"Research-adjusted paper-account NAV: {_money(latest.get('NetLiquidatingValue'))}",
         f"Current option market value: {_money(latest.get('OptionMarketValue'))}; open P/L {_money(latest.get('UnrealizedPnL'))} ({_percent(open_return)})",
+        f"Research-adjusted daily P/L: {_signed_money(latest.get('DayPnL'))}; YTD P/L: {_signed_money(latest.get('YtdPnL'))}",
         f"Fees YTD: {_money(latest.get('TotalFeesYTD'))}",
     ]
     warnings = []
+    if excluded_loss:
+        lines.append(
+            f"Excluded execution-error short losses: {_money(excluded_loss)}; "
+            "broker-reported account totals remain preserved in the source ledger"
+        )
     try:
         performance = weekly_performance(assessed, week_start, latest["AsOfDate"], experiment_base)
         lines.append(f"Week-to-date net change: {_signed_money(performance['net_pnl'])} ({_percent(performance['return_on_experiment_base_pct'])} of the {_money(experiment_base)} experiment base)")

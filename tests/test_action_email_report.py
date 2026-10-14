@@ -18,6 +18,28 @@ from report_writer import _broker_performance_summary, _position_rows, build_dai
 
 
 class ActionEmailReportTests(unittest.TestCase):
+    def test_short_loss_adjustment_changes_research_metrics_not_source_snapshot(self):
+        snapshots = pd.DataFrame([{
+            "SnapshotID": "S1", "AsOfDate": "2026-10-12",
+            "NetLiquidatingValue": 98801.15, "OptionMarketValue": 4674,
+            "UnrealizedPnL": 254, "DayPnL": -197.50, "YtdPnL": -749,
+            "DataQualityStatus": "COMPLETE",
+        }])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "account_state_snapshots.csv"
+            snapshots.to_csv(path, index=False)
+            pd.DataFrame([{
+                "AdjustmentID": "SHORT-1", "EffectiveDate": "2026-10-12",
+                "AdjustmentAmount": 365.0, "Category": "EXECUTION_ERROR_SHORT",
+            }]).to_csv(root / "performance_adjustments.csv", index=False)
+            result = _broker_performance_summary(path)
+            unchanged = pd.read_csv(path).iloc[0]
+        self.assertIn("Research-adjusted paper-account NAV: $99,166.15", result["lines"])
+        self.assertIn("Research-adjusted daily P/L: $167.50; YTD P/L: -$384.00", result["lines"])
+        self.assertTrue(any("$365.00" in line for line in result["lines"]))
+        self.assertEqual(float(unchanged["NetLiquidatingValue"]), 98801.15)
+
     def test_same_day_eod_snapshot_supersedes_morning_in_report(self):
         snapshots = pd.DataFrame([
             {"SnapshotID": "AM", "AsOfDate": "2026-09-21", "ImportedAt": "2026-09-21T08:22:40",
@@ -31,7 +53,7 @@ class ActionEmailReportTests(unittest.TestCase):
             path = Path(directory) / "snapshots.csv"
             snapshots.to_csv(path, index=False)
             result = _broker_performance_summary(path)
-        self.assertIn("Broker paper-account NAV: $98,000.00", result["lines"])
+        self.assertIn("Research-adjusted paper-account NAV: $98,000.00", result["lines"])
         self.assertTrue(any("$7,062.50" in line for line in result["lines"]))
 
     def test_broker_ledger_section_reports_week_and_coverage_warning(self):

@@ -233,6 +233,38 @@ The following concerns require explicit evidence and should guide sprint sequenc
 
 # Recent Sprint Records
 
+## October 14 Broker-State Update
+
+- Imported the October 14 Thinkorswim statement into the append-only capital
+  ledger: 26 new broker events and one complete account snapshot.
+- Reconciled the mutable paper portfolio to nine supported long-call positions
+  and 16 contracts: DIS December $110 x2, CVX December $220 x1, KO December
+  $90 x3, PFE December $28 x3, OXY December $60 x2, FCX December $70 x1,
+  CSCO December $120 x2, GOOG December $375 x1, and NVDA December $230 x1.
+  CVX December $210 and PG were closed.
+- The statement contains no short-option positions. Historical recommendations,
+  performance exclusions, production scoring, allocation, and policy-era
+  definitions were unchanged.
+
+## October 12 Broker-State Update
+
+- Imported the October 12 Thinkorswim statement into the append-only capital
+  ledger: 24 new broker events and one complete account snapshot.
+- Reconciled the mutable paper portfolio to five open long-call contracts:
+  CVX December $210 x1, CVX December $220 x1, KO December $90 x3, DIS
+  December $110 x2, and PG December $155 x2. KMI and NVDA were closed; CVX
+  $210 and DIS were refreshed; CVX $220, KO, and PG were added.
+- The statement contains no remaining short-option positions. The account
+  snapshot records $98,801.15 NAV, $94,127.15 cash, $4,674.00 option market
+  value, +$254.00 unrealized option P/L, -$197.50 daily P/L, and -$749.00 YTD
+  P/L. Historical recommendations and production scoring were unchanged.
+- Preserved the broker-reported account totals unchanged and added a separate
+  research-performance adjustment excluding $365.00 of realized loss from the
+  accidental NOW and APA short calls ($290.00 and $75.00 respectively). The
+  research-adjusted October 12 NAV is $99,166.15 and daily P/L is +$167.50.
+  Daily reporting labels adjusted figures explicitly and discloses the
+  exclusion rather than rewriting broker history.
+
 ## October 12 Short-Position Quarantine and Snapshot Repair
 
 - Corrected broker current-state reconciliation so unsupported short options no
