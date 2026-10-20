@@ -1,7 +1,9 @@
 $ErrorActionPreference = "Stop"
 # Cheap off-hours gate: never start Python or contact Schwab outside ET hours.
 $eastern = [TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([datetime]::UtcNow, "Eastern Standard Time")
-if ($eastern.DayOfWeek -in @("Saturday", "Sunday") -or $eastern.Hour -lt 9 -or $eastern.Hour -gt 16) { exit 0 }
+$marketOpen = $eastern.Date.AddHours(9).AddMinutes(30)
+$marketClose = $eastern.Date.AddHours(16)
+if ($eastern.DayOfWeek -in @("Saturday", "Sunday") -or $eastern -lt $marketOpen -or $eastern -gt $marketClose) { exit 0 }
 
 # Avoid shared OAuth refresh contention with the normal scheduled daily scan.
 $daily = Get-ScheduledTask -TaskName "Project Stonks Daily Run" -ErrorAction SilentlyContinue

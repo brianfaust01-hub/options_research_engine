@@ -17,6 +17,7 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 CAPITAL_SNAPSHOTS_PATH = PROJECT_ROOT / "data" / "account_state_snapshots.csv"
 WEEKLY_SCAN_PATH = SRC_DIR / "weekly_scan.py"
 OPTION_COLLECTION_PATH = SRC_DIR / "option_observation_collector.py"
+RESEARCH_RANKING_PATH = SRC_DIR / "research_ranking.py"
 
 
 def validate_market_data() -> None:
@@ -70,6 +71,19 @@ def collect_research_observations() -> None:
         print("WARNING: option research collection exceeded 45 seconds; saved batches remain valid.")
     except OSError:
         print("WARNING: option research collector could not start; daily report unaffected.")
+
+
+def refresh_research_ranking_shadow() -> None:
+    """Refresh the derived ledger without modifying immutable recommendations."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-u", str(RESEARCH_RANKING_PATH)],
+            cwd=str(PROJECT_ROOT), timeout=30, check=False,
+        )
+        if result.returncode:
+            print("WARNING: shadow research ranking refresh failed; guidance unaffected.")
+    except (subprocess.TimeoutExpired, OSError):
+        print("WARNING: shadow research ranking refresh unavailable; guidance unaffected.")
 
 
 def latest_file(pattern: str) -> Path | None:
@@ -148,6 +162,7 @@ def main() -> None:
         print(e)
 
     collect_research_observations()
+    refresh_research_ranking_shadow()
     run_evidence_audit()
     print()
     print("Project Stonks daily run completed successfully.")

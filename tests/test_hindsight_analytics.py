@@ -14,6 +14,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from hindsight_analytics import (  # noqa: E402
+    _weekly_policy_trend,
     analyze_hindsight,
     build_thesis_episodes,
     generate_hindsight_analytics,
@@ -212,6 +213,26 @@ class CredibilityAnalyticsTests(unittest.TestCase):
         self.assertEqual(result["counts"]["excluded_short_position_records"], 2)
         self.assertEqual(result["raw_primary"]["evaluated"], 2)
         self.assertAlmostEqual(result["raw_primary"]["average_return"], .025)
+
+    def test_weekly_policy_trend_includes_cumulative_rate_and_empty_week(self):
+        representatives = pd.DataFrame([
+            {"RecommendationDate": "2026-09-08", "Return": .04},
+            {"RecommendationDate": "2026-09-09", "Return": -.02},
+            {"RecommendationDate": "2026-09-15", "Return": .03},
+            {"RecommendationDate": "2026-09-16", "Return": .01},
+        ])
+        rows = _weekly_policy_trend(
+            representatives, "Return", "2026-09-08", pd.Timestamp("2026-09-25")
+        )
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[0]["evaluated"], 2)
+        self.assertAlmostEqual(rows[0]["win_rate"], .5)
+        self.assertEqual(rows[1]["evaluated"], 2)
+        self.assertAlmostEqual(rows[1]["win_rate"], 1.0)
+        self.assertAlmostEqual(rows[1]["cumulative_win_rate"], .75)
+        self.assertEqual(rows[2]["evaluated"], 0)
+        self.assertEqual(rows[2]["sample_status"], "AWAITING_MATURITY")
+        self.assertTrue(rows[2]["partial"])
 
 
 if __name__ == "__main__":

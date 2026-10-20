@@ -14,9 +14,9 @@ cd C:\Users\brian\Documents\Codex\options_research_engine
 
 This registers **Project Stonks Intraday Option Research**, independently of
 the daily scan. An existing research task is not overwritten unless `-Replace`
-is supplied. The setup starts one invocation immediately; the repeating daily
-trigger invokes the runner every minute. The runner's Eastern-hours gate avoids
-off-hours Python/API work. The NYSE calendar restricts quotes to conservative
+is supplied. The repeating weekday trigger invokes the runner every minute
+only from 09:30 through 16:00 Eastern. The runner independently enforces the
+same exact hours gate. The NYSE calendar restricts quotes to conservative
 09:30–16:00 equity regular hours, adjusted for holidays and early closes; this
 does not include any product-specific extended option sessions.
 

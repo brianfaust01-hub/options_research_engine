@@ -5,6 +5,15 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**Operations update (2026-10-14):** Added an idempotent 10:45 weekday
+watchdog for the 10:30 daily workflow after Windows Task Scheduler missed a
+trigger following an overnight system update. Successful runs now write a
+date-scoped completion marker. The watchdog does nothing when that marker
+exists or the primary job is still running; otherwise it starts the primary
+task and records the recovery decision in `logs/daily_watchdog.log`. This is
+an operational reliability control only and does not change research,
+scoring, allocation, portfolio, or hindsight behavior.
+
 **Next Sprint:** Sprint 41B — Broker-Ready Portfolio State & Exposure Integrity
 
 ---
@@ -232,6 +241,83 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## October 19 Broker-State Update
+
+- Imported `2026-10-19-AccountStatement.csv`: 11 append-only capital-ledger
+  events and one complete account snapshot. Reconciled current positions to
+  seven long-call positions and 16 contracts: DVN December 18 $50 x3, OXY
+  $65 x3, CRM $260 x1, C $125 x1, MKC $45 x3, DIS $110 x2, and FAST $50 x3.
+- CVS was closed from exact broker fill evidence. No shorts were present.
+  Option market value is $5,979.00 and open P/L is +$484.00; NAV is
+  $98,239.74 and cash is $92,260.74.
+- This update changes mutable broker state and appends account evidence only;
+  production research policy and immutable recommendations are unchanged.
+
+## October 16 Reset-Readiness Foundation
+
+- Made probability calibration and measured portfolio correlation mandatory
+  six-week checkpoint analyses. Probability estimates must be date-grouped and
+  out of sample, with reliability tables, Brier score, log loss, calibration
+  slope/intercept, and direction-separated diagnostics.
+- Added prospective, research-only 60-session correlation evidence using
+  direction-adjusted underlying returns. Daily runs now preserve candidate-to-
+  candidate and candidate-to-holding pair observations plus candidate summary
+  fields identifying measured coverage and the most correlated holding.
+- Production allocation continues using its existing bounded sector/theme
+  proxy. Measured correlations are evidence for checkpoint replay only and
+  cannot affect recommendations or capital allocation without explicit review
+  and challenger approval.
+
+## October 16 End-of-Week Broker-State Update
+
+- Imported `2026-10-16-AccountStatement.csv` into the append-only capital
+  ledger and reconciled the mutable paper portfolio to the authoritative
+  Thinkorswim closing state.
+- Current holdings are two long-call positions totaling five contracts: DVN
+  December 18 $50 x3 at a $2.63 average entry and $3.475 mark, and CVS
+  December 18 $95 x2 at a $4.10 average entry and $3.875 mark. The combined
+  open P/L is +$208.50. No short positions were present or quarantined.
+- Friday closed at $98,331.76 NAV, $96,514.26 cash, $1,817.50 option market
+  value, -$262.50 daily P/L, -$1,161.50 raw YTD P/L, and $506.74 YTD fees.
+- Versus the authoritative prior-Friday close on October 9, NAV decreased
+  $676.12, equal to -0.68% of account NAV and -4.51% of the $15,000 experiment
+  base. The account incurred $66.12 of additional fees during the comparison
+  period. Return on time-weighted deployed capital remains unavailable because
+  the October 13 daily account snapshot is missing; the report does not infer
+  that denominator.
+- This was a broker-state and performance-evidence update only. Production
+  research, scoring, allocation, strategy, and immutable recommendation
+  history were unchanged.
+
+## October 15 Broker-State and Hindsight Update
+
+- Imported `2026-10-15-AccountStatement.csv` into the append-only capital
+  ledger and reconciled the current paper portfolio to broker truth.
+- Current holdings are four long-call positions totaling ten contracts:
+  MDLZ December 18 $67.50 x3, GILD December 18 $155 x1, FAST December 18
+  $50 x3, and DVN December 18 $50 x3. No short positions were present or
+  quarantined.
+- The broker snapshot recorded net liquidating value of $98,616.09, option
+  market value of $2,920.00, open P/L of +$43.00, daily P/L of -$251.00,
+  raw YTD P/L of -$899.00, and YTD fees of $484.91. Broker values remain
+  immutable; the separate reviewed performance-adjustment ledger continues
+  to own research-adjusted reporting.
+- Refreshed research hindsight through October 15: 36,262 recommendations
+  evaluated, 9,601 complete directional episodes, 6,857 in progress, and
+  556 awaiting market data. The current-policy deduplicated 7-day population
+  contains 528 matured executable episodes with a 54.7% win rate (95% CI
+  50.5%-58.9%), 0.5% average return, 1.01 payoff ratio, and 1.22 profit
+  factor.
+- Readiness remains **NO-GO** at 77.6% evidence accumulation: 5.3 of 12 clean
+  simulation weeks and two of three required market regimes. The six-week
+  checkpoint remains in baseline accumulation; no scoring, allocation,
+  recommendation, or historical record was changed by this refresh.
+- Hindsight reporting now includes recommendation-week win rate, cumulative
+  win rate, average return, profit factor, and tail-loss rate, followed by a
+  total-experiment row. Weeks without mature seven-trading-day outcomes are
+  shown explicitly as awaiting maturity rather than being omitted or treated
+  as zero-performance weeks.
 
 ## October 14 Broker-State Update
 

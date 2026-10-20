@@ -15,3 +15,6 @@ data/schwab_tokens.json
 data/schwab_tokens.writing.json
 data/schwab_market_tokens.json
 data/schwab_market_tokens.writing.json
+
+# Local research journal exceeds hosted Git file limits
+data/trade_journal.csv

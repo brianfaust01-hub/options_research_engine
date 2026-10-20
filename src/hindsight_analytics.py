@@ -254,6 +254,51 @@ def _episode_representatives(episodes: pd.DataFrame, return_col: str) -> pd.Data
     ).first()
 
 
+def _weekly_policy_trend(
+    representatives: pd.DataFrame,
+    return_col: str,
+    baseline_date: str,
+    through_date: pd.Timestamp,
+) -> list[dict]:
+    """Summarize matured policy-era episodes by recommendation week."""
+    baseline = pd.Timestamp(baseline_date).normalize()
+    through = pd.Timestamp(through_date).normalize()
+    if through < baseline:
+        return []
+    working = representatives.copy()
+    dates = pd.to_datetime(
+        _column(working, "RecommendationDateParsed", "RecommendationDate"),
+        errors="coerce", format="mixed",
+    )
+    if getattr(dates.dt, "tz", None) is not None:
+        dates = dates.dt.tz_localize(None)
+    working["_PolicyWeek"] = ((dates.dt.normalize() - baseline).dt.days // 7) + 1
+    total_weeks = int((through - baseline).days // 7) + 1
+    rows = []
+    for week in range(1, total_weeks + 1):
+        week_start = baseline + pd.Timedelta(days=7 * (week - 1))
+        scheduled_end = week_start + pd.Timedelta(days=6)
+        display_end = min(scheduled_end, through)
+        weekly = working[working["_PolicyWeek"].eq(week)]
+        cumulative = working[working["_PolicyWeek"].le(week)]
+        weekly_metrics = _metrics(weekly[return_col]) if return_col in weekly else _metrics(pd.Series(dtype=float))
+        cumulative_metrics = _metrics(cumulative[return_col]) if return_col in cumulative else _metrics(pd.Series(dtype=float))
+        rows.append({
+            "week": week,
+            "start_date": week_start.date().isoformat(),
+            "end_date": display_end.date().isoformat(),
+            "partial": display_end < scheduled_end,
+            "evaluated": weekly_metrics["evaluated"],
+            "win_rate": weekly_metrics["win_rate"],
+            "cumulative_win_rate": cumulative_metrics["win_rate"],
+            "average_return": weekly_metrics["average_return"],
+            "profit_factor": weekly_metrics["profit_factor"],
+            "tail_loss_rate": weekly_metrics["tail_loss_rate"],
+            "sample_status": weekly_metrics["sample_status"] if weekly_metrics["evaluated"] else "AWAITING_MATURITY",
+        })
+    return rows
+
+
 def _allocation_breakdown(frame: pd.DataFrame, return_col: str) -> dict:
     decisions = _column(frame, "AllocationDecision", "allocation_decision") \
         .fillna("").astype(str).str.strip()
@@ -411,6 +456,9 @@ def _current_policy_summary(directional: pd.DataFrame, primary_col: str) -> dict
         representatives, primary_col
     )
     today = pd.Timestamp(datetime.now().date())
+    weekly_trend = _weekly_policy_trend(
+        representatives, primary_col, POLICY_ERA_BASELINE_DATE, today
+    )
     weeks = max(0.0, (today - baseline).days / 7)
     matured = int(len(representatives))
     week_progress = min(1.0, weeks / READINESS_TARGET_WEEKS)
@@ -453,6 +501,7 @@ def _current_policy_summary(directional: pd.DataFrame, primary_col: str) -> dict
         "matured_episodes": matured,
         "target_episodes": READINESS_TARGET_EPISODES,
         "metrics": metrics,
+        "weekly_trend": weekly_trend,
         "allocation": allocation,
         "directional_fix_effective_date": DIRECTIONAL_CONFIDENCE_FIX_EFFECTIVE_DATE,
         "cohort_direction": cohort_direction,
@@ -689,6 +738,30 @@ def _markdown(summary: dict, source: Path) -> str:
             f"- Meaningful-loss rate / 5% tail-loss rate: "
             f"{_pct(metrics.get('meaningful_loss_rate'))} / "
             f"{_pct(metrics.get('tail_loss_rate'))}", "",
+            "## Weekly Win-Rate Trend", "",
+            "Weeks are based on recommendation date. Only matured, deduplicated "
+            "executable episodes enter the weekly and cumulative win rates.", "",
+            "| Week | Recommendation Window | Evaluated | Weekly Win Rate | Cumulative Win Rate | Avg Return | Profit Factor | 5% Tail Loss | Status |",
+            "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        ]
+        for row in current.get("weekly_trend", []):
+            window = f"{row['start_date']} to {row['end_date']}"
+            if row.get("partial"):
+                window += " (partial)"
+            factor = row.get("profit_factor")
+            lines.append(
+                f"| {row['week']} | {window} | {row['evaluated']:,} | "
+                f"{_pct(row.get('win_rate'))} | {_pct(row.get('cumulative_win_rate'))} | "
+                f"{_pct(row.get('average_return'))} | "
+                f"{'Unavailable' if factor is None else f'{factor:.2f}'} | "
+                f"{_pct(row.get('tail_loss_rate'))} | {row['sample_status']} |"
+            )
+        lines.extend([
+            f"| **Total Experiment** | {current['baseline_date']} to present | "
+            f"**{metrics['evaluated']:,}** | **{_pct(metrics.get('win_rate'))}** | "
+            f"**{_pct(metrics.get('win_rate'))}** | **{_pct(metrics.get('average_return'))}** | "
+            f"**{'Unavailable' if profit_factor is None else f'{profit_factor:.2f}'}** | "
+            f"**{_pct(metrics.get('tail_loss_rate'))}** | **{metrics['sample_status']}** |", "",
             "## Configuration Comparability Boundary", "",
             f"Configuration calibration uses only recommendations generated on "
             f"or after {current.get('directional_fix_effective_date')}. Direction "
@@ -703,7 +776,7 @@ def _markdown(summary: dict, source: Path) -> str:
             "Positive adjusted return means the configuration band outperformed "
             "the average result for its own bullish/bearish mix. Bands with only "
             "one direction remain composition-limited evidence.", "",
-        ]
+        ])
         for field, rows in current.get("post_fix_config_calibration", {}).items():
             lines.extend([
                 f"### {field.replace('_', ' ').title()}", "",

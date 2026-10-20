@@ -473,6 +473,27 @@ def _order_observation(
         "BullishScore",
         "BearishScore",
         "DirectionalConviction",
+        "ResearchRankingScore",
+        "ResearchRankingPolicyVersion",
+        "ResearchRankingMode",
+        "ResearchRankingInputsComplete",
+        "ResearchRankingConsensusConfidence",
+        "ResearchRankingDirectionalTrend",
+        "ResearchRankingMomentumAlignment",
+        "ResearchRankingTrendHeadroom",
+        "ResearchRankingMomentumHeadroom",
+        "ResearchRankingDirectionalConviction",
+        "ResearchRankingTimeEdge",
+        "ResearchRankingMarketContext",
+        "ResearchRankingBreadthContext",
+        "correlation_policy_version",
+        "correlation_lookback_days",
+        "correlation_holding_count",
+        "max_abs_correlation_to_holdings",
+        "max_direction_adjusted_correlation_to_holdings",
+        "mean_direction_adjusted_correlation_to_holdings",
+        "most_correlated_holding",
+        "correlation_evidence_status",
 
         #
         # Data quality and provenance
@@ -795,6 +816,10 @@ def log_completed_observations(
                 ),
             )
         )
+
+        # Evidence only: allocation is already final before this is calculated.
+        from research_ranking import calculate_shadow_research_ranking
+        observation.update(calculate_shadow_research_ranking(observation))
 
         #
         # Snapshot the complete observation before

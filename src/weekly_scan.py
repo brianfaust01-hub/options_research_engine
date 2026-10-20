@@ -33,6 +33,7 @@ from portfolio_exposure import (
     add_exposure_fields,
     summarize_allocated_exposure,
 )
+from portfolio_correlation import build_correlation_evidence, write_correlation_evidence
 from position_review import review_positions
 from research_engine import evaluate_strategies
 from opportunity_engine import evaluate_opportunities
@@ -185,6 +186,18 @@ def main():
 
     print("\nRe-underwriting existing portfolio...")
     positions_df = review_positions(trades_df)
+
+    print("\nCapturing direction-aware correlation evidence...")
+    trades_df, correlation_pairs = build_correlation_evidence(
+        candidates=trades_df,
+        positions=positions_df,
+        price_data=data,
+    )
+    correlation_file = write_correlation_evidence(
+        correlation_pairs,
+        PROCESSED_DATA_DIR / "correlation_snapshots" / f"correlation_{timestamp}.csv",
+    )
+    print(f"Correlation evidence saved to: {correlation_file}")
 
     print("\nRunning portfolio capital arbitration...")
     arbitration = arbitrate_portfolio(
