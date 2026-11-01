@@ -902,7 +902,21 @@ def generate_hindsight_analytics(
     if source is None or not source.exists():
         raise FileNotFoundError("No research hindsight CSV is available.")
     frame = pd.read_csv(source, low_memory=False)
+    from six_week_release import active_settings
+    quality_audit = None
+    if active_settings(PROJECT_ROOT).get("quality_review", False):
+        from hindsight_quality import reviewed_quality_view, RULE_VERSION
+        frame, quality_audit = reviewed_quality_view(frame)
     summary = analyze_hindsight(frame)
+    if quality_audit is not None:
+        summary["reviewed_price_basis"] = {
+            "rule_version": RULE_VERSION, "excluded_observations": len(quality_audit),
+            "status": "UNRESOLVED_BASIS_EXCLUDED_FROM_DERIVED_ANALYTICS",
+        }
+        summary["data_quality"]["warnings"].append(
+            f"Reviewed price-basis gate {RULE_VERSION}: {len(quality_audit)} CTVA observations "
+            "before October 1 excluded in both directions; raw source preserved."
+        )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     processed = Path(processed_dir)
     reports = Path(reports_dir)
@@ -910,6 +924,10 @@ def generate_hindsight_analytics(
     reports.mkdir(parents=True, exist_ok=True)
     json_path = processed / f"hindsight_analytics_{timestamp}.json"
     report_path = reports / f"hindsight_analytics_{timestamp}.md"
+    if quality_audit is not None:
+        audit_path = processed / f"hindsight_quality_exclusions_{timestamp}.csv"
+        quality_audit.to_csv(audit_path, index=False)
+        summary["reviewed_price_basis"]["audit_path"] = str(audit_path)
     json_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     report_path.write_text(_markdown(summary, source), encoding="utf-8")
     return {**summary, "json_path": str(json_path), "report_path": str(report_path)}

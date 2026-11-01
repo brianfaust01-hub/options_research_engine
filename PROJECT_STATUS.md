@@ -5,6 +5,83 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**Sunday release verification (2026-11-01):** The option configuration
+comparison passed all 179 repository tests again. Reviewed source hashes and
+the policy/dependency fingerprint matched; the read-only report returned
+`NOT_STARTED`. The release is prepared for `schwab-integration`, with
+activation still disabled until the desktop helper can verify the enabled
+daily and intraday jobs. Scheduler CIM access is unavailable from this app.
+Brian will renew weekly Schwab authorization Monday morning before the
+10:30 run; the current refresh authorization expires Monday at 06:56 Eastern.
+Only explicit release sources, tests and documentation are included in this
+release change. Current account files, logs and unrelated checkpoint edits
+remain outside it.
+
+**Plain-language overview:** See `STONKS_OVERVIEW.md` for the maintained
+five-paragraph explanation of the research pipeline, contract checks,
+portfolio decisions, trading instructions and learning process. Keep it
+aligned with material capability and experiment changes; distinguish
+prepared comparisons from active behavior and hypotheses from proven results.
+
+**Option-return comparison implementation completed (later checkpoint update):**
+The baseline/control and moderate-delta/IV challenger now have isolated,
+quote-driven cash/position ledgers, using shared portfolio review and allocation,
+modeled fees, bid/ask limit/stop/target fills, profit protection, partial exits,
+cash recycling, NAV histories, coverage and restart protection. See
+`SHADOW_OPTION_COMPARISON.md`. Daily and intraday hooks are integrated; active
+comparison contracts receive priority and a cached-only collection path during
+the daily scan. Stale decisions defer until fresh marks or expire visibly.
+This resolves the earlier pending-ledger implementation gap below. Actual broker
+records remain authoritative and unchanged. Primary forecast diagnostic is off.
+The trading-comparison implementation is READY but activation remains false for
+Sunday; no deployment, production scan, email, commit or push was performed.
+Live Windows job verification is reserved for the desktop activation helper,
+because scheduler CIM inspection is unavailable in the app sandbox.
+
+
+**Checkpoint scope clarification (2026-10-29, later update):** Brian clarified
+that the primary deliverable is evidence-backed configuration combinations,
+not only a probability diagnostic. See
+`CONFIGURATION_COMBINATION_REVIEW_2026-10-29.md`. Moderate delta (absolute
+>0.35 to <=0.50) plus IV (>20% to <=40%) is the proposed first config
+hypothesis, using the existing allocator and all its safety gates. Its 14
+qualified static option proxies show only a small, outlier-sensitive positive
+dollar result; no validated return edge is claimed. New profile allocation
+adapter is research-only and unconnected to daily production. Persistent
+independent cash/position ledgers and quote-driven lifecycle integration remain
+required before calling the Sunday trading comparison ready. The earlier
+forecast-only readiness wording below is superseded on that point. Activation
+is disabled and the release helper blocks activation pending reviewed scope.
+
+
+**Six-week checkpoint review (2026-10-29):** Review performed early at Brian's
+request. Brian selected a Sunday shadow comparison first. Learning Engine /
+Outcome Review own the frozen chronological probability diagnostic and
+signal-to-broker attribution; operations owns the opt-in release gate. See
+`SIX_WEEK_CALIBRATION_REVIEW_2026-10-29.md` for all 19 architecture decisions,
+evidence and explicit deferrals. Candidate code and model are prepared under
+`research/six_week_20261029/`; activation remains disabled. Production scoring,
+allocation, exit formulas and risk limits remain the frozen baseline.
+
+The simple challenger did not beat the training-only base rate on 158
+chronological test episodes across seven dates (Brier .2540 vs .2490), so it
+has no promotion or risk-sizing authority. Expanded headroom-v1 ranking
+underperforms legacy ordering; preserve its historical ledger without treating
+it as validated. Full option archive audit covers 10,073 bundles / 28 recorded
+sessions / 16.28m observations through October 29, with 31 complete qualified
+call paths and no >=30 exact-strategy/horizon prior-path cohort. Dynamic
+confidence exits remain an explicitly measured gap. The raw archive is not yet
+wired into the legacy empirical optimizer's absent default path CSV; do not
+silently pool these call paths to calibrate puts.
+
+The candidate adds an opt-in, auditable CTVA pre-October-1 price-basis exclusion
+in derived analytics, preserving raw history. Broker lot attribution preserves
+actual results and separate reviewed DVN/FAST quantity overlays. Sunday rollout
+requires reviewed code/artifact verification and activation; no commit, push,
+production scan or email was performed for this checkpoint. Regression and
+rollback instructions are in the checkpoint report.
+
+
 **Operations update (2026-10-14):** Added an idempotent 10:45 weekday
 watchdog for the 10:30 daily workflow after Windows Task Scheduler missed a
 trigger following an overnight system update. Successful runs now write a
@@ -241,6 +318,80 @@ The following concerns require explicit evidence and should guide sprint sequenc
 ---
 
 # Recent Sprint Records
+
+## October 30 Broker-State and Week Close
+
+- Imported the October 30 statement: 31 new append-only capital events and
+  one complete snapshot; repeat import added zero records. Six supported
+  long-call holdings total 12 contracts and $5,364 market value: MDT $95 x2,
+  JPM $345 x1, WFC $85 x3, PYPL $55 x3, DIS $110 x1 and APH $80 x2, all
+  December 18. Broker FAST December $52.50 calls are short three contracts
+  and quarantined as unsupported exposure, not silently omitted from account
+  totals or converted into long holdings. Their liability is $547.50 and
+  unrealized profit is $187.50. Quarantine does not close the broker position.
+- Closing NAV $99,578.40, cash $94,761.90, net option market value $4,816.50,
+  total open P/L +$632.50. Actual weekly net +$512.77 after $95.73 fees;
+  experiment-to-date actual net +$81.17 after $557.83 fees. Existing reviewed
+  adjustments yield +$800.77 weekly and +$734.17 cumulative, explicitly
+  separate from broker truth and still including FAST short open gains.
+- Twelve broker/capital fixtures and temporary-copy reconciliation passed;
+  recommendation journal, adjustment ledger, quantity overlay and disabled
+  shadow activation retained identical hashes. No new strategy or execution
+  exclusion, production scan, email resend, commit or push. Stock-specific
+  option performance / narrower-universe analysis was explicitly deferred
+  to Investment Philosophy Review backlog at Brian's request.
+- Daily job completed 10:42:23 with email-send success logged; post-email
+  option collection timed out, ranking refresh and config audit unavailable.
+  Send success does not establish inbox receipt.
+
+## October 29 Hindsight Price-Basis Review
+
+- Refreshed hindsight through October 29. The unfiltered output has 734
+  current-policy mature seven-day episodes. A comparison with October 22
+  identified 37 revised common outcomes, all CTVA, and a pre-separation
+  entry-versus-downloaded-history price-basis mismatch.
+- Review-only quality views exclude all pre-October-1 CTVA observations from
+  both comparison dates, including favorable outcomes. They contain 732
+  current mature episodes, 55.9% wins and 1.28 profit factor; the unaffected
+  new week-six cohort has 109 episodes, 61.5% wins and 1.97 profit factor.
+- Original recommendations and raw hindsight files are preserved. Quality
+  source files/reports are isolated under
+  `data/processed/hindsight_quality_views/`, outside root latest-file selection.
+  Raw reports remain unfiltered and must not be treated as price-basis-verified.
+- Corporate-action entitlement/price-basis reconciliation and detection remain
+  required before final calibration. These exclusions concern measurement
+  validity, not broker performance. Post-fix ranking diagnostics on the quality
+  view cover 364 episodes across 18 dates; aggregate AUC is 0.603, with a
+  stronger bullish ranking relationship than bearish. No probability model
+  was calibrated or promoted and no production policy changed.
+
+
+## October 27 Reviewed Excess-Quantity Attribution
+
+- Recorded user-reviewed DVN and FAST excess-quantity attribution in
+  `data/reviewed_execution_quantity_20261027.json`. Excluded only $210 and
+  $78 of excess-contract premium loss from the separate research-adjusted
+  performance view. The $177 loss on recommended quantities and all actual
+  fees remain included. Broker truth, recommendations and directional
+  hindsight are unchanged.
+- Future option-performance cohorts must explicitly apply the saved quantity
+  attribution rather than excluding entire trades or silently altering fills.
+  FAST attribution assigns the first three contracts to the $1.51 stop and
+  the excess three to the later $1.54 exit; this is a documented FIFO
+  same-price counterfactual, not a claim about guaranteed alternative fills.
+
+
+## October 22 Six-Week Recalibration Work Plan
+
+- Added `SIX_WEEK_RECALIBRATION_PLAN.md` as the consolidated checkpoint work
+  plan. Every architectural layer is open to evidence-based review, including
+  a narrower universe, score/probability calibration, ranking, allocation,
+  execution, confidence-conditioned exits, and the current 20% stop cap.
+- Required deliverables include a signal-to-broker-P/L explanation ledger,
+  architecture decision matrix, market-adaptation playbook, and a versioned,
+  prospectively validated challenger. The document distinguishes dated existing
+  studies from analyses still pending; production policy and experiment history
+  are unchanged.
 
 ## October 19 Broker-State Update
 
@@ -2440,6 +2591,24 @@ Highest-value work expected to be considered for upcoming sprints.
 
 **Type:** Architecture / Research Strategy  
 **Status:** Backlog
+
+### October 30 requested follow-up — stock-specific option results
+
+Brian requested this analysis and explicitly deferred it until after the
+holdings update and end-of-week recap. Outcome Review / Learning will evaluate
+whether a smaller stock universe has repeatable option-return evidence.
+Use all available statement history and exact option contracts, separate
+current-policy and post-September-24 cohorts, combine split fills into genuine
+trade episodes, and distinguish actual net results, reviewed recommended-size
+overlays, open marks and quote-based counterfactuals. Include fees, call/put
+direction, number of independent entries/dates, concentration, largest-trade
+removal, and chronological train-only selection followed by untouched tests.
+Preserve legitimate losses and both favorable and unfavorable process errors;
+unsupported short profits, including October 30 FAST, are not long-option
+strategy evidence. Deliver a ticker table and an explicit broad-versus-narrow
+decision with sample limitations. The prior one-observation directional
+holdout does not answer stock-specific option profitability. No automatic
+universe restriction or addition to Sunday's frozen challenger is authorized.
 
 ### Objective
 

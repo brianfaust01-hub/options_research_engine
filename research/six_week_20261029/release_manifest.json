@@ -1,0 +1,225 @@
+{
+  "version": "OPTION-CONFIG-COMPARISON-2026-10-29-v1",
+  "hash_mode": "UTF8_NO_BOM_LF",
+  "expected_initial_fingerprint": "a181fa4456b2b20c4e784962e3f7d1c0e6468eb1666331b407099be490b09714",
+  "control": "baseline",
+  "challenger": "moderate_delta_iv",
+  "initial_capital_each": 15000,
+  "activation_default": false,
+  "validated_tests": 179,
+  "validation_mode": "temporary fixture accounts/quotes; no production scan, network quote request, broker order or email",
+  "scheduler_preflight": "CIM inspection unavailable in sandbox; desktop activator must verify enabled daily/minute jobs pointing to this checkout",
+  "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+  "packages": {
+    "pandas": "3.0.5",
+    "numpy": "2.5.2",
+    "pandas_market_calendars": "5.4.0"
+  },
+  "git_head_before_commit": "78dbc501491da87d319a4b17894608c949d78a82",
+  "files": [
+    {
+      "path": "SHADOW_OPTION_COMPARISON.md",
+      "sha256": "db1418f9df0d1fcf6d7fe1b4116be0c4f18968d58fc7f7ce2da9d28f2cf877e7"
+    },
+    {
+      "path": "research/six_week_20261029/README.md",
+      "sha256": "20301071490a2683f06d5ddb4b4128d09ea991607ac8de7e890bfec09a7a7dca"
+    },
+    {
+      "path": "research/six_week_20261029/Set-ShadowRelease.ps1",
+      "sha256": "50260552fcf3c4288f078230a3acb8d6190342bb7951af17b45feead68d38f62"
+    },
+    {
+      "path": "research/six_week_20261029/challenger.json",
+      "sha256": "66fb6a1279d132e42714b9d86dbbdf0d0a3934f6743e47e1248dc5b31d16d135"
+    },
+    {
+      "path": "research/six_week_20261029/comparison_spec.json",
+      "sha256": "e24a19c7f867c956fbe0fb07fcf9100931a896803d39ccc27788b469e2803c0f"
+    },
+    {
+      "path": "run_daily_stonks.bat",
+      "sha256": "989881866219bd4e9d16546109338f2acf4177cd3e1d4fb975aabb6365334d20"
+    },
+    {
+      "path": "run_intraday_options.ps1",
+      "sha256": "8b2d49094ce7ca17fdf0d1864e0f40c740680d80c99162bd63142bd47b5b14eb"
+    },
+    {
+      "path": "src/config.py",
+      "sha256": "7b0b6f741feab51fbe4d1dcd58e2efb45e5efc91b20388970cd400b9cc075a4b"
+    },
+    {
+      "path": "src/configuration_profile_shadow.py",
+      "sha256": "f3c19c031ddfc7054247b34c5de6622dd54512389b91de3dec6368bb8958dd91"
+    },
+    {
+      "path": "src/daily_run.py",
+      "sha256": "621b737aa81856d0c1f3112c711daca24e9a79498cb07d8f9bdf25c50d279930"
+    },
+    {
+      "path": "src/data_loader.py",
+      "sha256": "19446347b4bf49f300980de46cb02062d893a25a6ec8ae2543df0f1925d91092"
+    },
+    {
+      "path": "src/data_quality.py",
+      "sha256": "eb5d86299a3c6cc9eb1e10638ae67742ded1488a2e7e498c3ed3a69294b9d0ae"
+    },
+    {
+      "path": "src/decision_enrichment.py",
+      "sha256": "9f30cce58ece4ebca5f3efb4debccf7c12b44175e2b4e13d20725e4e4e2ee0c5"
+    },
+    {
+      "path": "src/exit_rules.py",
+      "sha256": "cf5ea572e4bab71bd91fd41c120aac91365dad9e884642e0cb79333407299470"
+    },
+    {
+      "path": "src/hindsight_analytics.py",
+      "sha256": "dd61377e3bef200889fac29a0e73a50e5e149b88b42de77eb786a265620bfdac"
+    },
+    {
+      "path": "src/hindsight_quality.py",
+      "sha256": "b21f1360eb46346788dd299c72c1d118219f69ef8d03426ba836c2b9985f72e8"
+    },
+    {
+      "path": "src/indicators.py",
+      "sha256": "bd01a55e441ebb11ede54c0923ee8bfa5b7936f3d0f8ec32df8be15bb5a79188"
+    },
+    {
+      "path": "src/intraday_option_paths.py",
+      "sha256": "46a1115c9b5aac0035b16fb1e5f5e99e676d8a158f0bedd8a231c54a4286853d"
+    },
+    {
+      "path": "src/market_breadth.py",
+      "sha256": "97925c14a7f97a424a668fdbe38a9bbb51d2c5608d7aef85b0f1d33edd783b5c"
+    },
+    {
+      "path": "src/market_context.py",
+      "sha256": "2617346ac4974a6968c7cfa9d7cee240d6e1aeb93d27f2fabac82db4149f4150"
+    },
+    {
+      "path": "src/opportunity_engine.py",
+      "sha256": "9758b681ff30878a010e682e611509d9d99b7e54e2c645669fc8ed6a6e13ac7b"
+    },
+    {
+      "path": "src/option_observation_collector.py",
+      "sha256": "b5f0844ab7fb67bb3b4f3691362e2019751452441ccc4646d6bdb31da80854bd"
+    },
+    {
+      "path": "src/option_selector.py",
+      "sha256": "81f751fe1d27f6a8ecfdb73dc20a7b1378044ec9469f04630c681dab43cc8e81"
+    },
+    {
+      "path": "src/options_engine.py",
+      "sha256": "e9d0ff993e2c9236fb0b685f8fdd9da429f5a8b9bd99f84a57c680beccb0f9d1"
+    },
+    {
+      "path": "src/policy_evidence.py",
+      "sha256": "55b81eb4a2a0f0773d5d8fd07c5236ce9ef700067eae2b228f36ab8836f6237a"
+    },
+    {
+      "path": "src/portfolio_allocator.py",
+      "sha256": "f8188796b6b845ec6c03b5301d1fc398469863464c6f3372070cd93b7950bca6"
+    },
+    {
+      "path": "src/portfolio_arbitrator.py",
+      "sha256": "eafce056de443448252221510fe59765a122f5717d8c5fcf9df527089502d1a4"
+    },
+    {
+      "path": "src/portfolio_exposure.py",
+      "sha256": "3f79758015cb0df50c520058c7a354462bf19e731a66cb3abcc310d175761f62"
+    },
+    {
+      "path": "src/position_review.py",
+      "sha256": "adfa717b608a8bd9d123f3601809e6f731c005bf110aa41405329801a9b1c264"
+    },
+    {
+      "path": "src/position_sizing.py",
+      "sha256": "a03f15b275123c67db8e2879d544b8a802915b4c059a6a6073a8a189aa6212b2"
+    },
+    {
+      "path": "src/research_engine.py",
+      "sha256": "44776d6ddbb45fb1c54575057a5dee547f7f1ebe07a8fcdac72223895a8b98d3"
+    },
+    {
+      "path": "src/schwab/market_data_client.py",
+      "sha256": "362535b3f7a0dc71f49e5a1f7513417ac93f53ddbfdaab58e44d2883ffc5271f"
+    },
+    {
+      "path": "src/schwab/market_token_manager.py",
+      "sha256": "e71ad91098977415460da0f51c42cc0d7c62a423c63d6ef53865ca674aa70947"
+    },
+    {
+      "path": "src/shadow_comparison_runtime.py",
+      "sha256": "895e657cf317756dc8bd7e91146c3991b834d905a1c964f8c5e152f0ff855fb9"
+    },
+    {
+      "path": "src/shadow_option_ledger.py",
+      "sha256": "e49d93c9a5f6f0d27f02ac7729adcfe926e701a465b1ba634c98a5e9f7fa0800"
+    },
+    {
+      "path": "src/six_week_calibration.py",
+      "sha256": "5a9fdcd20868cc6f81cd768acbaf6138498e6348426ac18509b27a5c47b1cb9d"
+    },
+    {
+      "path": "src/six_week_release.py",
+      "sha256": "0f356e6c98debe5ac6abb6901d48099b8f85537a3e759f2038c31c9e2014cd01"
+    },
+    {
+      "path": "src/trade_constructor.py",
+      "sha256": "a5dc948f9b0a993978b0b6e216a904dfe5f93226e41ae331c4131a6d7e1dc2cd"
+    },
+    {
+      "path": "src/trade_journal.py",
+      "sha256": "357ef45e8d0dc7da4944aa3bc1977a19bad432af2321f2bf3ce9078c3e8a94d4"
+    },
+    {
+      "path": "src/trade_quality.py",
+      "sha256": "b19a719b0f7da58712b38e58c35eaf8b92846911de6926886e4b65cfb2293f63"
+    },
+    {
+      "path": "src/trade_scoring.py",
+      "sha256": "d8f7385f4005e125bade391a19986dbedd050b8de4d23e908e6a05bac339a731"
+    },
+    {
+      "path": "src/weekly_scan.py",
+      "sha256": "c97cc236d13288e730fbfc26f503268d2bcda83c56b0955c47adf02343226ae8"
+    },
+    {
+      "path": "tests/test_comparison_activation.py",
+      "sha256": "1cc49a374b98804e9b587ed8a446d3e1ed1b2479ab6535f190a22ddeb6d5cca9"
+    },
+    {
+      "path": "tests/test_comparison_cached_authorization.py",
+      "sha256": "4b40725f14c7ff8789f510c0f63e794401b9e66e23cfb942c33ca80b24193500"
+    },
+    {
+      "path": "tests/test_configuration_profile_shadow.py",
+      "sha256": "b87207bf755aae6e56a1a17d9e0a2e4590b0df662bb397689804e648deb2d4fb"
+    },
+    {
+      "path": "tests/test_daily_recommendation_lineage.py",
+      "sha256": "0878fffec0516320d26ebc8fdf25f3c344e4f621d2f338f1b9e881620c98b96f"
+    },
+    {
+      "path": "tests/test_hindsight_quality.py",
+      "sha256": "b36b64999a23dc555885f9003d84907fa6a560c3ff6440b8b0043c9fa1900fc6"
+    },
+    {
+      "path": "tests/test_shadow_comparison_runtime.py",
+      "sha256": "875d74c301212d156e58116cf747e717aead9fbc655e960a719c300d9a29d301"
+    },
+    {
+      "path": "tests/test_shadow_option_ledger.py",
+      "sha256": "ae5f52dcc48a4e5d524034c5d66d77799ff3f49159b9270e28e6468f4b9a0fbd"
+    },
+    {
+      "path": "tests/test_six_week_calibration.py",
+      "sha256": "c1bf9ad11af8becadb629e5a86a95c9e6ccea0dfe253d624ec1b2ef3bddfba93"
+    },
+    {
+      "path": "tests/test_six_week_release.py",
+      "sha256": "2896d8576dfcfae7e03be772e1fe6928c6e969ac466adfb794959b0c9e64e4ac"
+    }
+  ]
+}

@@ -866,6 +866,13 @@ def log_completed_observations(
         completed_rows
     )
 
+    # Propagate canonical lineage to the daily CSV written by weekly_scan after
+    # this call. This is new-output metadata only: no historical row is changed.
+    # Attach only after the immutable batch was successfully persisted.
+    for column in ("RecommendationID", "RecommendationDate", "SnapshotPath",
+                   "SnapshotSchemaVersion", "PolicyEvidenceFingerprint"):
+        trades_df[column] = [row.get(column) for row in completed_rows]
+
     return len(
         completed_rows
     )

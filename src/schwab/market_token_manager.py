@@ -467,6 +467,14 @@ def get_access_token() -> str:
     ]
 
 
+def get_cached_access_token() -> str:
+    """Read-only authorization for concurrent quote collection; never refresh."""
+    token_data = _load_tokens()
+    if not _access_token_is_valid(token_data) or not token_data.get("access_token"):
+        raise RuntimeError("Cached market-data authorization is unavailable")
+    return str(token_data["access_token"])
+
+
 def get_token_status() -> dict:
     """
     Return non-sensitive Market Data token status.

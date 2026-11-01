@@ -37,7 +37,7 @@ def save_bundle(path, payload):
 
 
 def collect_intraday(journal, output=OUTPUT, *, fetch=None, now=None,
-                     bounds=None, budget_seconds=30, batch_size=50, clock=time.monotonic):
+                     bounds=None, budget_seconds=30, batch_size=50, clock=time.monotonic, priority_only=False):
     if budget_seconds <= 0 or batch_size <= 0:
         raise ValueError("Positive collection bounds required")
     fixed = now is not None
@@ -63,20 +63,40 @@ def collect_intraday(journal, output=OUTPUT, *, fetch=None, now=None,
             return {"status": "ALREADY_RUNNING", "api_requests": 0}
         try:
             return _collect(journal, output, fetch, now, fixed, bounds,
-                            budget_seconds, batch_size, clock)
+                            budget_seconds, batch_size, clock, priority_only)
         finally:
             lock.seek(0)
             msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
 
 
-def _collect(journal, output, fetch, now, fixed, bounds, budget, batch_size, clock):
-    contracts, missing = tracked_contracts(journal, now, lookback_days=60)
+def _collect(journal, output, fetch, now, fixed, bounds, budget, batch_size, clock, priority_only=False):
+    contracts, missing = ({}, 0) if priority_only else tracked_contracts(journal, now, lookback_days=60)
+    # Active comparison entries/holdings get first access to the same quote feed.
+    # The remaining research universe still rotates, preserving rejected evidence.
+    priority = []
+    try:
+        from shadow_comparison_runtime import priority_contracts
+        additional = priority_contracts(ROOT, now)
+        existing = {"".join(key.split()): key for key in contracts}
+        for canonical, item in sorted(additional.items()):
+            key = existing.get(canonical, item["contract_symbol"])
+            contracts.setdefault(key, item)
+            priority.append(key)
+    except Exception as error:
+        print("WARNING: comparison quote priority unavailable: " + type(error).__name__)
+        try:
+            from shadow_comparison_runtime import record_failure
+            record_failure(ROOT,"quote_priority",error)
+        except Exception:
+            pass
+    priority = list(dict.fromkeys(priority))
     symbols = sorted(contracts)
-    # Rotate starting batch to avoid starvation without rescanning all history.
-    batches = [symbols[i:i + batch_size] for i in range(0, len(symbols), batch_size)]
+    remainder = [key for key in symbols if key not in set(priority)]
+    batches = [remainder[i:i + batch_size] for i in range(0, len(remainder), batch_size)]
     if batches:
         start = int(now.timestamp() // CADENCE_SECONDS) % len(batches)
         batches = batches[start:] + batches[:start]
+    batches = [priority[i:i + batch_size] for i in range(0, len(priority), batch_size)] + batches
     if fetch is None:
         from schwab.market_data_client import get_option_quotes
         fetch = get_option_quotes
@@ -119,8 +139,10 @@ def _collect(journal, output, fetch, now, fixed, bounds, budget, batch_size, clo
         "session_open": bounds[0].isoformat(), "session_close": bounds[1].isoformat(),
         "cadence_seconds": CADENCE_SECONDS, "source": "SCHWAB_OPTION_QUOTES",
         "contracts_tracked": len(symbols), "missing_symbols": missing,
+        "comparison_priority_only": priority_only,
         "api_requests": requests, "quote_status_counts": counts,
-        "status": "NO_CONTRACTS" if not symbols else "COMPLETE" if
+        "status": "NO_CONTRACTS" if not symbols else
+                  ("PRIORITY_ONLY_OBSERVED" if priority_only else "COMPLETE") if
                   counts.get("OBSERVED", 0) == len(symbols) and not missing else "PARTIAL",
         "elapsed_seconds": clock() - started, "production_policy_changed": False,
         "eligible_for_empirical_calibration": False,
@@ -132,6 +154,18 @@ def _collect(journal, output, fetch, now, fixed, bounds, budget, batch_size, clo
     day.mkdir(exist_ok=True)
     artifact = day / f"sample_{now.strftime('%H%M%S')}_{uuid4().hex[:12]}.json.gz"
     save_bundle(artifact, summary)
+    try:
+        from shadow_comparison_runtime import consume_bundle
+        consume_bundle(artifact, ROOT, now=now if fixed else datetime.now(timezone.utc))
+    except Exception as error:
+        # Raw evidence has already been committed. Never break the collector or
+        # pretend comparison processing succeeded; the bundle can be retried.
+        print("WARNING: comparison quote processing failed: " + type(error).__name__)
+        try:
+            from shadow_comparison_runtime import record_failure
+            record_failure(ROOT,"quote_processing",error,artifact)
+        except Exception:
+            pass
     return {k: v for k, v in summary.items() if k not in {"contracts", "observations"}}
 
 
@@ -215,12 +249,20 @@ def main():
     parser.add_argument("--journal", type=Path, default=ROOT / "data" / "trade_journal.csv")
     parser.add_argument("--output-dir", type=Path, default=OUTPUT)
     parser.add_argument("--health-date", help="Read-only YYYY-MM-DD slot audit; no API calls")
+    parser.add_argument("--priority-only", action="store_true", help="Only active comparison orders/holdings; no research-universe scan")
+    parser.add_argument("--cached-auth-only", action="store_true", help="Never refresh OAuth while the daily job is running")
+    parser.add_argument("--budget-seconds", type=float, default=30)
     args = parser.parse_args()
     try:
         if args.health_date:
             print(json.dumps(session_health(args.output_dir, args.health_date)))
             return 0
-        result = collect_intraday(args.journal, args.output_dir)
+        fetch = None
+        if args.cached_auth_only:
+            from functools import partial
+            from schwab.market_data_client import get_option_quotes
+            fetch = partial(get_option_quotes, cached_auth_only=True)
+        result = collect_intraday(args.journal, args.output_dir, fetch=fetch, budget_seconds=args.budget_seconds, priority_only=args.priority_only)
         print(json.dumps(result))
         return 1 if result["status"] == "PARTIAL" else 0
     except Exception as exc:

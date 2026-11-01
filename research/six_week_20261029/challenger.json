@@ -1,0 +1,27 @@
+{
+  "version": "SIX-WEEK-SHADOW-2026-10-29-v1",
+  "mode": "SHADOW_ONLY",
+  "target": "positive seven-session underlying directional return",
+  "features": [
+    "research_score_centered",
+    "bullish"
+  ],
+  "coefficients": [
+    -0.24795506536702816,
+    0.3431111821519882,
+    0.5133154573011471
+  ],
+  "regularization": 10.0,
+  "training_n": 364,
+  "training_latest_outcome": "2026-10-28",
+  "source_sha256": "4876d99838ad52b82bdfa046c76fad89ec8cac8d6fec9f06783682a0658e8f86",
+  "training_source": "C:\\Users\\brian\\Documents\\Codex\\options_research_engine\\data\\processed\\hindsight_quality_views\\research_hindsight_quality_view_20261029_ctva_basis_excluded.csv",
+  "activation_not_before": "2026-11-01",
+  "promotion_allowed": false,
+  "limitations": [
+    "Discovery reused previously inspected history; forward shadow is confirmatory",
+    "Underlying probability is not option profitability",
+    "No dynamic stop, target or allocation changes justified by this artifact"
+  ],
+  "training_base_rate": 0.5409836065573771
+}

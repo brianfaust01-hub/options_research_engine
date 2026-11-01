@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "policy_version": "OPTION-CONFIG-COMPARISON-2026-10-29-v1",
+  "control": "baseline",
+  "challenger": "moderate_delta_iv",
+  "initial_capital": 15000,
+  "fee_per_contract_per_side": 0.7,
+  "market_slippage_per_share": 0.01,
+  "entry_time_in_force": "DAY",
+  "entry_fill": "fresh positive bid/ask; ask must be <= entry limit; price min(limit, ask plus adverse slippage)",
+  "stop_trigger": "fresh observed option bid at or below stop",
+  "stop_fill": "observed bid less market slippage, bounded at zero; overshoot retained",
+  "target_fill": "fresh observed bid reaches target; fill capped at target limit",
+  "profit_protection_and_portfolio_review": "existing shared position review and allocator, daily",
+  "quote_freshness_seconds": 60,
+  "missing_data": "no interpolation or inferred fills; stale marks explicitly carried and new allocation blocked",
+  "size_assumption": "full-size quote-touch simulation; no market depth or queue guarantee",
+  "broker_execution": "never sent by this experiment",
+  "zero_bid": "unexecutable quote; no simulated zero-price sale or invented expiry settlement",
+  "daily_position_review_price": "executable bid; reported NAV uses quote mark/midpoint",
+  "capital_recycling": "replacement entries wait for pending exit fills; cash and closing fees reserved"
+}

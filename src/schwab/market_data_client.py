@@ -24,7 +24,7 @@ from typing import Any
 
 import requests
 
-from schwab.market_token_manager import get_access_token
+from schwab.market_token_manager import get_access_token, get_cached_access_token
 
 
 BASE_URL = (
@@ -187,7 +187,7 @@ def get_quote(
     )
 
 
-def get_option_quotes(symbols: list[str], timeout_seconds: float = 5) -> dict:
+def get_option_quotes(symbols: list[str], timeout_seconds: float = 5, *, cached_auth_only: bool = False) -> dict:
     """Batched exact option symbols for research, without equity normalization.
 
     Keep internal OCC padding intact. This read-only adapter does not log raw
@@ -197,7 +197,7 @@ def get_option_quotes(symbols: list[str], timeout_seconds: float = 5) -> dict:
         return {}
     response = requests.get(
         f"{BASE_URL}/quotes",
-        headers={"Authorization": f"Bearer {get_access_token()}",
+        headers={"Authorization": f"Bearer {get_cached_access_token() if cached_auth_only else get_access_token()}",
                  "Accept": "application/json"},
         params={"symbols": ",".join(symbols)},
         timeout=timeout_seconds,

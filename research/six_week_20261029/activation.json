@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "quality_review": true,
+  "comparison_enabled": true,
+  "diagnostic_forecast": false,
+  "release_status": "READY"
+}

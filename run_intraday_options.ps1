@@ -5,14 +5,22 @@ $marketOpen = $eastern.Date.AddHours(9).AddMinutes(30)
 $marketClose = $eastern.Date.AddHours(16)
 if ($eastern.DayOfWeek -in @("Saturday", "Sunday") -or $eastern -lt $marketOpen -or $eastern -gt $marketClose) { exit 0 }
 
-# Avoid shared OAuth refresh contention with the normal scheduled daily scan.
+# Preserve active comparison prices during the scan, without refreshing shared OAuth.
+$comparisonDuringScan = $false
 $daily = Get-ScheduledTask -TaskName "Project Stonks Daily Run" -ErrorAction SilentlyContinue
 if ($null -ne $daily -and $daily.State -eq "Running") {
     $pauseLogDir = Join-Path $PSScriptRoot "logs"
     New-Item -ItemType Directory -Path $pauseLogDir -Force | Out-Null
     $pauseLog = Join-Path $pauseLogDir ("intraday_options_{0}.log" -f $eastern.ToString("yyyy-MM-dd"))
-    Add-Content -LiteralPath $pauseLog -Value "$(Get-Date -Format o) PAUSED_DAILY_SCAN: this interval is a gap"
-    exit 0
+    try {
+        $comparisonSettings = Get-Content -LiteralPath (Join-Path $PSScriptRoot "research/six_week_20261029/activation.json") -Raw | ConvertFrom-Json
+        $comparisonDuringScan = $comparisonSettings.enabled -and $comparisonSettings.comparison_enabled -and $comparisonSettings.release_status -eq "READY"
+    } catch { $comparisonDuringScan = $false }
+    if (-not $comparisonDuringScan) {
+        Add-Content -LiteralPath $pauseLog -Value "$(Get-Date -Format o) PAUSED_DAILY_SCAN: this interval is a gap"
+        exit 0
+    }
+    Add-Content -LiteralPath $pauseLog -Value "$(Get-Date -Format o) COMPARISON_ONLY_DURING_SCAN: cached authorization; broad research collection paused"
 }
 
 $python = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
@@ -27,7 +35,9 @@ $stderr = Join-Path $scratchDir "$runId.err"
 $log = Join-Path $logDir ("intraday_options_{0}.log" -f $eastern.ToString("yyyy-MM-dd"))
 $exitCode = 1
 try {
-    $process = Start-Process -FilePath $python -ArgumentList @("-u", "`"$collector`"") `
+    $collectorArguments = @("-u", "`"$collector`"")
+    if ($comparisonDuringScan) { $collectorArguments += @("--priority-only", "--cached-auth-only", "--budget-seconds", "10") }
+    $process = Start-Process -FilePath $python -ArgumentList $collectorArguments `
         -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     if (-not $process.WaitForExit(45000)) {

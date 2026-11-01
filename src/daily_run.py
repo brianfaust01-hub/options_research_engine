@@ -86,6 +86,48 @@ def refresh_research_ranking_shadow() -> None:
         print("WARNING: shadow research ranking refresh unavailable; guidance unaffected.")
 
 
+def refresh_six_week_shadow() -> None:
+    """Opt-in sidecar; no baseline recommendations or email content changes."""
+    from six_week_release import active_settings
+    try:
+        settings = active_settings(PROJECT_ROOT)
+    except (ValueError, OSError):
+        print("WARNING: six-week shadow activation invalid; baseline guidance unaffected.")
+        return
+    if settings.get("comparison"):
+        try:
+            recommendations = latest_file(str(DATA_PROCESSED_DIR / "trade_recommendations_*.csv"))
+            if recommendations is None:
+                raise FileNotFoundError("No comparison candidate snapshot")
+            result = subprocess.run(
+                [sys.executable, "-u", str(SRC_DIR / "shadow_comparison_runtime.py"),
+                 "daily", "--candidates", str(recommendations)],
+                cwd=str(PROJECT_ROOT), timeout=45, check=False,
+            )
+            if result.returncode:
+                print("WARNING: option comparison decision capture failed; baseline guidance unaffected.")
+        except (subprocess.TimeoutExpired, OSError):
+            print("WARNING: option comparison unavailable; baseline guidance unaffected.")
+    model_path = settings.get("model")
+    if not model_path:
+        return
+    from datetime import datetime, timezone
+    output = DATA_PROCESSED_DIR / "six_week_shadow" / (
+        "predictions_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f") + ".csv"
+    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-u", str(SRC_DIR / "six_week_calibration.py"),
+             "shadow", "--journal", str(PROJECT_ROOT / "data" / "trade_journal.csv"),
+             "--model", model_path, "--output", str(output)],
+            cwd=str(PROJECT_ROOT), timeout=45, check=False,
+        )
+        if result.returncode:
+            print("WARNING: six-week shadow failed; baseline guidance unaffected.")
+    except (subprocess.TimeoutExpired, OSError):
+        print("WARNING: six-week shadow unavailable; baseline guidance unaffected.")
+
+
 def latest_file(pattern: str) -> Path | None:
     matches = [Path(p) for p in glob.glob(pattern)]
 
@@ -109,7 +151,7 @@ def main() -> None:
     print("Schwab market-data preflight passed.")
 
     result = subprocess.run(
-        [sys.executable, str(WEEKLY_SCAN_PATH)],
+        [sys.executable, "-u", str(WEEKLY_SCAN_PATH)],
         cwd=str(PROJECT_ROOT),
         capture_output=False,
         text=True,
@@ -163,6 +205,7 @@ def main() -> None:
 
     collect_research_observations()
     refresh_research_ranking_shadow()
+    refresh_six_week_shadow()
     run_evidence_audit()
     print()
     print("Project Stonks daily run completed successfully.")

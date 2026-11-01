@@ -186,6 +186,7 @@ def _get_option_mark(
 
 def _calculate_dte(
     expiration: str,
+    as_of: datetime | None = None,
 ):
     try:
 
@@ -202,7 +203,7 @@ def _calculate_dte(
 
     return (
         expiration_date
-        - datetime.today().date()
+        - (as_of or datetime.today()).date()
     ).days
 
 
@@ -313,7 +314,11 @@ def _resolve_exit_rules(
 def _review_single_position(
     position: dict,
     trades_df: pd.DataFrame,
+    *, quote_override: dict | None = None,
+    as_of: datetime | None = None,
+    allow_network: bool = True,
 ):
+    review_time = as_of or datetime.today()
     ticker = str(
         position["Ticker"]
     )
@@ -344,15 +349,11 @@ def _review_single_position(
     #
 
     current_price = (
-        _get_option_mark(
-            position
-        )
+        _get_option_mark(position) if quote_override is None else quote_override.get("current_price")
     )
 
     dte = _calculate_dte(
-        str(
-            position["Expiration"]
-        )
+        str(position["Expiration"]), as_of=review_time
     )
 
     pnl_pct = None
@@ -447,7 +448,7 @@ def _review_single_position(
     )
     stop_loss = profit_protection["recommended_stop"]
 
-    if earnings_date is None or pd.isna(earnings_date):
+    if allow_network and (earnings_date is None or pd.isna(earnings_date)):
         try:
             resolved_earnings = get_next_earnings_date(ticker)
             earnings_date = (
@@ -463,10 +464,10 @@ def _review_single_position(
         if pd.notna(parsed_earnings):
             trading_days_to_earnings = max(
                 0,
-                len(pd.bdate_range(datetime.today().date(), parsed_earnings.date())) - 1,
+                len(pd.bdate_range(review_time.date(), parsed_earnings.date())) - 1,
             )
             earnings_inside_thesis_window = (
-                parsed_earnings.date() >= datetime.today().date()
+                parsed_earnings.date() >= review_time.date()
                 and trading_days_to_earnings <= expected_move_window_days
             )
 
@@ -474,7 +475,7 @@ def _review_single_position(
     trading_days_in_position = None
     thesis_deadline = None
     if pd.notna(entry_date) and expected_move_window_days is not None:
-        today = pd.Timestamp(datetime.today().date())
+        today = pd.Timestamp(review_time.date())
         trading_days_in_position = max(
             0, len(pd.bdate_range(entry_date.date(), today.date())) - 1
         )
