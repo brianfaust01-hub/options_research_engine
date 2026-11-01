@@ -104,12 +104,14 @@ class ComparisonLedger:
             return False
         self.db.execute('INSERT INTO inputs VALUES(?,?,?)',(kind,key,text));return True
 
-    def initialize(self,at,*,capital=15000,fee_per_contract=.70,market_slippage=.01,fingerprint='fixture',mode='FORWARD_SHADOW'):
+    def initialize(self,at,*,capital=15000,fee_per_contract=.70,market_slippage=.01,fingerprint='fixture',mode='FORWARD_SHADOW',portfolio_names=None):
         at=aware(at)
         if capital<=0 or fee_per_contract<0 or market_slippage<0:raise ValueError('Invalid accounting assumptions')
         if self.db.execute('SELECT 1 FROM state').fetchone():raise ValueError('Never reset an existing comparison')
+        names=tuple(POLICIES if portfolio_names is None else portfolio_names)
+        if not names or len(set(names))!=len(names) or not set(names).issubset(POLICIES):raise ValueError('Invalid portfolio names')
         portfolio=lambda:{'cash':float(capital),'realized_net':0.,'fees':0.,'lots':{},'orders':{},'peak_nav':float(capital),'max_drawdown':0.,'traded_premium':0.}
-        s={'version':VERSION,'mode':mode,'started_at':at.isoformat(),'last_at':at.isoformat(),'capital':float(capital),'fee':fee_per_contract,'slippage':market_slippage,'fingerprint':fingerprint,'marks':{},'portfolios':{p:portfolio() for p in POLICIES},'health':{'invalid_quotes':0,'missing_quotes':0,'late_bundles':0,'intraday_gaps':0,'max_gap_seconds':0,'zero_bid_observations':0}}
+        s={'version':VERSION,'mode':mode,'started_at':at.isoformat(),'last_at':at.isoformat(),'capital':float(capital),'fee':fee_per_contract,'slippage':market_slippage,'fingerprint':fingerprint,'marks':{},'portfolios':{p:portfolio() for p in names},'health':{'invalid_quotes':0,'missing_quotes':0,'late_bundles':0,'intraday_gaps':0,'max_gap_seconds':0,'zero_bid_observations':0}}
         with self.db:self.event(at,'BOTH','INITIALIZED',capital=capital,fee=fee_per_contract,slippage=market_slippage,fingerprint=fingerprint,mode=mode);self.save(s)
 
     def check(self,s,at,fingerprint):

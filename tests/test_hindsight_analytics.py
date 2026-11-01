@@ -117,6 +117,9 @@ class CredibilityAnalyticsTests(unittest.TestCase):
             self.assertIn("Current-Policy Evidence Review", report)
             self.assertIn("Legacy Archive", report)
             self.assertIn("No production scoring", report)
+            self.assertIn("Forward option configuration comparison", report)
+            self.assertIn("Independent SPY shadow", report)
+            self.assertIn("option_comparison", result)
 
     def test_current_policy_counts_only_executable_deduplicated_episodes(self):
         frame = pd.DataFrame([

@@ -120,7 +120,7 @@ def calculate_directional_opportunity_scores(row) -> dict:
     }
 
 
-def evaluate_opportunities(row):
+def evaluate_opportunities(row, *, trade_factory=None):
     scores = calculate_directional_opportunity_scores(row)
 
     bullish_score = scores["BullishScore"]
@@ -188,4 +188,4 @@ def evaluate_opportunities(row):
     # portfolio allocator and final enrichment stages.
     #
 
-    return construct_trade(row)
+    return (trade_factory or construct_trade)(row)

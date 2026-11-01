@@ -1,12 +1,12 @@
 {
   "version": "OPTION-CONFIG-COMPARISON-2026-10-29-v1",
   "hash_mode": "UTF8_NO_BOM_LF",
-  "expected_initial_fingerprint": "a181fa4456b2b20c4e784962e3f7d1c0e6468eb1666331b407099be490b09714",
+  "expected_initial_fingerprint": "d1994efce8a998ace7589d2264d05dead88c3ad674a93016fcbe71d13badaafe",
   "control": "baseline",
   "challenger": "moderate_delta_iv",
   "initial_capital_each": 15000,
   "activation_default": false,
-  "validated_tests": 179,
+  "validated_tests": 192,
   "validation_mode": "temporary fixture accounts/quotes; no production scan, network quote request, broker order or email",
   "scheduler_preflight": "CIM inspection unavailable in sandbox; desktop activator must verify enabled daily/minute jobs pointing to this checkout",
   "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
@@ -19,7 +19,11 @@
   "files": [
     {
       "path": "SHADOW_OPTION_COMPARISON.md",
-      "sha256": "db1418f9df0d1fcf6d7fe1b4116be0c4f18968d58fc7f7ce2da9d28f2cf877e7"
+      "sha256": "829ee8197d0cad26fc3f8c1647dd46375a1c1cc198de3430955346b7e36aff3e"
+    },
+    {
+      "path": "SPY_SHADOW_AND_REPORTING.md",
+      "sha256": "9fdb571205c717abb67d0dc0aae4e0c798e53c5cf8a6dd8a9abde1a36f5409ab"
     },
     {
       "path": "research/six_week_20261029/README.md",
@@ -36,6 +40,10 @@
     {
       "path": "research/six_week_20261029/comparison_spec.json",
       "sha256": "e24a19c7f867c956fbe0fb07fcf9100931a896803d39ccc27788b469e2803c0f"
+    },
+    {
+      "path": "research/spy_option_research/settings.json",
+      "sha256": "627a3befc05d570417828983b557f07745b247eef36af1a2ef7b9f1c281a5c9d"
     },
     {
       "path": "run_daily_stonks.bat",
@@ -55,7 +63,7 @@
     },
     {
       "path": "src/daily_run.py",
-      "sha256": "621b737aa81856d0c1f3112c711daca24e9a79498cb07d8f9bdf25c50d279930"
+      "sha256": "0475de4e4a7c45c938689b632816b4268a04ce50206904128cc6b79af56b9b4b"
     },
     {
       "path": "src/data_loader.py",
@@ -74,8 +82,12 @@
       "sha256": "cf5ea572e4bab71bd91fd41c120aac91365dad9e884642e0cb79333407299470"
     },
     {
+      "path": "src/experiment_reporting.py",
+      "sha256": "44f6c8c29547db88d01fca6a1a6ee42b9e36178cb3f169ee17ee351e1ab407df"
+    },
+    {
       "path": "src/hindsight_analytics.py",
-      "sha256": "dd61377e3bef200889fac29a0e73a50e5e149b88b42de77eb786a265620bfdac"
+      "sha256": "7f0db653ea5a90820455a3fe6e2fa6a3522f9baccd4bad202c48a2ec5e9463ea"
     },
     {
       "path": "src/hindsight_quality.py",
@@ -87,7 +99,7 @@
     },
     {
       "path": "src/intraday_option_paths.py",
-      "sha256": "46a1115c9b5aac0035b16fb1e5f5e99e676d8a158f0bedd8a231c54a4286853d"
+      "sha256": "abbb383999a167c2f51c1febf8aa841ffac3c737dcd3765355a66135070ffffc"
     },
     {
       "path": "src/market_breadth.py",
@@ -99,7 +111,7 @@
     },
     {
       "path": "src/opportunity_engine.py",
-      "sha256": "9758b681ff30878a010e682e611509d9d99b7e54e2c645669fc8ed6a6e13ac7b"
+      "sha256": "35c90077804b477153d00f81fccebb0654561c72f537405140b2779e235e8934"
     },
     {
       "path": "src/option_observation_collector.py",
@@ -155,7 +167,7 @@
     },
     {
       "path": "src/shadow_option_ledger.py",
-      "sha256": "e49d93c9a5f6f0d27f02ac7729adcfe926e701a465b1ba634c98a5e9f7fa0800"
+      "sha256": "7e28e57c1861e40707c98aaf574074ea21b1f9d07182416007e6d5065998bfc8"
     },
     {
       "path": "src/six_week_calibration.py",
@@ -166,8 +178,12 @@
       "sha256": "0f356e6c98debe5ac6abb6901d48099b8f85537a3e759f2038c31c9e2014cd01"
     },
     {
+      "path": "src/spy_option_research.py",
+      "sha256": "3a4f7a661ea9c61270a3b0ef1b78043bc1cc3595affd4480bf62337805978be7"
+    },
+    {
       "path": "src/trade_constructor.py",
-      "sha256": "a5dc948f9b0a993978b0b6e216a904dfe5f93226e41ae331c4131a6d7e1dc2cd"
+      "sha256": "02e441efef169e16f1ecb03f3f5a51e966df46b3b803d7da8a76d330084a2fae"
     },
     {
       "path": "src/trade_journal.py",
@@ -180,6 +196,10 @@
     {
       "path": "src/trade_scoring.py",
       "sha256": "d8f7385f4005e125bade391a19986dbedd050b8de4d23e908e6a05bac339a731"
+    },
+    {
+      "path": "src/weekly_learning.py",
+      "sha256": "1a6223cecd02a54a820d73dd1388bedf5f2860f92856d5efe1730ed57085e48e"
     },
     {
       "path": "src/weekly_scan.py",
@@ -202,8 +222,24 @@
       "sha256": "0878fffec0516320d26ebc8fdf25f3c344e4f621d2f338f1b9e881620c98b96f"
     },
     {
+      "path": "tests/test_experiment_reporting.py",
+      "sha256": "55550936021fc714748d8db77a8d2dec90c3634faccd4a04b1a097071cc7afec"
+    },
+    {
+      "path": "tests/test_hindsight_analytics.py",
+      "sha256": "345b417167d6c5cd1473364238cd5d7fe10ec9d8848eb47c51a77f8d3b548fd4"
+    },
+    {
       "path": "tests/test_hindsight_quality.py",
       "sha256": "b36b64999a23dc555885f9003d84907fa6a560c3ff6440b8b0043c9fa1900fc6"
+    },
+    {
+      "path": "tests/test_intraday_option_paths.py",
+      "sha256": "c17155202a5d593104a34a907a5252407a142c87c96aa7ac6ef18dfd0f40468a"
+    },
+    {
+      "path": "tests/test_option_observation_collector.py",
+      "sha256": "43a571a7be8292d4dbaa0ea6a7f8dfa81d117f42fa8cc43a863359e45c870350"
     },
     {
       "path": "tests/test_shadow_comparison_runtime.py",
@@ -220,6 +256,19 @@
     {
       "path": "tests/test_six_week_release.py",
       "sha256": "2896d8576dfcfae7e03be772e1fe6928c6e969ac466adfb794959b0c9e64e4ac"
+    },
+    {
+      "path": "tests/test_spy_option_research.py",
+      "sha256": "303d0ebfdeacc1d24b3c9cf65883b13439afec2d990da6172859b620688f3174"
     }
-  ]
+  ],
+  "spy_expected_initial_fingerprint": "e6c521604d5592f5440d6c68dc1d8a962ab650c03dc2e2356fae5966280f9725",
+  "pre_inception_amendment": {
+    "date": "2026-11-01",
+    "previous_primary_fingerprint": "a181fa4456b2b20c4e784962e3f7d1c0e6468eb1666331b407099be490b09714",
+    "scope": "Matched reports plus independently funded SPY baseline-rules shadow; primary delta/IV policies unchanged",
+    "primary_ledger_existed": false,
+    "spy_ledger_existed": false,
+    "activation_preserved": true
+  }
 }

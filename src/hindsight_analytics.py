@@ -795,16 +795,16 @@ def _markdown(summary: dict, source: Path) -> str:
             lines.append("")
         lines.extend([
             "## Six-Week Configuration Checkpoint", "",
-            f"- Stage: **{experiment['stage']}**",
+            f"- Directional research readiness stage: **{experiment['stage']}**",
             f"- Baseline evidence: {experiment['baseline_weeks']:.1f} / "
             f"{experiment['baseline_week_target']} weeks and "
             f"{experiment['baseline_matured_episodes']:,} / "
             f"{experiment['baseline_episode_target']:,} matured episodes",
-            f"- Matched challenger evidence: "
+            f"- Legacy directional-diagnostic matched observations (not option-shadow trades): "
             f"{experiment['matched_shadow_observations']:,} / "
             f"{experiment['matched_shadow_target']:,}",
-            "- At the checkpoint, freeze one bounded challenger and compare it "
-            "with the baseline on the same subsequent observations.", "",
+            "- The frozen option configuration comparison is reported separately "
+            "below, with its own inception, option prices and simulated returns.", "",
             "## Readiness Blockers", "",
             *[f"- {blocker}" for blocker in current["blockers"]], "",
             "## Legacy Archive", "",
@@ -813,6 +813,9 @@ def _markdown(summary: dict, source: Path) -> str:
             "but are excluded from the readiness headline and forward configuration decisions.", "",
             "No production scoring, allocation, recommendations, or historical records were changed.", "",
         ])
+        if "option_comparison" in summary:
+            from experiment_reporting import comparison_markdown
+            lines.extend(["", comparison_markdown(summary["option_comparison"], detailed=True)])
         return "\n".join(lines)
     counts = summary["counts"]
     lines = [
@@ -877,6 +880,9 @@ def _markdown(summary: dict, source: Path) -> str:
                     f"average return {_pct(row.get('average_return'))}"
                 )
     contract = summary["contract_counterfactual"]
+    if "option_comparison" in summary:
+        from experiment_reporting import comparison_markdown
+        lines.extend(["", comparison_markdown(summary["option_comparison"], detailed=True)])
     lines.extend([
         "## Option-Contract Counterfactual", "",
         f"Status: **{contract['status']}**", "",
@@ -908,6 +914,8 @@ def generate_hindsight_analytics(
         from hindsight_quality import reviewed_quality_view, RULE_VERSION
         frame, quality_audit = reviewed_quality_view(frame)
     summary = analyze_hindsight(frame)
+    from experiment_reporting import build_comparison
+    summary["option_comparison"] = build_comparison(PROJECT_ROOT)
     if quality_audit is not None:
         summary["reviewed_price_basis"] = {
             "rule_version": RULE_VERSION, "excluded_observations": len(quality_audit),

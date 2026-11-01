@@ -89,6 +89,17 @@ def _collect(journal, output, fetch, now, fixed, bounds, budget, batch_size, clo
             record_failure(ROOT,"quote_priority",error)
         except Exception:
             pass
+    # SPY is an independent collection-stage test. Comparison contracts retain
+    # first priority; small SPY watch sets follow, including during scan pauses.
+    try:
+        from spy_option_research import watch_contracts
+        existing = {"".join(key.split()): key for key in contracts}
+        for raw_symbol, item in sorted(watch_contracts(ROOT, now).items()):
+            key = existing.get("".join(raw_symbol.split()), raw_symbol)
+            contracts.setdefault(key, item)
+            priority.append(key)
+    except Exception as error:
+        print("WARNING: SPY quote watch unavailable: " + type(error).__name__)
     priority = list(dict.fromkeys(priority))
     symbols = sorted(contracts)
     remainder = [key for key in symbols if key not in set(priority)]
@@ -155,6 +166,11 @@ def _collect(journal, output, fetch, now, fixed, bounds, budget, batch_size, clo
     artifact = day / f"sample_{now.strftime('%H%M%S')}_{uuid4().hex[:12]}.json.gz"
     save_bundle(artifact, summary)
     try:
+        from spy_option_research import record_quote_health
+        record_quote_health(ROOT, summary, artifact)
+    except Exception as error:
+        print("WARNING: SPY quote health unavailable: " + type(error).__name__)
+    try:
         from shadow_comparison_runtime import consume_bundle
         consume_bundle(artifact, ROOT, now=now if fixed else datetime.now(timezone.utc))
     except Exception as error:
@@ -166,6 +182,16 @@ def _collect(journal, output, fetch, now, fixed, bounds, budget, batch_size, clo
             record_failure(ROOT,"quote_processing",error,artifact)
         except Exception:
             pass
+    try:
+        from spy_option_research import consume_bundle as consume_spy_bundle
+        consume_spy_bundle(artifact, ROOT, now=now if fixed else datetime.now(timezone.utc))
+    except Exception as error:
+        print("WARNING: SPY shadow processing failed: " + type(error).__name__)
+        from spy_option_research import atomic_json, DIRECTORY
+        atomic_json(ROOT / DIRECTORY / "processing_health_latest.json", {
+            "status": "FAILED_UPDATE", "error_type": type(error).__name__,
+            "at": (now if fixed else datetime.now(timezone.utc)).isoformat(),
+        })
     return {k: v for k, v in summary.items() if k not in {"contracts", "observations"}}
 
 

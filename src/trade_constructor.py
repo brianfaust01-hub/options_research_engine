@@ -190,6 +190,7 @@ def _dollar_note(
 
 def construct_trade(
     row,
+    *, selector=None,
 ) -> TradeRecommendation:
     option_strategy = None
     contract_symbol = None
@@ -269,7 +270,7 @@ def construct_trade(
     ]
 
     if row["Action"] == "Evaluate Options":
-        best_contract = select_best_contract(
+        best_contract = (selector or select_best_contract)(
             ticker=row["Ticker"],
             opportunity_type=row["OpportunityType"],
             expected_holding_days=holding_period_days,

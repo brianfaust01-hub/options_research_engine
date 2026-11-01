@@ -659,6 +659,9 @@ def _write_markdown_report(
             )
         )
 
+    from experiment_reporting import comparison_markdown
+    if "option_comparison" in learning:
+        lines.extend(["", comparison_markdown(learning["option_comparison"])])
     output_path.write_text(
         "\n".join(lines),
         encoding="utf-8",
@@ -926,6 +929,8 @@ def generate_weekly_learning_report() -> dict:
         / f"weekly_learning_{timestamp}.json"
     )
 
+    from experiment_reporting import build_comparison
+    learning["option_comparison"] = build_comparison(PROJECT_ROOT)
     _write_markdown_report(
         learning=learning,
         output_path=report_path,

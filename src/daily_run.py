@@ -128,6 +128,25 @@ def refresh_six_week_shadow() -> None:
         print("WARNING: six-week shadow unavailable; baseline guidance unaffected.")
 
 
+def collect_spy_research() -> None:
+    """Isolated bounded SPY selection; never adds to production candidates."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-u", str(SRC_DIR / "spy_option_research.py")],
+            cwd=str(PROJECT_ROOT), timeout=90, check=False,
+        )
+        if result.returncode:
+            print("WARNING: SPY research selection failed; baseline guidance unaffected.")
+    except (subprocess.TimeoutExpired, OSError) as error:
+        from spy_option_research import atomic_json, DIRECTORY
+        from datetime import datetime, timezone
+        atomic_json(PROJECT_ROOT / DIRECTORY / "health_latest.json", {
+            "status": "CAPTURE_TIMEOUT_OR_UNAVAILABLE", "error_type": type(error).__name__,
+            "at": datetime.now(timezone.utc).isoformat(),
+        })
+        print("WARNING: SPY research unavailable; baseline guidance unaffected.")
+
+
 def latest_file(pattern: str) -> Path | None:
     matches = [Path(p) for p in glob.glob(pattern)]
 
@@ -206,6 +225,7 @@ def main() -> None:
     collect_research_observations()
     refresh_research_ranking_shadow()
     refresh_six_week_shadow()
+    collect_spy_research()
     run_evidence_audit()
     print()
     print("Project Stonks daily run completed successfully.")

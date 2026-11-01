@@ -21,6 +21,17 @@ def quote(age=0, bid=1.2):
 
 
 class IntradayTests(unittest.TestCase):
+    def setUp(self):
+        # Activation can be enabled locally. Fixture dates must never inspect
+        # that account or append failures to its production health files.
+        self.sidecar_root = tempfile.TemporaryDirectory()
+        self.root_patch = patch('intraday_option_paths.ROOT', Path(self.sidecar_root.name))
+        self.root_patch.start()
+
+    def tearDown(self):
+        self.root_patch.stop()
+        self.sidecar_root.cleanup()
+
     def journal(self, root):
         path = root / "journal.csv"
         rows = [{"RecommendationID": str(i), "RecommendationDate": "2026-09-18T14:00:00+00:00",

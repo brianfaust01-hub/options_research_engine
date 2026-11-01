@@ -1,0 +1,12 @@
+{
+  "version": "SPY-ONLY-SHADOW-2026-11-02-v1",
+  "enabled": true,
+  "start_date": "2026-11-02",
+  "holding_days": 7,
+  "minimum_dte": 45,
+  "mode": "SPY_ONLY_FORWARD_SHADOW",
+  "initial_capital": 15000,
+  "fee_per_contract_per_side": 0.7,
+  "market_slippage_per_share": 0.01,
+  "production_allocation": false
+}

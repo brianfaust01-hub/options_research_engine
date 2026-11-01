@@ -5,6 +5,32 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**November 1 reporting and SPY extension:** Brian approved matched baseline/
+delta-IV reporting in hindsight and weekly recaps, and a separate SPY
+forward trading shadow rather than collection alone. See
+`SPY_SHADOW_AND_REPORTING.md`. The SPY-only $15,000 simulated book reuses
+baseline qualification, sizing, execution and exit rules in its own ledger;
+call/put probes supply coverage but do not force trades. It starts at the
+first eligible November 2 decision, with no historical fills or inherited
+holdings. Its returns and quote health are separate from the approved broad
+comparison and actual broker statements. Stock-specialist restrictions stay
+deferred. Existing baseline inputs/allocations and actual broker state are
+unchanged. All future broker weekly recaps should include the shared
+`experiment_reporting.build_comparison` view, preserving actual versus
+simulated labels and each experiment's inception.
+
+Validation: 192 tests passed plus module compilation and whitespace checks.
+The November 1 hindsight report and October 30 account recap now contain the
+new status sections. The legacy full weekly-learning rebuild was stopped
+while reading its large snapshot archive; future generated weekly-learning
+reports include the same view, and the account recap was updated from its
+already reconciled Friday figures. Source and dependency fingerprints were
+refreshed only after verifying neither live experiment ledger existed.
+Activation remains enabled as set by Brian. These follow-up changes are local
+and have not been committed/pushed. A pre-existing test-isolation issue with
+enabled local activation was corrected: fixture failures remain in the log,
+and derived health truthfully reports NOT_STARTED with that provenance.
+
 **Sunday release verification (2026-11-01):** The option configuration
 comparison passed all 179 repository tests again. Reviewed source hashes and
 the policy/dependency fingerprint matched; the read-only report returned
@@ -2593,6 +2619,21 @@ Highest-value work expected to be considered for upcoming sprints.
 **Status:** Backlog
 
 ### October 30 requested follow-up — stock-specific option results
+
+**Initial evidence review completed November 1:** Read-only reconstruction
+through October 30 contains 208 closed experiment-era long-option episodes,
+137 after the September 24 correction. DIS has six completed post-fix entries,
+four wins and +$426.78 after itemized fees; it remains positive without its
+best trade and in both descriptive chronological halves. KO has two recent
+winners and XOM's four episodes are concentrated on three early-October dates.
+A train-only weekly prior-winner shortlist produced 13 subsequent observed
+closed trades averaging -6.13% versus +4.66% for 85 other observed trades;
+this is exploratory trade filtering, not a capital-matched portfolio replay.
+There is a stock-specific research hypothesis, but no demonstrated basis to
+restrict production to past winning tickers. All losses and separate reviewed
+quantity overlays are preserved; economic shorts are excluded from both wins
+and losses. SPY data collection and any additional shadow remain deferred
+pending discussion. Review: chat outputs `ticker-review-2026-11-01/`.
 
 Brian requested this analysis and explicitly deferred it until after the
 holdings update and end-of-week recap. Outcome Review / Learning will evaluate

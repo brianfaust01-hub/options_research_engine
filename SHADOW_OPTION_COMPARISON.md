@@ -94,3 +94,17 @@ Net return, costs, deployment, concentration, drawdown, independent dates and re
 Fixture tests cover daily allocation, minute-feed integration, shadow-only symbols, priority during scans, cached-only authorization, deferred decisions, ask-limit touches, bid stops/overshoots, target limits, partial exits, ADD/capital guards, real cash recycling, zero bids, fees/NAV reconciliation, restart idempotence, immutable inputs, stale/future observations, session clocks, coverage, exports, rollback flags and source-version rejection.
 
 All testing uses temporary fixture accounts and quotes. No production scan, API quote request, order, email, token-file update, commit or push was performed for validation. The deployment remains disabled.
+
+## November 1 extension before first forward observations
+
+Brian subsequently enabled the release. Before its first normal session,
+reporting was added to hindsight and weekly learning, with matched weekly
+and since-inception control/challenger results and separately dated broker
+context. An independent SPY-only $15,000 simulated account was also approved,
+using the same baseline rules and shared fill/exit engine. It has its own
+ledger, technical qualification and inception, not the moderate-delta/IV
+filter. Both-side contract probes supply research coverage without forcing
+trades. See `SPY_SHADOW_AND_REPORTING.md`. The primary comparison's two
+policies and parameters remain the same. Source/manifest fingerprints were
+refreshed before either live ledger existed; no experiment was reset or
+historical return backfilled. November 1 validation: 192 tests passed.
