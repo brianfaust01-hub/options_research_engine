@@ -7,6 +7,43 @@ first eligible daily decision on November 2. It begins with $15,000 cash and
 no inherited holdings. It does not compete for the broad baseline's capital
 and does not apply the moderate-delta/IV challenger filter.
 
+**November 2 capture repair:** The first scheduled capture failed before
+portfolio initialization because pandas nullable contract metadata (`pd.NA`)
+was not JSON serializable. SPY now writes optional missing fields as JSON
+null and preserves dates as ISO strings. Missing required identities/prices
+remain rejected. A live-data temporary-account replay successfully captured
+both sides; its Watch signal correctly produced no trade. No live SPY ledger
+was initialized, prior trades were not invented, and today's failed capture
+is preserved. First live inception is deferred to the next eligible normal
+scheduled run. The broad comparison's policy fingerprint is unchanged; the
+SPY fingerprint is reviewed anew before its first successful inception.
+
+## Index-transfer hypothesis and first two-week review
+
+The SPY experiment asks whether technical signals and contract/risk rules
+developed for individual stocks transfer to a diversified index. That
+relationship is unvalidated. Index diversification, constituent concentration,
+breadth and macro exposure can change the interpretation of a signal. The
+absence of a single issuer earnings date does not eliminate event risk.
+
+After roughly two weeks of actual forward capture, review:
+
+- How often the technical rules choose call, put, Watch or Pass.
+- Whether insufficient/no trades reflect the signal itself, contract
+  affordability, quote/liquidity gates or portfolio constraints.
+- The selected delta/IV/DTE context, entry costs, simulated fills and exits.
+- Net returns, open versus closed results, drawdown and cash/deployed capital,
+  qualified by quote coverage and the actual inception window.
+- Whether any apparent success comes from simply carrying directional index
+  exposure rather than useful selection/timing. Existing records are not a
+  risk-adjusted SPY buy-and-hold benchmark and must not be labeled alpha.
+
+This is an early fit/operations review, not a requirement to declare a winner
+after ten sessions. No trades, poor transfer or insufficient independent
+outcomes are valid results. Do not tune SPY thresholds from its first few
+trades or pool it into the stock delta/IV comparison. Future SPY-specific
+rules require a separately frozen hypothesis and prospective evaluation.
+
 The daily post-email sidecar records SPY's technical research inputs and
 selects call and put contracts using the existing selector, liquidity and
 execution checks and a minimum 45 DTE. Both sides are research probes; the

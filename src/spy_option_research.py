@@ -1,5 +1,5 @@
 """SPY-only forward simulated portfolio and quote watch set; no broker orders."""
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from uuid import uuid4
@@ -8,6 +8,7 @@ import json
 import re
 import sqlite3
 import sys
+import math
 from dataclasses import asdict
 import pandas as pd
 
@@ -18,16 +19,32 @@ VERSION = 'SPY-ONLY-SHADOW-2026-11-02-v1'
 ET = ZoneInfo('America/New_York')
 
 
+def json_value(value):
+    """Preserve missing provider metadata as null, never fabricated values."""
+    if value is None or value is pd.NA or value is pd.NaT:
+        return None
+    if isinstance(value, dict):
+        return {str(k): json_value(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_value(v) for v in value]
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if hasattr(value, 'item'):
+        return json_value(value.item())
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
+
+
 def settings(root):
     path = Path(root)/SETTINGS
     return json.loads(path.read_text(encoding='utf-8-sig')) if path.exists() else {}
 
 
 def atomic_json(path, value):
-    from shadow_option_ledger import clean
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name+'.'+uuid4().hex+'.tmp')
-    temporary.write_text(json.dumps(clean(value), indent=2, allow_nan=False), encoding='utf-8')
+    temporary.write_text(json.dumps(json_value(value), indent=2, allow_nan=False), encoding='utf-8')
     temporary.replace(path)
 
 
@@ -203,7 +220,7 @@ def consume_bundle(path, root=ROOT, now=None):
 
 def capture(root=ROOT, now=None, history=None, selector=None, evaluate=None, candidate_builder=None):
     from intraday_option_paths import session_bounds
-    from shadow_option_ledger import clean
+    clean = json_value
     fixed_clock = now is not None
     now = now or datetime.now(timezone.utc)
     root = Path(root)
@@ -370,6 +387,7 @@ def research_status(root=ROOT, now=None):
             'latest_quote_health': quote_summary,
             'portfolio': portfolio,
             'returns': portfolio['since_start']['return_on_starting_nav'] if portfolio else None,
+            'transfer_hypothesis': 'Do stock-derived technical signals and contract/risk rules transfer to a diversified index? This is unvalidated; no-trade or weak performance is a valid finding.',
             'note': 'Independent SPY-only $15,000 simulated book using baseline rules. Different universe and inception; not a matched delta/IV comparison.'}
 
 

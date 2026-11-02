@@ -5,6 +5,21 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**November 2 SPY capture repair:** Reproduced the first-run TypeError with
+live provider data in a temporary account: optional contract metadata
+contained pandas `pd.NA`, which JSON could not encode. SPY-local serialization
+now preserves missing values as null and dates as ISO strings; required quote
+fields still fail closed. All 203 tests passed, including missing-field
+regressions. A live-data temporary capture selected both contracts and
+correctly retained a Watch/no-trade decision. The actual SPY account has not
+started; today's failed attempt remains recorded with repair provenance and
+the next normal scheduled capture will establish its inception. No backfill
+or broad-shadow policy change. Brian's concern is explicitly the transfer of
+stock-derived signals to an index; the first roughly two-week review will
+assess fit, trade frequency, costs, exposure, outcomes and coverage without
+assuming transfer or declaring a validated edge. See
+`SPY_SHADOW_AND_REPORTING.md`. This repair remains local pending commit/push.
+
 **November 2 observational monitor:** Outcome Review / Learning now owns a
 recurring condition/performance monitor (`EVIDENCE_MONITOR.md`) implementing
 the calibration plan's adaptation-monitoring work. Daily post-email execution

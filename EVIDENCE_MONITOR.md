@@ -102,8 +102,10 @@ refreshing, current-policy mature evidence is unavailable, and the newly
 started broad shadows have insufficient closed history for deterioration
 assessment. SPY's morning capture failed with TypeError and has not started;
 the monitor flags this as a data/operations issue, not a strategy loss.
-That separate failure still requires diagnosis/correction. No SPY return is
-inferred and no lost observations or trades are backfilled.
+That separate failure was subsequently reproduced and repaired in the SPY
+serializer; see `SPY_SHADOW_AND_REPORTING.md`. Until the next successful
+scheduled capture, SPY remains not started. No SPY return is inferred and no
+lost observations or trades are backfilled.
 
 Only reporting/monitoring and its daily invocation were changed. Both live
 experiments' frozen trading-policy fingerprints remain identical to their

@@ -157,9 +157,12 @@ def spy_markdown(value):
     else:
         lines += ['', 'No forward SPY portfolio observations yet. No return is inferred.']
     lines += ['', 'SPY uses its own inception and a different universe. It is not the matched delta/IV challenger; compare only aligned windows and explain different cash exposure.']
+    lines += ['', 'Transfer hypothesis: do technical signals and risk rules developed for individual stocks work for an index? This is unvalidated. Weak results, no trades or different signal behavior are valid findings; index breadth, concentration and macro exposure may behave differently.']
     capture = value.get('last_capture_health') or {}
     if capture.get('status') not in (None, 'CAPTURED'):
         lines += ['', '**Selection health:** '+str(capture.get('status'))+'.']
+    if capture.get('repair', {}).get('live_data_dry_run_passed'):
+        lines += ['', 'Capture serialization repair verified with live data in a temporary account. The failed session remains recorded; the real SPY portfolio awaits its next scheduled capture.']
     processing = value.get('last_processing_health') or {}
     if processing.get('status') not in (None, 'UPDATED'):
         lines += ['', '**SPY execution-data health:** '+str(processing.get('status'))+'.']

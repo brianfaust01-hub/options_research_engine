@@ -67,6 +67,33 @@ class SpyResearchTests(unittest.TestCase):
             self.assertFalse((self.root/'data'/name).exists())
         self.assertTrue(all(w['recommendations'][0]['allocation_decision'] == 'RESEARCH_ONLY_NOT_ALLOCATED' for w in watch.values()))
 
+    def test_nullable_live_contract_metadata_serializes_without_changing_selection(self):
+        import pandas as pd
+        def nullable_selector(**kwargs):
+            return dict(self.select(**kwargs), optional_provider_field=pd.NA,
+                        nested_metadata={'missing': pd.NA, 'timestamp': pd.Timestamp('2026-11-02T15:30:00Z')},
+                        unavailable_date=pd.NaT)
+        result = spy.capture(self.root, now=AT, history=self.history, selector=nullable_selector,
+                             evaluate=lambda f: {'Direction': 'Bullish', 'optional': pd.NA}, candidate_builder=self.build)
+        self.assertEqual(result['status'], 'CAPTURED')
+        record = json.loads(Path(result['source']).read_text())
+        self.assertIsNone(record['signal']['optional'])
+        for selection in record['selections']:
+            self.assertEqual(selection['status'], 'SELECTED')
+            self.assertIsNone(selection['contract']['optional_provider_field'])
+            self.assertIsNone(selection['contract']['unavailable_date'])
+            self.assertIsNone(selection['contract']['nested_metadata']['missing'])
+            self.assertEqual(selection['contract']['nested_metadata']['timestamp'], '2026-11-02T15:30:00+00:00')
+
+    def test_missing_required_quote_remains_rejected_after_serialization_fix(self):
+        import pandas as pd
+        def invalid(**kwargs):
+            return dict(self.select(**kwargs), bid=pd.NA)
+        with self.assertRaises(ValueError):
+            spy.capture(self.root, now=AT, history=self.history, selector=invalid,
+                        evaluate=lambda f: {}, candidate_builder=self.build)
+        self.assertFalse((self.root/spy.DIRECTORY/'ledger.sqlite').exists())
+
     def test_no_eligible_contract_is_evidence_not_fake_selection(self):
         spy.capture(self.root, now=AT, history=self.history, selector=lambda **k: None, evaluate=lambda f: {}, candidate_builder=self.build)
         self.assertEqual(spy.watch_contracts(self.root, AT), {})
