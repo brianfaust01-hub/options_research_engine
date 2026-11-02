@@ -120,6 +120,8 @@ class CredibilityAnalyticsTests(unittest.TestCase):
             self.assertIn("Forward option configuration comparison", report)
             self.assertIn("Independent SPY shadow", report)
             self.assertIn("option_comparison", result)
+            self.assertIn("Conditions and performance monitor", report)
+            self.assertIn("evidence_monitor", result)
 
     def test_current_policy_counts_only_executable_deduplicated_episodes(self):
         frame = pd.DataFrame([

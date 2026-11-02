@@ -6,7 +6,7 @@
   "challenger": "moderate_delta_iv",
   "initial_capital_each": 15000,
   "activation_default": false,
-  "validated_tests": 192,
+  "validated_tests": 201,
   "validation_mode": "temporary fixture accounts/quotes; no production scan, network quote request, broker order or email",
   "scheduler_preflight": "CIM inspection unavailable in sandbox; desktop activator must verify enabled daily/minute jobs pointing to this checkout",
   "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
@@ -63,7 +63,7 @@
     },
     {
       "path": "src/daily_run.py",
-      "sha256": "0475de4e4a7c45c938689b632816b4268a04ce50206904128cc6b79af56b9b4b"
+      "sha256": "627a3a116a521b9d93c9723d4abc0783ed498653978d7e2036c568f25f760445"
     },
     {
       "path": "src/data_loader.py",
@@ -87,7 +87,7 @@
     },
     {
       "path": "src/hindsight_analytics.py",
-      "sha256": "7f0db653ea5a90820455a3fe6e2fa6a3522f9baccd4bad202c48a2ec5e9463ea"
+      "sha256": "e400d675dba11407382a7d025ab62e0a84e2233982bcfb7b8061cdbc01103d65"
     },
     {
       "path": "src/hindsight_quality.py",
@@ -199,7 +199,7 @@
     },
     {
       "path": "src/weekly_learning.py",
-      "sha256": "1a6223cecd02a54a820d73dd1388bedf5f2860f92856d5efe1730ed57085e48e"
+      "sha256": "98db6797f9b5d5f97ccdf9e6d31290e301073bee9d313abbe09922395635b3a9"
     },
     {
       "path": "src/weekly_scan.py",
@@ -227,7 +227,7 @@
     },
     {
       "path": "tests/test_hindsight_analytics.py",
-      "sha256": "345b417167d6c5cd1473364238cd5d7fe10ec9d8848eb47c51a77f8d3b548fd4"
+      "sha256": "6005189d450f383c798e999e449e8ff3c27efa3226389501d4ad08744c4c4211"
     },
     {
       "path": "tests/test_hindsight_quality.py",
@@ -239,7 +239,7 @@
     },
     {
       "path": "tests/test_option_observation_collector.py",
-      "sha256": "43a571a7be8292d4dbaa0ea6a7f8dfa81d117f42fa8cc43a863359e45c870350"
+      "sha256": "1a749dece8137e9f7215500e3ce3fdf0c0387d5f0e0addac7968abcd907b6146"
     },
     {
       "path": "tests/test_shadow_comparison_runtime.py",
@@ -260,6 +260,18 @@
     {
       "path": "tests/test_spy_option_research.py",
       "sha256": "303d0ebfdeacc1d24b3c9cf65883b13439afec2d990da6172859b620688f3174"
+    },
+    {
+      "path": "src/evidence_monitor.py",
+      "sha256": "c9398ec0be58607a58671f6f1d9b29443b76d29f49fb6f9d7902ddbbfb65b5e1"
+    },
+    {
+      "path": "tests/test_evidence_monitor.py",
+      "sha256": "958da942e49d6b6afe09d2c7340568b783de46d4f949ab6f3463655e8a10aecc"
+    },
+    {
+      "path": "EVIDENCE_MONITOR.md",
+      "sha256": "ba37aaafcc2c716c9085169d5e012abfdf7f3e5c7f9e93cd91460adfa60d7359"
     }
   ],
   "spy_expected_initial_fingerprint": "e6c521604d5592f5440d6c68dc1d8a962ab650c03dc2e2356fae5966280f9725",
@@ -270,5 +282,12 @@
     "primary_ledger_existed": false,
     "spy_ledger_existed": false,
     "activation_preserved": true
+  },
+  "observation_only_monitor_addition": {
+    "date": "2026-11-02",
+    "trading_policy_fingerprints_unchanged": true,
+    "scope": "Read-only drift/condition monitoring, reports and post-email invocation; no live ledger or policy changes",
+    "review_thresholds": "Exploratory review flags, not validated trading thresholds",
+    "validated_tests": 201
   }
 }

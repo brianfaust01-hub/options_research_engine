@@ -694,7 +694,7 @@ def _pct(value) -> str:
     return "Unavailable" if value is None or pd.isna(value) else f"{value:.1%}"
 
 
-def _markdown(summary: dict, source: Path) -> str:
+def _research_markdown(summary: dict, source: Path) -> str:
     current = summary.get("current_policy")
     if current:
         metrics = current["metrics"]
@@ -894,6 +894,14 @@ def _markdown(summary: dict, source: Path) -> str:
     return "\n".join(lines)
 
 
+def _markdown(summary: dict, source: Path) -> str:
+    text = _research_markdown(summary, source)
+    if "evidence_monitor" in summary:
+        from evidence_monitor import monitor_markdown
+        text += "\n" + monitor_markdown(summary["evidence_monitor"])
+    return text
+
+
 def latest_hindsight_file(directory: Path = PROCESSED_DIR) -> Path | None:
     files = sorted(directory.glob("research_hindsight_*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
     return files[0] if files else None
@@ -916,6 +924,8 @@ def generate_hindsight_analytics(
     summary = analyze_hindsight(frame)
     from experiment_reporting import build_comparison
     summary["option_comparison"] = build_comparison(PROJECT_ROOT)
+    from evidence_monitor import build_monitor
+    summary["evidence_monitor"] = build_monitor(PROJECT_ROOT, hindsight_frame=frame, source_path=source)
     if quality_audit is not None:
         summary["reviewed_price_basis"] = {
             "rule_version": RULE_VERSION, "excluded_observations": len(quality_audit),

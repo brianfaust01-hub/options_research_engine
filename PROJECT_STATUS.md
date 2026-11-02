@@ -5,6 +5,21 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**November 2 observational monitor:** Outcome Review / Learning now owns a
+recurring condition/performance monitor (`EVIDENCE_MONITOR.md`) implementing
+the calibration plan's adaptation-monitoring work. Daily post-email execution
+and hindsight/weekly report integration compare disjoint entry-date windows,
+respect exact policy lineage, show condition and execution changes, and keep
+operational/data gaps separate from deterioration. Thin evidence is explicit;
+date-cluster intervals and review flags are exploratory, not validated regime
+prediction or automatic trading authority. Both live policy fingerprints are
+unchanged. The first review flagged outdated hindsight and today's SPY
+capture TypeError: no SPY ledger exists, so that test has not started. The
+broad control/challenger are observing but have too little closed history for
+drift conclusions. SPY capture repair is separate unresolved work; no trade
+backfill or experimental reset was performed. Changes remain local pending
+commit/push.
+
 **November 1 reporting and SPY extension:** Brian approved matched baseline/
 delta-IV reporting in hindsight and weekly recaps, and a separate SPY
 forward trading shadow rather than collection alone. See

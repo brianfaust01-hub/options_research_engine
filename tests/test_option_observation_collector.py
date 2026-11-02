@@ -162,10 +162,11 @@ class OptionObservationTests(unittest.TestCase):
              patch("daily_run.refresh_six_week_shadow", side_effect=lambda: events.append("comparison")), \
              patch("daily_run.collect_spy_research", side_effect=lambda: events.append("spy")), \
              patch("daily_run.run_evidence_audit", side_effect=lambda: events.append("audit")), \
+             patch("daily_run.refresh_evidence_monitor", side_effect=lambda: events.append("monitor")), \
              patch("builtins.print"):
             scan.return_value.returncode = 0
             daily_run.main()
-            self.assertEqual(events, ["email", "collect", "shadow", "comparison", "spy", "audit"])
+            self.assertEqual(events, ["email", "collect", "shadow", "comparison", "spy", "audit", "monitor"])
             self.assertEqual(scan.call_count, 1)
 
     def test_market_data_failure_blocks_scan_report_and_email(self):

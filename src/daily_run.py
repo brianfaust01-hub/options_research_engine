@@ -147,6 +147,19 @@ def collect_spy_research() -> None:
         print("WARNING: SPY research unavailable; baseline guidance unaffected.")
 
 
+def refresh_evidence_monitor() -> None:
+    """Observational report only, isolated from trading and email delivery."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-u", str(SRC_DIR / "evidence_monitor.py")],
+            cwd=str(PROJECT_ROOT), timeout=45, check=False,
+        )
+        if result.returncode:
+            print("WARNING: evidence monitor unavailable; experiment decisions unaffected.")
+    except (subprocess.TimeoutExpired, OSError):
+        print("WARNING: evidence monitor did not complete; experiment decisions unaffected.")
+
+
 def latest_file(pattern: str) -> Path | None:
     matches = [Path(p) for p in glob.glob(pattern)]
 
@@ -227,6 +240,7 @@ def main() -> None:
     refresh_six_week_shadow()
     collect_spy_research()
     run_evidence_audit()
+    refresh_evidence_monitor()
     print()
     print("Project Stonks daily run completed successfully.")
 
