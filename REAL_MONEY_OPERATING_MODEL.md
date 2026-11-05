@@ -58,6 +58,58 @@ embedded in the research engine.
 
 ## Required Functional Capabilities
 
+### Intraday Profit Protection and Overnight Hold Decisions
+
+**Added November 2, 2026 at Brian's request. Status: backlog/design only.**
+The example is an AMZN-style large same-day option gain with little planned
+upside left before the target. Position management should evaluate whether
+the remaining reward justifies current downside and overnight exposure,
+without waiting for the next 10:30 research run. This is not approval to
+change the current twelve-week experiment or enable broker orders.
+
+**Before the twelve-week review — prepare evidence and the test design:**
+
+- Preserve the frozen baseline and current shadows. Document where existing
+  minute quotes, targets, stops, timestamps and actual fills can support
+  analysis, and identify missing coverage without inventing overnight prices
+  or between-sample threshold crossings.
+- Define comparable outcomes: profit captured, profit given back, missed
+  subsequent upside, overnight changes, net expectancy, drawdown, execution
+  costs and time/capital released. Distinguish actual broker fills from
+  quote-based counterfactuals.
+- Specify candidate decision inputs: executable option bid, net gain versus
+  actual entry, fraction of planned target achieved, remaining reward versus
+  loss to the protective stop, speed/time in trade, signal condition, spread,
+  volatility, session time and known event exposure.
+- Design a bounded prospective comparison against the existing exit policy.
+  A universal fixed "close at X%" is a hypothesis to test, not the agreed
+  solution. Do not choose a rule by optimizing today's winning trade.
+
+**After the twelve-week review — implement and validate in stages:**
+
+- Build an intraday position-management service independent of the morning
+  discovery scan, with explicit regular-session cadence and near-close
+  review that respects holidays, early closes and unavailable quotes.
+- Evaluate holding, raising a protective stop, closing, and partial exits
+  where contract quantity permits. Make the remaining reward/downside and
+  overnight-hold rationale explainable. A stop does not guarantee protection
+  against an overnight gap.
+- Run the proposed dynamic policy in an isolated shadow before considering
+  promotion. Compare net outcomes and trade-offs over matched windows and
+  retain uncertainty, missing observations and sensitivity to large winners.
+- Connect broker execution only through the approved operating stages below:
+  fresh position/order reconciliation, deterministic recommendation and order
+  IDs, quantity-aware OCO links, cancel/replace acknowledgments, partial fills,
+  restart idempotence and stale-feed handling. Never sell more contracts than
+  remain held or assume an old exit order has been canceled before confirmed.
+- Require explicit review before promotion, with versioned policy and rollback.
+  Completing twelve weeks does not itself authorize real-money trading or
+  establish that a particular exit policy works.
+
+**Ownership:** Portfolio Management defines the decision policy; Execution
+owns broker order lifecycle; Outcome Review / Learning evaluates outcomes.
+The authoritative backlog entry is in `PROJECT_STATUS.md` under P2.
+
 ### Broker Account State
 
 - Broker-derived total NAV, deployable NAV, settled and unsettled cash, buying

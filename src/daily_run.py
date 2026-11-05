@@ -15,7 +15,7 @@ PROJECT_ROOT = SRC_DIR.parent
 DATA_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 CAPITAL_SNAPSHOTS_PATH = PROJECT_ROOT / "data" / "account_state_snapshots.csv"
-WEEKLY_SCAN_PATH = SRC_DIR / "weekly_scan.py"
+WEEKLY_SCAN_PATH = SRC_DIR / "production_scan.py"
 OPTION_COLLECTION_PATH = SRC_DIR / "option_observation_collector.py"
 RESEARCH_RANKING_PATH = SRC_DIR / "research_ranking.py"
 

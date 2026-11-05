@@ -5,6 +5,28 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**November 4 oil risk overlay:** Brian approved immediate normal-recommendation
+control across oil-linked companies, not only XOM/CVX. The canonical daily
+runner now uses `production_scan.py` with a separately versioned one-concurrent-
+oil-ticker overlay. It covers producers, integrated firms, refiners, services,
+midstream and energy funds, counts actual incumbents, preserves research
+actions and records block/provenance fields. Original allocation constraints
+remain active; no forced broker exits. Frozen config and SPY fingerprints
+remain unchanged. See `OIL_EXPOSURE_CONTROL.md`. Election-night restrictions
+are backlog work as Brian requested, not part of this release.
+
+**November 3 SPY start verification:** The first successful scheduled SPY
+capture initialized its independent forward account at 10:38 Eastern today.
+The signal was Watch/No Allocation (bearish opportunity score 60), so no
+trade was forced. Both research contracts were sampled through 15:59 with
+636 valid contract-minutes and zero failed observation records. Cash/NAV
+remains $15,000; SPY entry/exit execution awaits a qualifying trade. This
+supersedes the pending-inception status below. The broad config comparison
+also recorded today's decisions and simulated buys/sells; both books had
+fresh ending marks, with historical/missing-quote coverage gaps retained.
+See `reports/account_recap_2026-11-03.md` for reconciled broker holdings and
+separate shadow results. No experiment rule or reviewed adjustment changed.
+
 **November 2 SPY capture repair:** Reproduced the first-run TypeError with
 live provider data in a temporary account: optional contract metadata
 contained pandas `pd.NA`, which JSON could not encode. SPY-local serialization
@@ -3083,6 +3105,50 @@ Paper Trading Performance CSV Import may provide the initial implementation path
 # P2 — Planned
 
 Important capabilities with no immediate implementation requirement.
+
+## National Election Overnight Exposure Guard
+
+**Status:** Backlog — explicitly deferred November 4, 2026.
+
+Brian's desired policy is no overnight holdings across national elections,
+similar in spirit to the earnings guard. Portfolio Risk / Event Risk owns
+the reviewed election calendar and affected-market scope; Portfolio Management
+owns advance close guidance, entry restrictions and post-event re-entry.
+Define the last regular session before results, exchange holidays/early
+closes, exit deadlines, reminder/close review and acknowledgement of unfilled
+orders. A 10:30-only assessment cannot ensure a pre-close exit; connect this
+to the planned intraday position manager. Include SPY/index exposure in the
+scope decision. Unknown calendar coverage must be explicit. No party/outcome
+prediction or assumption that results are priced in. Use prospective,
+versioned policy attribution; retain all actual election-period results.
+No election calendar, automatic liquidation or current shadow rule changed.
+
+## Intraday Profit Protection and Overnight Hold Decisions
+
+**Type:** Portfolio Management / Execution / Outcome Review
+**Status:** Backlog — recorded November 2, 2026; experiment unchanged
+
+Brian requested continuous position management for large gains near their
+planned targets, rather than waiting for tomorrow's 10:30 scan. The motivating
+example is today's AMZN gain. Evaluate dynamic remaining reward versus
+downside, speed of profit, time to close, event/overnight exposure and
+executable prices; do not assume a universal fixed gain percentage is optimal.
+
+**Before week 12:** inventory the existing evidence and gaps; define candidate
+policies, measured outcomes and a matched prospective validation plan. Keep
+current trading/shadow exit rules frozen and preserve actual broker history.
+
+**After the week-12 review:** implement a separate intraday position-management
+service, test closes/stop adjustments/quantity-aware partial exits in shadow,
+and integrate direct broker execution only after the approved operating-model
+stages and explicit review. Include cancel/replace/OCO/partial-fill safeguards
+so profit protection cannot create an accidental short position. Twelve-week
+completion is a review milestone, not automatic real-money authorization.
+
+Detailed pre/post-test tasks, success measures, dependencies and ownership:
+`REAL_MONEY_OPERATING_MODEL.md`, "Intraday Profit Protection and Overnight
+Hold Decisions." This entry records future work only; no job, live order,
+exit formula or current experiment setting was changed.
 
 ## Learning-Driven Score Weights
 
