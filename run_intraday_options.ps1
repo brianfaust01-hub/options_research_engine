@@ -57,4 +57,27 @@ try {
     # Exact, task-created scratch files only; no recursive cleanup or history deletion.
     Remove-Item -LiteralPath $stdout, $stderr -Force -ErrorAction SilentlyContinue
 }
+# Auxiliary structure/VIX research runs only after the existing collector.
+# During daily scans preserve current comparison priority and avoid extra traffic.
+if (-not $comparisonDuringScan) {
+    $studyScript = Join-Path $PSScriptRoot "src\research_observation_runner.py"
+    $studyOut = Join-Path $scratchDir "$runId.study.out"
+    $studyErr = Join-Path $scratchDir "$runId.study.err"
+    try {
+        $studyProcess = Start-Process -FilePath $python -ArgumentList @("-u", "`"$studyScript`"") `
+            -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput $studyOut -RedirectStandardError $studyErr
+        if (-not $studyProcess.WaitForExit(10000)) {
+            $studyProcess.Kill()
+            $studyProcess.WaitForExit()
+            Add-Content -LiteralPath $log -Value "$(Get-Date -Format o) AUXILIARY_RESEARCH_TIMEOUT: unrecorded quotes remain gaps"
+        } elseif (Test-Path -LiteralPath $studyOut) {
+            Get-Content -LiteralPath $studyOut | Add-Content -LiteralPath $log
+        }
+    } catch {
+        Add-Content -LiteralPath $log -Value "$(Get-Date -Format o) AUXILIARY_RESEARCH_UNAVAILABLE"
+    } finally {
+        Remove-Item -LiteralPath $studyOut, $studyErr -Force -ErrorAction SilentlyContinue
+    }
+}
 exit $exitCode

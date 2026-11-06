@@ -1,0 +1,15 @@
+{
+  "version": "PAIRED-STRUCTURES-2026-11-04-v1",
+  "enabled": true,
+  "credit_spreads_enabled": false,
+  "max_signals_per_session": 2,
+  "max_risk_dollars_per_variant": 1000,
+  "holding_sessions": 5,
+  "entry_wait_minutes": 30,
+  "fee_per_contract_per_side": 0.70,
+  "slippage_per_share_per_leg": 0.01,
+  "max_quote_age_seconds": 60,
+  "max_leg_timestamp_skew_seconds": 5,
+  "max_selection_spread_pct": 0.10,
+  "min_selection_open_interest": 100
+}

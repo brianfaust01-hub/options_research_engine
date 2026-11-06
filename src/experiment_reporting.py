@@ -55,10 +55,20 @@ def build_comparison(root, now=None):
               'actual_broker': {'status': 'UNAVAILABLE'},
               'simulation': 'Sampled quote-touch fills; full-size assumption; fees and slippage modeled. No broker orders.'}
     try:
+        from structure_research import report as structure_report
+        result['structure_research'] = structure_report(root, now)
+    except (OSError, ValueError, KeyError, TypeError, sqlite3.Error) as error:
+        result['structure_research'] = {'status': 'UNAVAILABLE', 'error_type': type(error).__name__}
+    try:
         from spy_option_research import research_status
         result['spy_research'] = research_status(root, now)
     except (OSError, ValueError, KeyError, TypeError, sqlite3.Error) as error:
         result['spy_research'] = {'status': 'UNAVAILABLE', 'error_type': type(error).__name__}
+    try:
+        from spy_vix_context import report as vix_report
+        result['spy_research']['vix_context']=vix_report(root,now)
+    except (OSError, ValueError, KeyError, TypeError, sqlite3.Error) as error:
+        result['spy_research']['vix_context']={'status':'UNAVAILABLE','note':'VIX context unavailable: '+type(error).__name__}
     path = root/'data/processed/configuration_comparison/ledger.sqlite'
     if not path.exists():
         return result
@@ -137,6 +147,7 @@ def build_comparison(root, now=None):
 
 
 def spy_markdown(value):
+    from spy_vix_context import markdown as vix_markdown
     quote = value.get('latest_quote_health') or {}
     lines = ['### Independent SPY shadow', '',
              f"Status: **{value.get('status', 'UNAVAILABLE')}**. Selection sessions: {value.get('selection_sessions', 0)}; contracts watched: {value.get('contracts_watched', 0)}.", '',
@@ -170,16 +181,18 @@ def spy_markdown(value):
         lines += ['', f"Latest quote session: {quote['date']}; {quote['valid_contract_minutes']} valid contract-minutes across {quote['contracts_sampled']} contracts; {quote['failed_observation_records']} failed observation records. Last valid quote: {quote['last_valid_observation']}."]
     else:
         lines += ['', 'No SPY quote samples recorded yet.']
-    return lines+['']
+    return lines+['',vix_markdown(value.get('vix_context',{'status':'NOT_STARTED','note':'Observation only; no VIX trading override.'})), '']
 
 
 def comparison_markdown(value, detailed=False):
+    from structure_research import markdown as structure_markdown
+    structure_section = structure_markdown(value.get('structure_research', {'status': 'NOT_STARTED'}))
     lines = ['## Forward option configuration comparison', '',
              '**Actual paper account:** broker fills, holdings and fees. **Control and challenger:** separate simulated portfolios.', '',
              'Test: '+value['policy']+'.', '', 'Status: **'+value['status']+'**.']
     if value['status'] != 'OBSERVING':
         return '\n'.join(lines+['', 'No matched forward return is available. No zero return or historical backfill is inferred.', '',
-                                 *spy_markdown(value.get('spy_research', {}))])
+                                 *spy_markdown(value.get('spy_research', {})), '', structure_section])
     lines += ['', f"Common inception: {value['started_at']}. Last matched valuation: {value['as_of']}."]
     if value.get('current_week_status'):
         lines += ['', '**This week: awaiting observations.** Prior-week marks are not reported as current-week performance.']
@@ -216,4 +229,4 @@ def comparison_markdown(value, detailed=False):
                 safe = lambda x: str(x or '').replace('|', '/').replace('\n', ' ')
                 lines.append('| '+' | '.join(safe(r[k]) for k in ['at','portfolio','ticker','action','contracts','reason'])+' |')
     return '\n'.join(lines+['', 'Ticker-specialization research remains deferred. The independent SPY portfolio is reported separately.', '',
-                             *spy_markdown(value.get('spy_research', {}))])
+                             *spy_markdown(value.get('spy_research', {})), '', structure_section])

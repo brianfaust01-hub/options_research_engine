@@ -445,6 +445,30 @@ def _portfolio_construction_summary(recommendations, positions):
     }
 
 
+def _opening_hour_review(recommendations):
+    if 'OpeningHourStatus' not in recommendations or recommendations.empty:
+        return 'First-hour stock-price confirmation was not captured for this snapshot.', []
+    reviewed=recommendations[recommendations.OpeningHourStatus.ne('NOT_REVIEWED_POOL')]
+    counts=reviewed.OpeningHourStatus.value_counts().to_dict()
+    first=recommendations.iloc[0]
+    summary=(
+        'Daily indicators describe the multi-day thesis; this entry check uses completed '
+        '09:30–10:30 Eastern stock bars. '
+        f"SPY first-hour move: {_percent(first.get('OpeningHourSPYReturn'))}; "
+        f"data: {first.get('OpeningHourSPYStatus', 'Unavailable')}. "
+        f"Confirmed {counts.get('CONFIRMED',0)}; mixed {counts.get('MIXED',0)}; "
+        f"contradicted {counts.get('CONTRADICTED',0)}; data unavailable {counts.get('DATA_UNAVAILABLE',0)}. "
+        'Contradicted or unavailable entries are excluded, not automatically reversed.'
+    )
+    rows=[[
+        str(r.get('ticker','')),str(r.get('option_strategy','')),
+        _percent(r.get('OpeningHourReturn')),_percent(r.get('OpeningHourCloseVsBarVWAP')),
+        str(r.get('OpeningHourStatus','')),str(r.get('allocation_decision','')),
+        str(r.get('OpeningHourReason','')),
+    ] for _,r in reviewed.iterrows()]
+    return summary,rows
+
+
 def build_daily_report(
     recommendations_path,
     positions_review_path=None,
@@ -472,6 +496,8 @@ def build_daily_report(
     shadow_exit_lines = _shadow_exit_lines(recommendations)
     construction = _portfolio_construction_summary(recommendations, positions)
     broker_performance = _broker_performance_summary(capital_snapshot_path)
+    opening_summary,opening_rows = _opening_hour_review(recommendations)
+    opening_headers=['Ticker','Daily thesis','First-hour move','Vs bar-VWAP','Entry confirmation','Allocation','Reason']
     first = recommendations.iloc[0] if not recommendations.empty else {}
     market = str(first.get("market_regime", "Unavailable"))
     risk = str(first.get("risk_mode", "Unavailable"))
@@ -542,6 +568,8 @@ def build_daily_report(
             [f"- {warning}" for warning in warnings]
             if warnings else ["- No run-health warnings."]
         ),
+        "", "## First-Hour Entry Confirmation", "", opening_summary, "",
+        *_markdown_table(opening_headers, opening_rows),
         "", "## Current Position Actions", "",
         *_markdown_table(position_headers, position_rows),
         "## Portfolio Construction", "",
@@ -631,6 +659,7 @@ th,td{{border:1px solid #ccd6dd;padding:8px;text-align:left}} tr:nth-child(even)
 Market: {escape(market)} | Risk: {escape(risk)} | Breadth: {escape(breadth)}<br>
 Candidates: {call_count} calls | {put_count} puts | Allocated: {len(trade_rows)}</div>
 <h2>Attention Required</h2><div class="warning"><ul>{warning_html}</ul></div>
+<h2>First-Hour Entry Confirmation</h2><p>{escape(opening_summary)}</p>{_html_table(opening_headers,opening_rows)}
 <h2>Current Position Actions</h2>{_html_table(position_headers, position_rows)}
 <h2>Portfolio Construction</h2>
 <ul>

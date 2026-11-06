@@ -5,6 +5,67 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**November 5 SPY VIX context:** Brian approved recording VIX as an explanatory
+SPY research variable rather than an override. `SPY_VIX_CONTEXT.md` documents
+the independent sidecar: pre-selection VIX/SPY snapshots, five-minute sampled
+context, level/change/speed fields, exact immutable selection/recommendation
+links and read-only closed-lot outcome attribution. Future hindsight/weekly
+SPY sections show context and missing-data status. No old decision receives
+later information; no VIX threshold, probability forecast, allocation or exit
+change. Frozen broad and SPY policy sources are unchanged. Matured independent
+cohorts and out-of-sample evidence are required before conditional probability
+or regime claims. First forward capture remains pending.
+
+Validation: all 241 repository tests passed. The read-only provider check
+confirmed the cash-index symbol and timestamp fields; stale after-session
+quotes were rejected as usable context. Both frozen fingerprints match.
+No prior SPY decision was labeled and no production scan/order/email rerun.
+Included in the November 5 reviewed local commit; push is separate.
+
+**November 5 first-hour priority:** Brian prioritized closing the missing
+09:30–10:30 stock-input gap ahead of VIX work. Normal production scan now
+adds bounded minute-history entry confirmation before allocation, while
+retaining daily thesis calculations. Complete stock/SPY first-hour evidence
+is required for new entries; a stock's opening move and price-versus-bar-VWAP
+jointly opposing the daily direction rejects the entry. Mixed evidence
+retains original checks. Holdings are annotated, not forcibly closed.
+See `OPENING_HOUR_ENTRY_REVIEW.md` for versioned rules, failure behavior,
+capture, report integration and rollout verification. Original research
+directions remain preserved for frozen shadows; both policy fingerprints
+remain unchanged. Inverse trades are a separate three-way research hypothesis
+(original / stand aside / qualified opposite), not an automatic reversal.
+VIX policy changes remain unimplemented pending conceptual review.
+
+Validation: 232 fixture tests passed and both frozen fingerprints match.
+Read-only provider verification retrieved complete November 5 first-hour
+bars for SPY, AMZN, AAPL, NFLX and HAL. AMZN was already down 5.63% from
+open and below bar-VWAP at 10:30 despite a daily call thesis. This illustrates
+the missing entry context, not a validated inverse trade or as-of replay.
+No production scan/order/email was rerun. Next scheduled live coverage still
+requires operational verification; included in the November 5 reviewed local
+commit, with push separate.
+
+**November 4 paired structure research:** At Brian's request, implemented a
+separate forward harness for underlying-direction attribution, higher-delta
+and later-expiry alternatives, and debit verticals. Defined-risk credit
+verticals are implemented but disabled initially. See `STRUCTURE_RESEARCH.md`.
+At most two allocated signals/session get synchronized quote-driven,
+risk-budget-matched option studies with a fixed five-session endpoint.
+These are independent research trades, not funded shadow portfolios or
+stop/target simulations. Bounded daily/minute collection and separate
+hindsight/weekly sections preserve the existing experiment fingerprints.
+Historical alternative metadata lacks required liquidity/path evidence;
+no historical spread return was invented. The next fresh scheduled capture
+will establish inception. No production recommendation, broker order or
+existing experiment rule was changed by this research extension.
+
+Validation: all 223 fixture tests passed, including synchronized multi-leg
+pricing, maximum-loss sizing, missing/stale/future quotes, missed windows,
+duplicate invocations, policy isolation and holiday/early-close endpoints.
+Python compilation, PowerShell parsing and scoped whitespace checks passed.
+The read-only-state report is NOT_STARTED; no live capture was manufactured.
+Included in the November 5 reviewed local commit; push is separate.
+
 **November 4 oil risk overlay:** Brian approved immediate normal-recommendation
 control across oil-linked companies, not only XOM/CVX. The canonical daily
 runner now uses `production_scan.py` with a separately versioned one-concurrent-
@@ -3243,6 +3304,12 @@ Strategy expansion should not occur without the ability to measure attribution.
 
 **Type:** Research / Strategy  
 **Status:** Backlog
+
+November 4 progress: `STRUCTURE_RESEARCH.md` implements the isolated paired
+signal/contract/debit-spread evidence harness. Credit-spread research support
+is staged disabled. Funded shadow books, lifecycle exits/assignment handling
+and evidence-based strategy promotion remain post-week-12 work. Calendar
+strategies remain deferred; no new production strategy is enabled.
 
 Expand beyond simple directional calls and puts only when historical evidence and investment philosophy justify additional complexity.
 

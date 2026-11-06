@@ -130,6 +130,13 @@ def refresh_six_week_shadow() -> None:
 
 def collect_spy_research() -> None:
     """Isolated bounded SPY selection; never adds to production candidates."""
+    context = None
+    try:
+        from spy_vix_context import capture as capture_vix
+        from datetime import datetime, timezone
+        context=capture_vix(PROJECT_ROOT,phase='DECISION')
+    except Exception as error:
+        print('WARNING: SPY VIX context unavailable: '+type(error).__name__)
     try:
         result = subprocess.run(
             [sys.executable, "-u", str(SRC_DIR / "spy_option_research.py")],
@@ -145,6 +152,13 @@ def collect_spy_research() -> None:
             "at": datetime.now(timezone.utc).isoformat(),
         })
         print("WARNING: SPY research unavailable; baseline guidance unaffected.")
+    finally:
+        try:
+            from spy_vix_context import bind_selection, publish as publish_vix
+            bind_selection(context,PROJECT_ROOT)
+            publish_vix(PROJECT_ROOT)
+        except Exception as error:
+            print('WARNING: SPY VIX context link unavailable: '+type(error).__name__)
 
 
 def refresh_evidence_monitor() -> None:
@@ -158,6 +172,21 @@ def refresh_evidence_monitor() -> None:
             print("WARNING: evidence monitor unavailable; experiment decisions unaffected.")
     except (subprocess.TimeoutExpired, OSError):
         print("WARNING: evidence monitor did not complete; experiment decisions unaffected.")
+
+
+def capture_structure_research() -> None:
+    """Bounded independent paired research; existing experiments run first."""
+    source=latest_file(str(DATA_PROCESSED_DIR / "trade_recommendations_*.csv"))
+    if source is None:
+        return
+    try:
+        result=subprocess.run(
+            [sys.executable,"-u",str(SRC_DIR / "structure_research.py"),
+             "capture","--source",str(source)],cwd=str(PROJECT_ROOT),timeout=25,check=False)
+        if result.returncode:
+            print("WARNING: paired structure capture failed; trading and frozen shadows unaffected.")
+    except (subprocess.TimeoutExpired,OSError):
+        print("WARNING: paired structure capture timed out/unavailable; no assumed inception.")
 
 
 def latest_file(pattern: str) -> Path | None:
@@ -239,6 +268,7 @@ def main() -> None:
     refresh_research_ranking_shadow()
     refresh_six_week_shadow()
     collect_spy_research()
+    capture_structure_research()
     run_evidence_audit()
     refresh_evidence_monitor()
     print()
