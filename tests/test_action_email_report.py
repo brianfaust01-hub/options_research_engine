@@ -18,6 +18,26 @@ from report_writer import _broker_performance_summary, _position_rows, build_dai
 
 
 class ActionEmailReportTests(unittest.TestCase):
+    def test_first_hour_detail_is_last_and_explains_price_action(self):
+        recommendations=pd.DataFrame([{
+            'ticker':'TEST','opportunity_type':'Long Call Candidate','option_strategy':'Long Call',
+            'allocation_decision':'No Allocation','allocation_rank':1,
+            'OpeningHourStatus':'CONTRADICTED','OpeningHourReturn':-.02,
+            'OpeningHourCloseVsBarVWAP':-.01,'OpeningHourSPYReturn':-.01,
+            'OpeningHourSPYStatus':'COMPLETE','OpeningHourReason':'technical internals',
+        }])
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);source=root/'recommendations.csv';recommendations.to_csv(source,index=False)
+            path=build_daily_report(source,output_dir=root,hindsight_summary_path=root/'missing.json',
+                                    capital_snapshot_path=root/'missing.csv')
+            markdown=path.read_text(encoding='utf-8');html=path.with_suffix('.html').read_text(encoding='utf-8')
+        for text in (markdown,html):
+            self.assertGreater(text.index('First-Hour Entry Confirmation'),text.index('Current-Policy Readiness'))
+            self.assertGreater(text.index('First-Hour Entry Confirmation'),text.index('New Trades to Enter'))
+            self.assertIn('Stock fell 2.00%',text)
+            self.assertIn('Opposes the call direction; entry skipped.',text)
+            self.assertNotIn('technical internals',text)
+
     def test_short_loss_adjustment_changes_research_metrics_not_source_snapshot(self):
         snapshots = pd.DataFrame([{
             "SnapshotID": "S1", "AsOfDate": "2026-10-12",

@@ -1,2 +1,4 @@
 AdjustmentID,EffectiveDate,AdjustmentAmount,Category,Tickers,Reason,SourcePath
 PA-2026-10-12-SHORTS,2026-10-12,365.00,EXECUTION_ERROR_SHORT,NOW;APA,Accidental oversells created unsupported short calls; exclude their realized losses from Project Stonks research performance while preserving broker truth,2026-10-12-AccountStatement.csv
+PA-2026-10-27-EXCESS-DVN,2026-10-27,210.00,EXECUTION_ERROR_EXCESS_QUANTITY,DVN,Reviewed excess quantity; retain recommended-size losses and all fees. See reviewed_execution_quantity_20261027.json,2026-10-27-AccountStatement.csv
+PA-2026-10-27-EXCESS-FAST,2026-10-27,78.00,EXECUTION_ERROR_EXCESS_QUANTITY,FAST,Reviewed excess quantity; retain recommended-size losses and all fees. See reviewed_execution_quantity_20261027.json,2026-10-27-AccountStatement.csv

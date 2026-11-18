@@ -60,6 +60,62 @@ embedded in the research engine.
 
 ### Intraday Profit Protection and Overnight Hold Decisions
 
+**Short-Term Rule Test (November 10 design).** Mirror the daily paper
+portfolio using broker-confirmed entries, actual quantities, and carried
+positions. Keep the original exit policy as the modeled control and actual
+broker P/L as a separate reconciliation. A trigger at the working sell limit
+duplicates the existing target signal. Compare actions at a distinct point
+before the target: keep the original orders, raise the stop, or try to close.
+Any fraction of the distance from fill to target is a candidate threshold.
+
+For the historical feasibility check, match actual fills to exact-contract
+quotes, check coverage before and after the proposed trigger, and inventory
+order-history and quote-size gaps. Treat same-quote fills as a modeling
+assumption, and test delayed execution and partial fills when data supports
+them. For a forward mirror, record position and order state at the time of
+each decision. Use the same entry tape in the paired comparison. Report any
+capital freed separately unless a qualified replacement could actually use it.
+
+The October 6 close to November 10 close feasibility check covered 140 new
+long entry groups. It found exact-contract quotes for 139 and sufficient
+coverage through the first actual reduction or statement cutoff for 49
+(95% of market minutes, gaps no longer than five minutes, and endpoints
+within two minutes). The halfway-to-recorded-target probe was observed in
+27 groups before a sampled original stop or target touch. Six met the coverage
+standard. None of 111,276 usable quote records checked for November 6–10
+contained bid size. All 25 statement exports in the window include Account
+Order History, which can help recover actual bracket prices. Verify order
+changes and timing before treating that history as a working-order timeline.
+This supports a limited historical screen. The audit ends at first reduction
+and omits starting inventory. A full portfolio replay also needs those
+positions, later quotes where an arm stays open, and execution assumptions.
+
+Sensitivity across 25%, 35%, 50%, 65%, 75%, and 90% of fill-to-target distance
+found 52, 42, 27, 17, 12, and 5 observed triggers. The respective counts were
+33, 26, 16, 11, 10, and 4 with at least 90% market-minute coverage, gaps no
+longer than 15 minutes, and endpoints within three minutes. With the 95% / five
+minute / two minute standard, counts fell to 12, 9, 6, 3, 3, and 2. All strict
+65% and higher observations came from one entry date. Use the full grid to
+screen candidate rules and report paired net P/L on a common cohort, including
+positions that never activate each rule. Coverage counts measure how well we
+can observe a threshold. Profit, giveback, and execution cost determine its value.
+
+The historical replay is implemented in `src/short_term_rule_test.py`. Run it
+with the statement directory, journal, intraday archive, existing verified
+quote projection, start and end statement names, and a new output path. An
+earlier origin statement recovers entry lots for the starting holdings. The
+November 10 run produced `reports/short_term_rule_test_20261110/paired_replay.md`
+and `paired_replay.json`. It evaluated 140 eligible entry groups, including
+nine carried groups, and recovered 117 initial brackets and 20 groups with
+linked replacements. The main cohort contains 87 groups across 15 entry dates.
+Actual net on that cohort was $3,232.28 and the simulated control was
+-$2,957.89 at $0.01 slippage. The actual-exit overlay therefore provides a
+second reference, replacing only rule-driven sales before the first actual
+reduction. None of the tested rules improved the broad cohort against that
+reference across the five execution settings. The strict subset spans two
+dates and produces some positive comparisons. Use the results as historical
+evidence and retain the control mismatch when interpreting threshold effects.
+
 **Added November 2, 2026 at Brian's request. Status: backlog/design only.**
 The example is an AMZN-style large same-day option gain with little planned
 upside left before the target. Position management should evaluate whether
@@ -193,6 +249,13 @@ The primary view should remain action-first:
 - Restore and disaster-recovery procedures tested before live activation
 
 ## Real-Money Go/No-Go Review
+
+The November 2–12 audit resolved the concern that delayed manual entry leads
+to paying above the morning ceiling. All 46 matched same-session fills were
+limit orders at or below the recommended entry price, and four submitted limits
+at the ceiling were canceled without a recorded fill. Treat the verified price
+discipline as part of the manual workflow when assessing a pilot. See
+`reports/entry_workflow_audit_20261112.md`.
 
 Passing the evidence tracker permits a review; it does not automatically produce
 a `GO` decision. Approval additionally requires:

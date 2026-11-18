@@ -42,9 +42,6 @@ from schwab.market_data_client import (
 )
 from trade_journal import JOURNAL_PATH
 
-from trade_journal import JOURNAL_PATH
-
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 
@@ -688,6 +685,7 @@ def _evaluate_recommendation(
     market_data: pd.DataFrame,
     spy_prices: pd.Series,
     as_of_date: pd.Timestamp,
+    cached: dict | None = None,
 ) -> dict:
     recommendation_id = row.get(
         "RecommendationID"
@@ -965,6 +963,11 @@ def _evaluate_recommendation(
     )
 
     for fixed_horizon in FIXED_HORIZON_TRADING_DAYS:
+        from hindsight_incremental import reusable_horizon
+        prefix = f"Horizon{fixed_horizon}D"
+        if cached and reusable_horizon(cached, fixed_horizon):
+            result.update({k:v for k,v in cached.items() if k.startswith(prefix)})
+            continue
         result.update(_evaluate_fixed_horizon(
             ticker_prices=ticker_prices,
             spy_prices=spy_prices,
@@ -975,6 +978,12 @@ def _evaluate_recommendation(
         ))
 
     matured = as_of_date >= evaluation_date
+
+    from hindsight_incremental import finite
+    if cached and cached.get('EvaluationStatus') == 'COMPLETE' and finite(cached.get('FinalSPYReturnPct')) and finite(cached.get('FinalDirectionalReturnPct')):
+        result.update({k:v for k,v in cached.items() if k.startswith('Final')})
+        result['EvaluationStatus'] = 'COMPLETE'
+        return result
 
     if not matured:
         result["EvaluationStatus"] = "IN_PROGRESS"
@@ -1059,13 +1068,14 @@ def _evaluate_recommendation(
     return result
 
 
-def generate_research_hindsight() -> dict:
+def generate_research_hindsight(*, rebuild: bool = False, plan_only: bool = False) -> dict:
+    from hindsight_incremental import VERSION, fingerprint, frozen, load_previous, prior_for, preserve_completed
     if not JOURNAL_PATH.exists():
         raise FileNotFoundError(
             f"Trade journal not found: {JOURNAL_PATH}"
         )
 
-    journal = pd.read_csv(JOURNAL_PATH)
+    journal = pd.read_csv(JOURNAL_PATH, low_memory=False)
 
     if journal.empty:
         raise ValueError(
@@ -1101,7 +1111,21 @@ def generate_research_hindsight() -> dict:
             "No recommendations with RecommendationIDs found."
         )
 
-    parsed_dates = journal[
+    journal = journal.drop_duplicates('RecommendationID', keep='first').copy()
+    previous, previous_source = ({}, None) if rebuild else load_previous(PROCESSED_DATA_DIR)
+    cached_rows = {str(row['RecommendationID']): prior_for(row, previous) for _,row in journal.iterrows()}
+    active = journal[[not frozen(cached_rows[str(rid)]) for rid in journal['RecommendationID']]].copy()
+    if plan_only:
+        from hindsight_incremental import reusable_horizon
+        plan = {'mode':'READ_ONLY_PLAN','previous_source':str(previous_source) if previous_source else None,
+            'total_unique_recommendations':len(journal),'frozen_rows_reused':len(journal)-len(active),
+            'pending_or_new_rows':len(active),
+            'completed_horizons_reused':{str(d):sum(bool(old and reusable_horizon(old,d)) for old in cached_rows.values()) for d in FIXED_HORIZON_TRADING_DAYS},
+            'market_data_requests':0,'outputs_written':0}
+        print(json.dumps(plan,indent=2))
+        return plan
+
+    parsed_dates = (active if not active.empty else journal)[
         "RecommendationDate"
     ].apply(_parse_datetime)
 
@@ -1117,7 +1141,7 @@ def generate_research_hindsight() -> dict:
         )
 
     tickers = (
-        journal["ticker"]
+        active["ticker"]
         .dropna()
         .astype(str)
         .unique()
@@ -1139,9 +1163,9 @@ def generate_research_hindsight() -> dict:
             as_of_date.date()
             + timedelta(days=1)
         ),
-    )
+    ) if not active.empty else pd.DataFrame()
 
-    if market_data.empty:
+    if not active.empty and market_data.empty:
         raise RuntimeError(
             "Historical market data could not be downloaded."
         )
@@ -1151,15 +1175,31 @@ def generate_research_hindsight() -> dict:
         "SPY",
     )
 
-    results = [
-        _evaluate_recommendation(
-            row=row,
-            market_data=market_data,
-            spy_prices=spy_prices,
-            as_of_date=as_of_date,
-        )
-        for _, row in journal.iterrows()
-    ]
+    results = []
+    reused = evaluated = 0
+    for _,row in journal.iterrows():
+        old = cached_rows[str(row['RecommendationID'])]
+        if frozen(old):
+            result = dict(old)
+            if pd.isna(result.get('HindsightEvaluatedAsOf')):
+                # Legacy datasets did not store a row-level calculation time.
+                result['HindsightEvaluatedAsOf'] = 'LEGACY_SOURCE_TIME_NOT_RECORDED'
+            reused += 1
+        else:
+            result = preserve_completed(_evaluate_recommendation(
+                row=row,
+                market_data=market_data,
+                spy_prices=spy_prices,
+                as_of_date=as_of_date,
+                cached=old,
+            ), old)
+            result['HindsightEvaluatedAsOf'] = as_of_date.isoformat()
+            evaluated += 1
+        result['HindsightCacheVersion'] = VERSION
+        result['HindsightInputFingerprint'] = fingerprint(row)
+        result['HindsightReuseStatus'] = 'FROZEN_COMPLETE' if frozen(old) else 'UPDATED_PENDING_OR_NEW'
+        result['HindsightSeedSource'] = str(previous_source) if old and pd.isna(old.get('HindsightCacheVersion')) else (old or {}).get('HindsightSeedSource')
+        results.append(result)
 
     hindsight = pd.DataFrame(results)
 
@@ -1169,7 +1209,7 @@ def generate_research_hindsight() -> dict:
     )
 
     timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
+        "%Y%m%d_%H%M%S_%f"
     )
 
     output_path = (
@@ -1177,10 +1217,23 @@ def generate_research_hindsight() -> dict:
         / f"research_hindsight_{timestamp}.csv"
     )
 
+    pending_path = output_path.with_suffix('.pending')
     hindsight.to_csv(
-        output_path,
+        pending_path,
         index=False,
+        mode='x',
     )
+
+    manifest = {'cache_version':VERSION,'mode':'FULL_REBUILD' if rebuild else 'INCREMENTAL',
+        'source':str(previous_source) if previous_source else None,
+        'reused_complete_rows':reused,'evaluated_pending_or_new_rows':evaluated,
+        'legacy_seed_identity_only':bool(previous_source and any(pd.isna(r.get('HindsightCacheVersion')) for r in previous.values())),
+        'note':'Completed horizons preserved; Current fields on frozen rows retain their original evaluation date. No LLM calls.'}
+    import hashlib
+    manifest['output_sha256'] = hashlib.sha256(pending_path.read_bytes()).hexdigest()
+    manifest['source_sha256'] = hashlib.sha256(previous_source.read_bytes()).hexdigest() if previous_source else None
+    output_path.with_suffix('.manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
+    pending_path.rename(output_path)
 
     complete = int(
         (
@@ -1248,8 +1301,8 @@ def generate_research_hindsight() -> dict:
     print(f"Complete: {complete}")
     print(f"No directional thesis: {no_direction}")
     print(f"Awaiting market data: {awaiting_market_data}")
-    print(f"Currently correct: {currently_correct}")
-    print(f"Currently incorrect: {currently_incorrect}")
+    print(f"Recorded current marks correct: {currently_correct} (completed rows retain their recorded as-of)")
+    print(f"Recorded current marks incorrect: {currently_incorrect}")
     print(f"Final correct theses: {final_correct}")
     print(f"Final incorrect theses: {final_incorrect}")
     print(f"Output: {output_path}")
@@ -1265,8 +1318,14 @@ def generate_research_hindsight() -> dict:
         "final_correct": final_correct,
         "final_incorrect": final_incorrect,
         "output_path": str(output_path),
+        "incremental": manifest,
     }
 
 
 if __name__ == "__main__":
-    generate_research_hindsight()
+    import argparse
+    parser = argparse.ArgumentParser(description='Update new/pending hindsight; reuse completed outcomes.')
+    parser.add_argument('--rebuild', action='store_true', help='Explicit full recalculation into a new artifact; preserves old files.')
+    parser.add_argument('--plan', action='store_true', help='Read-only reuse counts; no prices fetched or reports written.')
+    args = parser.parse_args()
+    generate_research_hindsight(rebuild=args.rebuild, plan_only=args.plan)

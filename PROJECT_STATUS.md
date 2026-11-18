@@ -5,6 +5,121 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**November 10 Short-Term Rule Test:** Outcome Review / Learning built and ran
+`src/short_term_rule_test.py` on actual entries and quantities from the October
+6 close to November 10. It compares original orders, profit-stop raises and
+early sales across six thresholds, five execution assumptions and three quote
+coverage cohorts. The replay includes nine carried groups and recovers 117
+initial brackets and linked changes in 20 groups. The modeled control diverges
+from actual fills, so the report includes an overlay against actual exits.
+No candidate improved that comparison across the broad 87-group cohort.
+Results: `reports/short_term_rule_test_20261110/paired_replay.md`. The broker
+account bridge reconciled and all 285 tests passed.
+
+**November 6 broker week close:** Imported the supplied November 6 statement:
+31 append-only events and one account snapshot; repeat import added zero.
+Reconciled seven January 15 long-option positions and eighteen contracts:
+PFE $30 call x3, ORCL $115 put x1, EQT $50 put x3, WFC $92.50 call x3,
+PYPL $60 call x3, NFLX $65 put x2 and KO $100 call x3. No shorts. NAV
+$101,148.75, cash $95,957.75, options $5,191 and open P/L +$429.
+Weekly actual net +$1,570.35 after $93.15 fees; Friday net +$124.62.
+Long-option weekly net +$1,685.15 / $3,932.96 calendar-time average purchase
+cost = 42.85% capital productivity, separate from -$114.80 short contribution.
+Six weeks since September 25 close: actual net +$4,966.14; long net $4,602.29
+/ $4,974.95 average invested = 92.51%, not a compounded account return.
+Recap: `reports/account_recap_2026-11-06.md`; six-week chart and reconciled
+denominators saved in chat outputs `week-close-2026-11-06/` and
+`deployed-capital-2026-11-06/`. Fresh shadow valuation: control -$1,884.90,
+challenger -$1,445.20; SPY zero trades. Different inception/inherited holdings
+prevent direct causal comparison to actual account profit. Twelve broker/
+capital fixtures, exact final inventory/cash/fees/NAV identities and protected
+journal/adjustment/activation hashes passed. No full hindsight regeneration,
+trading-policy change, commit or push performed.
+
+**November 6 incremental hindsight:** Outcome Review / Learning implemented
+completed-horizon reuse in the existing hindsight entry point. See
+`HINDSIGHT_INCREMENTAL.md`. Routine updates preserve finished 3/5/7/14/30-session
+outcomes independently, skip fully final/non-directional rows, and fetch only
+for remaining recommendations. Explicit `--rebuild` creates a new restatement;
+`--plan` reports work without network or output writes. Legacy output seeding
+is identity-checked and disclosed; subsequent input/output hashes guard reuse.
+Old recommendations, outcomes and snapshots remain immutable. Current marks
+on fully frozen rows retain their recorded as-of rather than pretending to be
+fresh quotes. The initial read-only plan reuses 35,827 of 44,261 rows and
+preserves 18,728 seven-session outcomes. Hindsight/report generation has no LLM
+calls: this saves recomputation; routine chat recaps should discuss only new
+or changed evidence and reference archived matured-week findings to conserve
+context. Cumulative reporting still includes all weeks. Eight focused fixtures
+and all 275 regression tests passed; no live report rebuild or commit performed.
+
+**November 6 stop/target evidence review:** Outcome Review / Learning completed
+the read-only exit analysis under the Intraday Profit Protection backlog.
+`EXIT_PATH_REVIEW.md` interprets the results; the reproducible tool is
+`src/exit_path_review.py`, with derived outputs under
+`reports/exit_path_review_20261106_complete/`. All 10,472 in-scope bundles across
+28 recorded sessions were scanned; ten corrupt bundles remain preserved and
+identified. Actual stop-containing groups have median gross return -13.3%.
+Among 81 losing stop groups, 55 later showed entry recovery, but 35 of those
+also showed worse than -20% before recovery. No blanket wider stop follows.
+None of 129 mature five-session paths meets every strict coverage requirement;
+median contract-minute coverage is 89.8%. Fifty-three shorter actual holding
+paths qualify, but are loss-heavy and cannot validate waiting longer. Earlier
+exit overlays do not establish a consistent improvement. A farther target is
+an exploratory sparse-path lead only. No optimized confidence exits, new
+funded shadow, production change or frozen-policy change. Verify actual-trade
+collection continuity during daily scans and through research endpoints before
+promoting an exit challenger. Fourteen focused fixtures and all 267 regression
+tests passed; source/projection hashes and the $4,067.52 actual closed-trade
+total reconcile. Local changes remain uncommitted.
+
+**November 6 winner-preserving filter review:** Read-only actual-dollar screen
+implemented in `src/trade_filter_review.py`; interpretation in
+`TRADE_FILTER_REVIEW.md`, detailed results under
+`reports/trade_filter_review_20261106_final/`. Among 156 fully closed new-long
+entry groups ($4,067.52 net), 89 trained selection through October 21, eight
+cross-boundary outcomes were purged, and 59 later groups formed the holdout.
+Training-selected IV <=40% reduced holdout profit by $169.73. Delta >=0.35
+improved holdout by $153.57 but loses that benefit after removing the largest
+avoided loss. Higher research/execution cutoffs also sacrificed profits.
+No reliable deployable filter established; production and frozen shadows are
+unchanged. All 253 fixture tests passed; changes remain uncommitted.
+
+**November 6 dollar-first attribution:** Brian identified the missing link
+between directional hindsight and actual account gains/losses. Outcome Review
+now has a read-only broker P/L reconstruction and recommendation-link report:
+`BROKER_PNL_ATTRIBUTION.md` and
+`reports/broker_attribution_20261106/SUMMARY.md`. Through the latest supplied
+November 5 statement, NAV gained $1,526.90 from the September 7 baseline and
+$4,841.52 since September 25 close; both identities have zero unexplained
+residual. The newer reported portal balance is not verified without a newer
+statement. Actual fees, shorts, carried positions and quantity deviations
+remain included. Broker exports lack recommendation IDs, so contract/time
+links are explicitly inferred. Optional exact-ID joins to mature stock
+hindsight expose option profits with stock-losing outcomes and vice versa.
+Account dollars must anchor readiness alongside drawdown, attribution,
+execution and sample/time coverage; directional win rates are supporting
+evidence. No readiness threshold, loss exclusion or trading rule changed.
+248 fixture tests passed; changes remain local/uncommitted.
+
+**November 6 review and reporting:** Brian requested less prominent first-hour
+email detail, an explanation of WFC's $92.50 strike and refreshed hindsight.
+The first-hour table now sits at the bottom of HTML/Markdown briefs with
+plain price-action explanations. Sixteen focused reporting/entry-review tests
+passed; trading rules and selection scores are unchanged. Reconstructed WFC's
+nine eligible contract ranking: January $92.50 and $85 tied at 113; the final
+premium/stock-price tie-break chose $92.50. The $85 was eligible, not blocked
+by budget. Audit: `reports/wfc_contract_selection_2026-11-06.md`.
+
+Rebuilt full hindsight from 44,677 journal rows into 44,261 unique
+recommendations spanning July 2 through today's run, using 511 symbol histories.
+Analytics: `reports/hindsight_analytics_20261106_113425.md`; latest completed
+seven-session evaluation ends November 5. Current-policy matured executable
+episodes: 840; directional win rate 55.2%, not option ROI. Existing reviewed
+price-basis exclusions remain applied only in derived analytics. Broad/SPY,
+VIX context, structure research and evidence-monitor sections are included.
+Today's local email preview was rebuilt with that summary; no email resent,
+no historical recommendations rewritten, and no commit/push performed.
+
 **November 5 SPY VIX context:** Brian approved recording VIX as an explanatory
 SPY research variable rather than an override. `SPY_VIX_CONTEXT.md` documents
 the independent sidecar: pre-selection VIX/SPY snapshots, five-minute sampled

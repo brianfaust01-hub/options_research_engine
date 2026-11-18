@@ -1,5 +1,12 @@
 # Project Stonks — Six-Week Configuration Checkpoint Preparation
 
+**Current work plan:** See [SIX_WEEK_RECALIBRATION_PLAN.md](SIX_WEEK_RECALIBRATION_PLAN.md),
+prepared October 22. It consolidates this preparation and expands the review to
+all architectural layers, explainability, market adaptation, specialization,
+and confidence-conditioned dynamic exits, including evaluation of the 20% cap.
+The dated findings and ranking-first preference below are historical preparation,
+not restrictions on the expanded review or current performance conclusions.
+
 **Prepared:** 2026-10-10
 **Policy era:** `PE-2026-09-08`
 **Baseline checkpoint:** after six complete simulation weeks
