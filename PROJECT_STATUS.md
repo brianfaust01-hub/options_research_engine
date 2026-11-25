@@ -5,6 +5,80 @@
 **Current Sprint:** Sprint 41B.6 implemented — symmetric directional confidence
 **Status:** ACTIVE DEVELOPMENT
 
+**November 24 requested repairs and boundary review:** Implemented the normal
+portfolio original-plan repair and preserving daily-collection recovery in
+`EXIT_PLAN_AND_COLLECTION_REPAIRS.md`. Current JPM/UBER target/stop/time-stop
+fields are restored from exact original IDs; quantities, prices and raised
+stops are preserved. A malformed November 4 sample is preserved with byte hash
+and quarantine manifests; all 1,146 remaining sample bundles validate. The
+normal collector runner now uses atomic sample writes and recovery before
+delegating to the unchanged frozen collector. Broad/SPY dependency fingerprints
+remain unchanged; no ledger reset or strategy change. `ALLOCATION_BOUNDARY_REVIEW.md`
+compares otherwise-recorded-viable candidates on both sides of the admission
+cutoff, retaining actual dollars, mature stock outcomes, exact-contract quote
+coverage, capital constraints and concentrated missed-price-move evidence
+separately. It supports reviewing context/size versus exclusion, not a blanket
+threshold reduction. All 341 regression tests pass; final recovery fixtures,
+both frozen manifests/ledgers and 875 quote-source hashes verify. No email,
+broker order, commit or push was performed.
+
+**November 24 broader allocation architecture review:** Brian framed this as
+fine-tuning a working edge and requested evaluation beyond individual penalties
+or allocated-only trades. `ADAPTIVE_ALLOCATION_REVIEW.md` records the proposed
+separation of opportunity quality, feasibility, payoff evidence, market/portfolio
+risk and joint enter/retain/replace/cash decisions. The isolated offline tool
+`src/adaptive_allocation_research.py` builds 21,465 opportunity observations
+across all 43 reviewed dates, separating qualified capacity blocks from signal,
+execution, event and data failures. It also tests a train-only chronological
+payoff model on 225 actual closed groups. That model underperformed the prior
+mean and sacrificed substantial winning dollars; it is explicitly rejected as
+an allocation controller. Broader panel and actual-trade diagnostics are not
+whole alternate-portfolio profits. Dynamic live sizing/portfolio optimization
+remains proposed, not deployed. Ten new fixtures and all 322 tests pass;
+input hashes remain unchanged. Existing production and frozen shadows remain
+the benchmark; no orders, scoring changes, activation, commit or push occurred.
+
+**November 24 allocation-penalty review:** At Brian's request, Outcome Review
+completed the read-only pre-funded decision review in
+`reports/allocation_penalty_review_2026-11-24.md`, rather than deferring it to
+a future experiment. All 43 September-25–November-24 baseline OPEN/ADD ticker
+sets and quantities reproduce from archived daily evidence. Seven sensitivities
+separate the market deduction, two-point new-entry hurdle and five-point
+incumbent advantage while preserving other guards. Removing the entry hurdle
+adds 12 recommendation decisions; halving the Defensive deduction adds nine.
+These daily comparisons retain actual incumbents and do not propagate an
+alternative cash book, so they are not option-return estimates. Actual 225
+closed new-long groups earned $6,859.76 after allocated fees with 42.7% winners;
+55 originating-score-72-to-under-80 groups contributed $2,580. Only four
+recorded sessions are Defensive, all November 19–24. Mature stock-outcome
+checks for older missed candidates are mixed and explicitly separate from
+option execution/P&L. Exact ten-/two-/five-point choices are not declared
+validated or automatically changed. Source hashes, baseline quantities and
+outcome/account totals reconcile; production, frozen shadows and broker
+orders remain unchanged. This is a pre-deployment policy-review decision,
+not an automatic additional six-week test requirement.
+
+**November 23 Friday weekend brief:** Brian approved a reduced, holdings-only
+Friday review with fresh afternoon evidence and discretionary hold/close
+guidance, not new trades or a blanket Friday liquidation rule. Portfolio
+Management / Reporting implemented `src/weekend_brief.py` and the separate
+runner/installer documented in `WEEKEND_HOLD_REVIEW.md`. The report shows
+gross gains at risk, original-ID-linked reference targets, recorded stops,
+provisional refreshed stock/SPY thesis, earnings coverage and shared exposure.
+Missing or stale evidence is explicit. It does not mutate portfolio/stops,
+broker orders, research history, production allocation or frozen shadows.
+Calendar-aware delivery is one hour before Friday close: normally 15:00
+Eastern, noon on 13:00 early-close sessions; holidays and late starts skip.
+Read-only weekend evidence covered eight dates / 49 position-weekends:
+Friday-mark to Monday-exit/mark contribution +$3,095.08, with seven early
+Monday stop positions giving back $700.62. This is not a causal overnight-gap
+return or proof of a selective-close edge. Seventeen focused fixtures and
+all 312 regression tests pass; Python compilation, PowerShell syntax and
+scoped whitespace checks pass. Scheduler installation is
+prepared, but activation requires the desktop PowerShell installer because
+Windows scheduler CIM/RPC is unavailable from this app. No email, scheduler
+registration, commit or push has been performed during this implementation.
+
 **November 10 Short-Term Rule Test:** Outcome Review / Learning built and ran
 `src/short_term_rule_test.py` on actual entries and quantities from the October
 6 close to November 10. It compares original orders, profit-stop raises and
@@ -2805,6 +2879,33 @@ An item may move ahead of a higher-priority item when dependencies, data integri
 
 Items that threaten production operation, historical evidence, research integrity, or the learning loop.
 
+## Preserve Original Exit Plans in Holding Reviews
+
+**Status:** Repaired November 24; exact-ID original-plan restoration and
+new/refreshed-position persistence are implemented and current open rows
+backfilled. See `EXIT_PLAN_AND_COLLECTION_REPAIRS.md`. Legacy unresolved rows
+remain explicit; separately raised stops are preserved.
+
+Broker Reconciliation / Paper Portfolio must retain the recommendation's
+original target, stop and time-stop fields for Position Review. The mutable
+schema currently omits `ProfitTarget`, `StopLoss` and `TimeStopDTE`, while
+`_resolve_exit_rules` reads them. A reconciled WFC January $82.50 put therefore
+shows a $7.6125 holding target (75% fallback) despite a $6.02 entry recommendation
+and a $6.05 broker bracket. This is an unintended plan-propagation discrepancy.
+Repair coverage includes existing open rows, exact originating recommendation
+lineage, valid legacy fallbacks and preservation of stop ratchets. Initial
+brackets matched recommendation prices within $0.05 in 192/195 comparable
+entries in the audit. Details in `reports/account_recap_2026-11-20.md`.
+
+The November 20 account audit also confirmed CSCO's replacement target was
+reported canceled November 17/19 and filled November 20 after the long lot
+closed, creating a covered intraday short with $75 gross loss. The dated
+exports preserve common RE/parent/OCO references and STD stop detail. Current
+held quantities and six working exit legs reconcile at statement time.
+Broker-side cancellation/OCO event history is still needed for root cause;
+`reports/csco_order_audit_20261120.md` contains evidence and an unsent broker
+investigation draft. Neither broker orders nor trading policy changed.
+
 ## Complete Hindsight Observation Context
 
 **Type:** Data Integrity / Learning  
@@ -2840,6 +2941,45 @@ The immutable recommendation dataset must preserve both the final decision and t
 # P1 — Next
 
 Highest-value work expected to be considered for upcoming sprints.
+
+## Security, Backup and Outage Recovery
+
+**Type:** Operations / Security / Data Integrity
+
+**Status:** Backlog — requested November 17, 2026; target this week, November 17–20
+
+**Owner:** Operations, with Outcome Review for research-data integrity
+
+### Objective
+
+Protect the software, credentials and accumulated research evidence, and verify
+recovery after a laptop failure, service outage or security incident. GitHub
+contains committed code; the large local journal, quote archive and shadow
+databases require a separate recovery plan. Existing backup coverage and
+machine security settings have not yet been audited.
+
+### Scope and Success Criteria
+
+- First inventory existing backups and all recovery-critical files, including
+  code/configuration, trade journal, immutable recommendations, option quotes,
+  broker statements, account ledgers and shadow SQLite databases.
+- Establish automated, versioned, encrypted backups off the laptop, with an
+  offline or protected copy, retention and visible failure reporting. Use
+  consistent SQLite backups while collectors are running.
+- Restore a representative backup into an isolated directory and verify file
+  hashes, database integrity and account/position reconciliation. Record the
+  recovery procedure, measured restore time and maximum potential data loss.
+- Review MFA and recovery access for GitHub, email and Schwab, plus credential
+  storage, Windows updates, disk encryption and security protection. Keep
+  secrets and recovery codes out of Git and ordinary reports.
+- Verify existing missing/stale-data suppression, missed-job alerts and safe
+  restart behavior using fixtures, including duplicate-fill prevention in
+  shadow ledgers. Document provider-outage and post-reboot checks.
+- Schedule maintenance outside collection hours and verify the next scheduled
+  run after changes. Preserve production data and frozen experiment policies
+  throughout validation.
+
+Recorded as planned work; implementation and restore verification remain pending.
 
 ## Investment Philosophy Review
 
@@ -3304,6 +3444,19 @@ No election calendar, automatic liquidation or current shadow rule changed.
 **Type:** Portfolio Management / Execution / Outcome Review
 **Status:** Backlog — recorded November 2, 2026; experiment unchanged
 
+**November 18 research update:** Implemented target-extension sensitivity in
+`src/target_extension_review.py`; interpretation in `TARGET_EXTENSION_REVIEW.md`.
+The mature actual-exit comparison contains 60 broad-coverage long-entry groups
+on eleven dates and +$1,668.32 actual net. None of 32 target/protection candidates
+improved this comparison across four execution settings. Activation at 75% and
+90% involved nine and two groups respectively in the main examples. Zero paths
+meet strict five-subsequent-session coverage; bid-stop execution uncertainty
+remains. Initial versus subsequently reduced targets require separate lineage
+review, illustrated by GOOGL's initial $15.75 broker target and later $13.15 sale.
+Study outputs preserve the full grid and chronological/outlier sensitivity.
+No production or frozen-shadow policy changed; prospective promotion remains
+pending evidence and discussion.
+
 Brian requested continuous position management for large gains near their
 planned targets, rather than waiting for tomorrow's 10:30 scan. The motivating
 example is today's AMZN gain. Evaluate dynamic remaining reward versus
@@ -3498,6 +3651,26 @@ When completed:
 ---
 
 # Weekly Learning Objectives
+
+## Weekly KPI Scorecard
+
+Brian approved KPI rows with chronological weekly columns on November 19.
+Lead with dollar measures, including weekly and cumulative net profit/loss,
+realized gains, open-P/L changes, fees, invested capital and observed drawdown.
+Include deployed-capital returns, payoff statistics, exposure, hindsight and
+separately labeled shadow results below. Retain all twelve experiment weeks,
+then reuse the same KPI definitions for a separately identified funded phase
+with its own inception and capital baseline. Keep paper history accessible.
+Deposits/withdrawals must be excluded from trading profit and reflected in
+funded return denominators using their timing. Show incomplete weeks and
+unverified/missing metrics explicitly.
+
+The initial dated workbook is populated through November 19 in chat outputs
+`weekly-scorecard-20261119/Stonks_weekly_scorecard.xlsx`. It is a local reporting
+artifact; automated dashboard refresh and funded-account integration remain
+future work. Weekly dollar totals reconcile to broker records. Two early
+weeks have unverified deployed-capital reconstruction. Historical token/quote
+health was not archived. Portfolio source records remain unchanged.
 
 Every weekly report should answer:
 

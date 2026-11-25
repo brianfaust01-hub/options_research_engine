@@ -18,6 +18,7 @@ import hashlib
 from pathlib import Path
 
 import pandas as pd
+from original_exit_plans import PLAN_COLUMNS, restore_original_plans
 
 
 @dataclass(frozen=True)
@@ -157,6 +158,8 @@ def sync_current_positions(statement_path: str | Path, portfolio_path: str | Pat
 
     portfolio = pd.read_csv(portfolio_path, dtype={"PositionID": "string", "RecommendationID": "string"})
     updated = portfolio.copy(deep=True)
+    for column in PLAN_COLUMNS:
+        if column not in updated:updated[column]=None
     for column in updated.columns:
         if column in {"Status", "ExitDate", "ExitReason", "LastReviewed", "PeakPremiumDate",
                       "RecommendedStopDate", "ProfitProtectionStatus", "RecommendationID"}:
@@ -236,6 +239,7 @@ def sync_current_positions(statement_path: str | Path, portfolio_path: str | Pat
     expected = {key: value["quantity"] for key, value in current.items()}
     if final != expected:
         raise ValueError("Post-sync position contract/quantity reconciliation failed")
+    updated = restore_original_plans(updated, journal_rows=journal)
     temporary = portfolio_path.with_suffix(".syncing.csv")
     try:
         updated.to_csv(temporary, index=False)

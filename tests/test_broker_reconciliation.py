@@ -121,12 +121,17 @@ NEW,NEW261120C50,20 NOV 26,50,CALL,+2,2.00,2.25,$450.00
                 "ProfitProtectionStatus", "LockedProfitPct"]
             pd.DataFrame([
                 dict.fromkeys(columns) | {"PositionID": "P000001", "Ticker": "OLD", "OptionStrategy": "Long Call", "Expiration": "2026-11-20", "Strike": 100, "Contracts": 1, "EntryPremium": 2, "Status": "OPEN"},
-                dict.fromkeys(columns) | {"PositionID": "P000002", "Ticker": "KEEP", "OptionStrategy": "Long Call", "Expiration": "2026-11-20", "Strike": 100, "Contracts": 1, "EntryPremium": 3, "Status": "OPEN"},
+                dict.fromkeys(columns) | {"PositionID": "P000002", "RecommendationID": "r-keep", "Ticker": "KEEP", "OptionStrategy": "Long Call", "Expiration": "2026-11-20", "Strike": 100, "Contracts": 1, "EntryPremium": 3, "EntryDate": "2026-09-17T10:00:00", "RecommendedStop": 3.2, "Status": "OPEN"},
             ], columns=columns).to_csv(portfolio, index=False)
             journal = root / "journal.csv"
             pd.DataFrame([{"RecommendationID": "r-new", "RecommendationDate": "2026-09-18T10:00:00",
                 "Ticker": "NEW", "option_strategy": "Long Call", "expiration": "2026-11-20",
-                "strike": 50, "allocation_decision": "Allocate", "stop_loss_price": 1.6}]).to_csv(journal, index=False)
+                "strike": 50, "allocation_decision": "Allocate", "stop_loss_price": 1.6,
+                "profit_target_price": 2.6, "time_stop_dte": 14},
+                {"RecommendationID": "r-keep", "RecommendationDate": "2026-09-17T09:30:00",
+                 "Ticker": "KEEP", "option_strategy": "Long Call", "expiration": "2026-11-20",
+                 "strike": 100, "allocation_decision": "Allocate", "stop_loss_price": 2.4,
+                 "profit_target_price": 4.2, "time_stop_dte": 14}]).to_csv(journal, index=False)
             before_statement = statement.read_bytes()
             result = sync_current_positions(statement, portfolio, journal)
             actual = pd.read_csv(portfolio)
@@ -136,6 +141,10 @@ NEW,NEW261120C50,20 NOV 26,50,CALL,+2,2.00,2.25,$450.00
         self.assertEqual(result["open_positions"], 2)
         self.assertEqual(int(actual.loc[actual.Ticker == "NEW", "Contracts"].iloc[0]), 2)
         self.assertEqual(float(actual.loc[actual.Ticker == "KEEP", "CurrentPremium"].iloc[0]), 3.5)
+        self.assertEqual(float(actual.loc[actual.Ticker == "KEEP", "ProfitTarget"].iloc[0]), 4.2)
+        self.assertEqual(float(actual.loc[actual.Ticker == "KEEP", "RecommendedStop"].iloc[0]), 3.2)
+        self.assertEqual(float(actual.loc[actual.Ticker == "NEW", "ProfitTarget"].iloc[0]), 2.6)
+        self.assertEqual(int(actual.loc[actual.Ticker == "NEW", "TimeStopDTE"].iloc[0]), 14)
         self.assertEqual(actual.loc[actual.Ticker == "OLD", "ExitReason"].iloc[0], "BROKER_RECONCILED_CLOSE")
         self.assertEqual(after_statement, before_statement)
 

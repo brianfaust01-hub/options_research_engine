@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+from original_exit_plans import PLAN_COLUMNS, restore_original_plans
 
 
 PORTFOLIO_PATH = Path("data/paper_portfolio.csv")
@@ -43,7 +44,7 @@ PORTFOLIO_COLUMNS = [
     "RecommendedStopDate",
     "ProfitProtectionStatus",
     "LockedProfitPct",
-]
+] + list(PLAN_COLUMNS)
 
 
 # CSV readers infer an entirely empty column as float64. Pandas 3 rejects
@@ -63,6 +64,8 @@ PORTFOLIO_TEXT_COLUMNS = [
     "PeakPremiumDate",
     "RecommendedStopDate",
     "ProfitProtectionStatus",
+    "ExitPlanRecommendationID",
+    "ExitPlanStatus",
 ]
 
 
@@ -87,7 +90,7 @@ def load_portfolio() -> pd.DataFrame:
             portfolio[column] = None
     for column in PORTFOLIO_TEXT_COLUMNS:
         portfolio[column] = portfolio[column].astype("object")
-    return portfolio
+    return restore_original_plans(portfolio, PORTFOLIO_PATH.parent / 'trade_journal.csv')
 
 
 def save_portfolio(df: pd.DataFrame):
@@ -123,6 +126,7 @@ def allocate_position(
     strike,
     contracts,
     entry_premium,
+    *, profit_target=None, stop_loss=None, time_stop_dte=None,
 ):
 
     portfolio = load_portfolio()
@@ -152,6 +156,11 @@ def allocate_position(
         "RecommendedStopDate": None,
         "ProfitProtectionStatus": "INACTIVE",
         "LockedProfitPct": None,
+        "ProfitTarget": profit_target,
+        "StopLoss": stop_loss,
+        "TimeStopDTE": time_stop_dte,
+        "ExitPlanRecommendationID": recommendation_id if any(v is not None for v in (profit_target,stop_loss,time_stop_dte)) else None,
+        "ExitPlanStatus": "EXPLICIT_ENTRY_PLAN" if any(v is not None for v in (profit_target,stop_loss,time_stop_dte)) else "UNRESOLVED",
     }
 
     portfolio = pd.concat(
